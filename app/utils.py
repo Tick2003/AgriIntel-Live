@@ -1,3 +1,4 @@
+# AgriIntel Utils
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -16,13 +17,19 @@ def load_css():
     return """
     <style>
         .stApp {
-            background-color: #f8f9fa;
+            background-color: #FFFFFF; /* Force White Background */
         }
         .metric-card {
-            background-color: white;
+            background-color: #F8F9FA; /* Light Grey Card */
+            color: #000000; /* Force Black Text */
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+        /* Fix Titles just in case */
+        h1, h2, h3, p, div {
+            color: #262730;
         }
     </style>
     """
