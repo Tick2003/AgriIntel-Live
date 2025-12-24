@@ -53,6 +53,30 @@ class ForecastAgent:
         X = features_df[feature_cols]
         y = features_df['price']
         
+        # --- SELF-CORRECTION / TUNING STEP ---
+        # 1. Validation Split: Hide last 5 days to check model accuracy
+        val_size = 5
+        X_train, X_val = X.iloc[:-val_size], X.iloc[-val_size:]
+        y_train, y_val = y.iloc[:-val_size], y.iloc[-val_size:]
+        
+        # 2. Train on subset
+        self.model.fit(X_train, y_train)
+        
+        # 3. Predict validation set
+        val_preds = self.model.predict(X_val)
+        
+        # 4. Calculate Correction Bias (Are we over/under predicting recently?)
+        # Bias = Actual - Predicted
+        residuals = y_val - val_preds
+        correction_bias = residuals.mean()
+        
+        # Security Clamp: Don't let huge bias break the model (max 10% adjustment)
+        max_correction = data['price'].mean() * 0.10
+        correction_bias = np.clip(correction_bias, -max_correction, max_correction)
+        
+        print(f"Model Self-Correction: Adjusting by {correction_bias:.2f}")
+        
+        # 5. RETRAIN on FULL data for future prediction
         self.model.fit(X, y)
         
         # 2. Recursive Forecast
@@ -90,20 +114,22 @@ class ForecastAgent:
             # Get the exact row for prediction (the last one)
             pred_row = temp_features.tail(1)[feature_cols]
             
-            # Predict
-            pred_price = self.model.predict(pred_row)[0]
+            # Predict & Correct
+            raw_pred = self.model.predict(pred_row)[0]
             
-            # Add slight random noise to the prediction to simulate market volatility
-            # This prevents the recursion from dampening out to a perfect line
+            # Add slight random noise (Market Volatility)
             volatility = data['price'].std() * 0.05
-            pred_price += np.random.normal(0, volatility)
+            noise = np.random.normal(0, volatility)
+            
+            # APPLY SELF-CORRECTION
+            final_pred = raw_pred + correction_bias + noise
             
             # Store
             future_dates.append(next_date)
-            forecast_prices.append(pred_price)
+            forecast_prices.append(final_pred)
             
-            # Update current_data with predicted value for next recursion
-            next_row['price'] = pred_price
+            # Update current_data (feedback loop)
+            next_row['price'] = final_pred
             current_data = pd.concat([current_data, next_row], ignore_index=True)
             
         # 3. Construct Result
