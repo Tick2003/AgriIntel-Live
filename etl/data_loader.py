@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.db_manager import save_prices, save_news, save_weather, set_last_update
+import database.db_manager as dbm
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
 def fetch_agri_news(query="Agri Market India"):
@@ -163,7 +163,7 @@ def seed_historical_data(days=90):
                 })
                 
     df = pd.DataFrame(data)
-    save_prices(df)
+    dbm.save_prices(df)
     print("Historical seeding complete.")
 
 # Coordinate Mapping for Real Weather
@@ -244,18 +244,18 @@ def run_daily_update():
  
     # 1. Fetch Prices (Real/Simulated)
     prices_df = fetch_real_prices(fallback=True)
-    save_prices(prices_df)
+    dbm.save_prices(prices_df)
  
     # 2. Fetch News (Real)
     news_df = fetch_agri_news()
-    save_news(news_df)
+    dbm.save_news(news_df)
     
     # 3. Fetch Weather (Real)
     weather_df = fetch_real_weather()
-    save_weather(weather_df)
+    dbm.save_weather(weather_df)
     
     # 4. Update Metadata
-    set_last_update()
+    dbm.set_last_update()
     
     print("Latest News:")
     print(news_df[['title', 'source']].head())
