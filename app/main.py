@@ -10,10 +10,10 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.data_health import DataHealthAgent
-from agents.forecast_execution import ForecastAgent
-from agents.shock_monitoring import ShockMonitoringAgent
-from agents.risk_scoring import RiskScoringAgent
-from agents.explanation_report import ExplanationAgent
+from agents.forecast_execution import ForecastingAgent
+from agents.shock_monitoring import AnomalyDetectionEngine
+from agents.risk_scoring import MarketRiskEngine
+from agents.explanation_report import AIExplanationAgent
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
@@ -38,10 +38,10 @@ selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 def load_agents():
     return {
         "health": DataHealthAgent(),
-        "forecast": ForecastAgent(),
-        "shock": ShockMonitoringAgent(),
-        "risk": RiskScoringAgent(),
-        "explain": ExplanationAgent()
+        "forecast": ForecastingAgent(),
+        "shock": AnomalyDetectionEngine(),
+        "risk": MarketRiskEngine(),
+        "explain": AIExplanationAgent()
     }
 
 agents = load_agents()
@@ -197,7 +197,7 @@ elif page == "Model Performance":
         test_data = data.iloc[-30:]
         
         # 3. Generate ML Forecast (Simulating 'Past' Prediction)
-        agent = ForecastAgent()
+        agent = ForecastingAgent()
         forecast_df = agent.generate_forecasts(train_data, selected_commodity, selected_mandi)
         
         # Align dates for comparison

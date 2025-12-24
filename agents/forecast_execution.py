@@ -4,7 +4,7 @@ from datetime import timedelta
 import xgboost as xgb
 from sklearn.preprocessing import MinMaxScaler
 
-class ForecastAgent:
+class ForecastingAgent:
     """
     AGENT 2 — FORECAST EXECUTION AGENT (ML-REAL)
     Role: Price Forecast Agent

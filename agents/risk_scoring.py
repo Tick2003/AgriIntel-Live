@@ -1,9 +1,9 @@
 import pandas as pd
 
-class RiskScoringAgent:
+class MarketRiskEngine:
     """
     AGENT 4 — RISK SCORING AGENT
-    Role: Market Risk Assessment Agent
+    Role: Calculates overall market risk score (0-100).
     Goal: Assess current market risk based on volatility, forecast uncertainty, and detected shocks.
     """
     def __init__(self):

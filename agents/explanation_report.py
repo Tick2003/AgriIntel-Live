@@ -1,7 +1,7 @@
-class ExplanationAgent:
+class AIExplanationAgent:
     """
-    AGENT 5 — EXPLANATION & REPORT AGENT
-    Role: Market Intelligence Explanation Agent
+    AGENT 5 — EXPLANATION AGENT
+    Role: Generates natural language insights.
     Goal: Generate clear, policy-friendly explanations for observed price movements and forecasts.
     """
     def __init__(self):

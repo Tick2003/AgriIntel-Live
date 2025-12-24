@@ -1,10 +1,11 @@
+```python
 import pandas as pd
 import numpy as np
 
-class ShockMonitoringAgent:
+class AnomalyDetectionEngine:
     """
     AGENT 3 — SHOCK MONITORING AGENT
-    Role: Market Shock Detection Agent
+    Role: Detects anomalies and market shocks.
     Goal: Detect abnormal price movements by comparing actual prices with model predictions.
     """
     def __init__(self):
