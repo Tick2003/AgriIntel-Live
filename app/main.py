@@ -13,7 +13,7 @@ from agents.forecast_execution import ForecastAgent
 from agents.shock_monitoring import ShockMonitoringAgent
 from agents.risk_scoring import RiskScoringAgent
 from agents.explanation_report import ExplanationAgent
-from app.utils import get_live_data, load_css, get_news_feed, get_weather_data
+from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
 st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
@@ -27,7 +27,6 @@ st.markdown("---")
 st.sidebar.header("Configuration")
 
 # Dynamic options from DB
-from app.utils import get_db_options
 db_commodities, db_mandis = get_db_options()
 
 selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
