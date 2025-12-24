@@ -8,7 +8,19 @@ import os
 # Ensure root is in path to import database module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs
+from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs, get_unique_items
+
+def get_db_options():
+    """Fetch all unique commodities and mandis."""
+    try:
+        commodities = get_unique_items('commodity')
+        mandis = get_unique_items('mandi')
+        # Fallback if empty (e.g. fresh install)
+        if not commodities: commodities = ["Potato", "Onion", "Tomato"]
+        if not mandis: mandis = ["Agra", "Nasik", "Bengaluru"]
+        return commodities, mandis
+    except:
+        return ["Potato", "Onion", "Tomato"], ["Agra", "Nasik", "Bengaluru"]
 
 def load_css():
     """

@@ -25,8 +25,13 @@ st.markdown("---")
 
 # Sidebar
 st.sidebar.header("Configuration")
-selected_commodity = st.sidebar.selectbox("Select Commodity", ["Potato", "Onion", "Tomato"])
-selected_mandi = st.sidebar.selectbox("Select Mandi", ["Agra", "Nasik", "Bengaluru"])
+
+# Dynamic options from DB
+from app.utils import get_db_options
+db_commodities, db_mandis = get_db_options()
+
+selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
+selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
 # Initialize Agents
 @st.cache_resource
@@ -148,13 +153,13 @@ elif page == "Compare Markets":
     
     col1, col2 = st.columns(2)
     with col1:
-        c1 = st.selectbox("Commodity 1", ["Potato", "Onion", "Tomato"], key="c1")
-        m1 = st.selectbox("Mandi 1", ["Agra", "Nasik", "Bengaluru"], key="m1")
+        c1 = st.selectbox("Commodity 1", db_commodities, key="c1", index=0)
+        m1 = st.selectbox("Mandi 1", db_mandis, key="m1", index=0)
         data1 = get_live_data(c1, m1)
         
     with col2:
-        c2 = st.selectbox("Commodity 2", ["Onion", "Potato", "Tomato"], key="c2")
-        m2 = st.selectbox("Mandi 2", ["Nasik", "Agra", "Bengaluru"], key="m2")
+        c2 = st.selectbox("Commodity 2", db_commodities, key="c2", index=1 if len(db_commodities) > 1 else 0)
+        m2 = st.selectbox("Mandi 2", db_mandis, key="m2", index=1 if len(db_mandis) > 1 else 0)
         data2 = get_live_data(c2, m2)
     
     st.subheader("Price Comparison")

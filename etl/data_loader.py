@@ -43,8 +43,21 @@ def fetch_mandi_prices_simulated():
     Simulates fetching live data from Agmarknet for demonstration.
     Returns realistic data structure.
     """
-    commodities = ["Onion", "Potato", "Tomato", "Wheat", "Rice"]
-    mandis = ["Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore"]
+    commodities = [
+        "Onion", "Potato", "Tomato", "Wheat", "Rice", 
+        "Maize", "Soyabean", "Mustard", "Cotton", "Sugarcane",
+        "Gram", "Tur", "Moong", "Masur", "Urad",
+        "Apple", "Banana", "Mango", "Grapes", "Orange",
+        "Garlic", "Ginger", "Turmeric", "Jeera", "Chilli"
+    ]
+    mandis = [
+        "Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore",
+        "Pune", "Mumbai", "Jaipur", "Ahmedabad", "Surat",
+        "Kanpur", "Lucknow", "Varanasi", "Agra", "Bareilly",
+        "Kolkata", "Bhubaneswar", "Cuttack", "Patna", "Ranchi",
+        "Chennai", "Coimbatore", "Madurai", "Hyderabad", "Warangal",
+        "Bangalore", "Mysore", "Hubli", "Shimoga", "Bellary"
+    ]
     
     data = []
     today = datetime.now().strftime("%Y-%m-%d")
@@ -106,8 +119,21 @@ def seed_historical_data(days=90):
     Generates historical data for the past 'days' to ensure charts look good.
     """
     print(f"Seeding {days} days of historical data...")
-    commodities = ["Onion", "Potato", "Tomato", "Wheat", "Rice"]
-    mandis = ["Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore"]
+    commodities = [
+        "Onion", "Potato", "Tomato", "Wheat", "Rice", 
+        "Maize", "Soyabean", "Mustard", "Cotton", "Sugarcane",
+        "Gram", "Tur", "Moong", "Masur", "Urad",
+        "Apple", "Banana", "Mango", "Grapes", "Orange",
+        "Garlic", "Ginger", "Turmeric", "Jeera", "Chilli"
+    ]
+    mandis = [
+        "Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore",
+        "Pune", "Mumbai", "Jaipur", "Ahmedabad", "Surat",
+        "Kanpur", "Lucknow", "Varanasi", "Agra", "Bareilly",
+        "Kolkata", "Bhubaneswar", "Cuttack", "Patna", "Ranchi",
+        "Chennai", "Coimbatore", "Madurai", "Hyderabad", "Warangal",
+        "Bangalore", "Mysore", "Hubli", "Shimoga", "Bellary"
+    ]
     
     data = []
     end_date = datetime.now()
