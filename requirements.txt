@@ -4,7 +4,6 @@ numpy
 scikit-learn
 plotly
 xgboost
-scikit-learn
 requests
 beautifulsoup4
 feedparser
