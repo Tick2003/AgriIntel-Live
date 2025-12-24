@@ -100,5 +100,14 @@ def get_weather_logs(region=None):
     conn.close()
     return df
 
+def get_unique_items(column):
+    """Get distinct values for a column (commodity/mandi)."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT DISTINCT {column} FROM market_prices ORDER BY {column}")
+    items = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return items
+
 if __name__ == "__main__":
     init_db()
