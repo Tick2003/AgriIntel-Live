@@ -3,4 +3,8 @@ pandas
 numpy
 scikit-learn
 plotly
-algorithm
+xgboost
+scikit-learn
+requests
+beautifulsoup4
+feedparser
