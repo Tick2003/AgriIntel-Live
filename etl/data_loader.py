@@ -237,13 +237,10 @@ def run_daily_update():
     print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
     
     # Let's check if we should seed (e.g. if file is small or based on arg)
-    # We will just fetch today's simulated data normally.
-    # Use 'seed' arg to force history.
-    import sys
-    
-    if len(sys.argv) > 1 and sys.argv[1] == 'seed':
-        seed_historical_data()
-        return
+    # Checking for seed argument (Optional)
+    # if len(sys.argv) > 1 and sys.argv[1] == 'seed':
+    #     seed_historical_data()
+    #     return
  
     # 1. Fetch Prices (Real/Simulated)
     prices_df = fetch_real_prices(fallback=True)

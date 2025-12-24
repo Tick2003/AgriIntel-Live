@@ -59,10 +59,14 @@ else:
         should_update = True
 
 if should_update:
-    with st.spinner("Data is stale (>6 hours). Updating market data..."):
-        etl.data_loader.run_daily_update()
-        st.cache_resource.clear()
-        st.experimental_rerun()
+    try:
+        with st.spinner("Data is stale (>6 hours). Updating market data..."):
+            etl.data_loader.run_daily_update()
+            st.cache_resource.clear()
+            st.rerun()
+    except Exception as e:
+        st.error(f"Auto-update failed: {e}")
+        print(f"Update Error: {e}")
 # -------------------------
 
 # Initialize Agents
