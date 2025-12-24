@@ -8,18 +8,35 @@ import os
 # Ensure root is in path to import database module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs, get_unique_items
+import sqlite3
+from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs
 
 def get_db_options():
-    """Fetch all unique commodities and mandis."""
+    """Fetch all unique commodities and mandis directly."""
     try:
-        commodities = get_unique_items('commodity')
-        mandis = get_unique_items('mandi')
+        # Locate DB file robustly
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(base_dir, "agri_intel.db")
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get Commodities
+        cursor.execute("SELECT DISTINCT commodity FROM market_prices ORDER BY commodity")
+        commodities = [row[0] for row in cursor.fetchall()]
+        
+        # Get Mandis
+        cursor.execute("SELECT DISTINCT mandi FROM market_prices ORDER BY mandi")
+        mandis = [row[0] for row in cursor.fetchall()]
+        
+        conn.close()
+
         # Fallback if empty (e.g. fresh install)
         if not commodities: commodities = ["Potato", "Onion", "Tomato"]
         if not mandis: mandis = ["Agra", "Nasik", "Bengaluru"]
         return commodities, mandis
-    except:
+    except Exception as e:
+        print(f"Error fetching DB options: {e}")
         return ["Potato", "Onion", "Tomato"], ["Agra", "Nasik", "Bengaluru"]
 
 def load_css():
