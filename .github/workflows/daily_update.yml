@@ -1,0 +1,37 @@
+name: Daily Data Update
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # Runs at 02:30 UTC (08:00 IST) everyday
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Important: Allows the action to commit changes
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run Data Loader
+      run: |
+        python etl/data_loader.py
+
+    - name: Commit and Push
+      run: |
+        git config --global user.name "GitHub Action Bot"
+        git config --global user.email "actions@github.com"
+        git add agri_intel.db
+        git commit -m "Daily Data Update [skip ci]" || echo "No changes to commit"
+        git push
