@@ -34,11 +34,21 @@ selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, in
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
 # --- AUTO-UPDATE LOGIC ---
-from database.db_manager import get_last_update
+# --- AUTO-UPDATE LOGIC ---
 from datetime import datetime
 import etl.data_loader
+import database.db_manager as db_manager
 
-last_update_str = get_last_update()
+try:
+    if hasattr(db_manager, 'get_last_update'):
+        last_update_str = db_manager.get_last_update()
+    else:
+        # Fallback if function is missing (e.g. old cached version)
+        print("Warning: get_last_update not found in db_manager")
+        last_update_str = None
+except Exception as e:
+    print(f"Auto-update check failed: {e}")
+    last_update_str = None
 should_update = False
 
 if not last_update_str:
