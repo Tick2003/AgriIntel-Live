@@ -117,12 +117,25 @@ class ForecastAgent:
             # Predict & Correct
             raw_pred = self.model.predict(pred_row)[0]
             
-            # Add slight random noise (Market Volatility)
+            # HYBRID SYSTEM: ML + Random Walk
+            # To prevent "Flat Line", we add a Cumulative Drift Component
+            # This makes the line "wander" realistically like a financial chart
             volatility = data['price'].std() * 0.05
-            noise = np.random.normal(0, volatility)
+            drift = np.random.normal(0, volatility)
             
-            # APPLY SELF-CORRECTION
-            final_pred = raw_pred + correction_bias + noise
+            # If this is the first step, init accumulated_drift. 
+            # Note: We need to track this outside the loop effectively, 
+            # but here we can just add it to the previous price concept implicitly
+            # by modifying how we treat the 'raw_pred'.
+            
+            # Actually, simpler: Track a separate drift accumulator
+            if 'accumulated_drift' not in locals():
+                accumulated_drift = 0
+            
+            accumulated_drift += drift
+            
+            # APPLY SELF-CORRECTION + DRIFT
+            final_pred = raw_pred + correction_bias + accumulated_drift
             
             # Store
             future_dates.append(next_date)
