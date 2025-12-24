@@ -234,7 +234,7 @@ def run_daily_update():
     """
     Runs the full ETL pipeline.
     """
-    print("Starting Update...")
+    print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
     
     # Let's check if we should seed (e.g. if file is small or based on arg)
     # We will just fetch today's simulated data normally.
