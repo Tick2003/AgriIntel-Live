@@ -13,7 +13,6 @@ class MarketRiskEngine:
         """
         Combine signals into a risk score.
         """
-        risk_level = "Low"
         score = 0
         tags = []
 
@@ -26,14 +25,37 @@ class MarketRiskEngine:
                 score += 20
                 tags.append("Recent Shock")
         
-        # 2. Volatility Influence (Mock logic)
-        if market_volatility > 0.3: # High vol
-            tags.append("Recent Shock Detected")
-        if score > 70:
-            tags.append("High Risk Factors")
-        elif score > 30:
-            tags.append("Moderate Risk Factors")
+        # 2. Volatility Influence
+        if market_volatility > 0.02: # >2% daily volatility
+            score += 30
+            tags.append("High Market Volatility")
+        elif market_volatility > 0.01:
+            score += 10
+            
+        # 3. Forecast Uncertainty
+        if forecast_std > 500: # Arbitrary high std dev
+            score += 20
+            tags.append("High Forecast Uncertainty")
+            
+        # Cap score
+        score = min(score, 100)
+        
+        risk_level = "High" if score > 70 else "Medium" if score > 30 else "Low"
+
+        return {
+            "risk_score": int(score),
+            "risk_level": risk_level,
+            "regime": self.determine_regime(market_volatility, shock_info.get('is_shock', False)),
+            "explanation_tags": tags
+        }
+
+    def determine_regime(self, volatility, is_shock):
+        """
+        Determines the market regime based on volatility and shocks.
+        """
+        if is_shock:
+            return "Shock-Driven"
+        elif volatility > 0.02: # >2% daily volatility is high for staples
+            return "Volatile"
         else:
-            tags.append("Low Risk Factors")
-        return tags
-```
+            return "Stable"
