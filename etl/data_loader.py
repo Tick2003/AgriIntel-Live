@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.db_manager import save_prices, save_news, save_weather
+from database.db_manager import save_prices, save_news, save_weather, set_last_update
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
 def fetch_agri_news(query="Agri Market India"):
@@ -240,11 +240,7 @@ def run_daily_update():
     # We will just fetch today's simulated data normally.
     # Use 'seed' arg to force history.
     import sys
-    # Add root to sys.path if not present to import set_last_update
-    if os.path.dirname(os.path.dirname(os.path.abspath(__file__))) not in sys.path:
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from database.db_manager import set_last_update
-
+    
     if len(sys.argv) > 1 and sys.argv[1] == 'seed':
         seed_historical_data()
         return
