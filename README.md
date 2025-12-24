@@ -2,6 +2,8 @@
 
 A live dashboard for tracking agricultural commodities (Potato, Onion, Tomato) in Indian Mandis. This project uses simulated real-time data to demonstrate advanced market intelligence features.
 
+📘 **[Read the Full Architecture Documentation](ARCHITECTURE.md)** to understand every module from tip to toe.
+
 ## 🚀 Features
 - **Live Market Data**: Simulated real-time prices and arrivals for major Mandis.
 - **Compare Markets**: Side-by-side comparison of commodities and regions.

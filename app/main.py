@@ -33,6 +33,28 @@ db_commodities, db_mandis = get_db_options()
 selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
+# --- AUTO-UPDATE LOGIC ---
+from database.db_manager import get_last_update
+from datetime import datetime
+import etl.data_loader
+
+last_update_str = get_last_update()
+should_update = False
+
+if not last_update_str:
+    should_update = True
+else:
+    last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+    if (datetime.now() - last_update).total_seconds() > 6 * 3600:
+        should_update = True
+
+if should_update:
+    with st.spinner("Data is stale (>6 hours). Updating market data..."):
+        etl.data_loader.run_daily_update()
+        st.cache_resource.clear()
+        st.experimental_rerun()
+# -------------------------
+
 # Initialize Agents
 @st.cache_resource
 def load_agents():

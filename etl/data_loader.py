@@ -240,23 +240,29 @@ def run_daily_update():
     # We will just fetch today's simulated data normally.
     # Use 'seed' arg to force history.
     import sys
+    # Add root to sys.path if not present to import set_last_update
+    if os.path.dirname(os.path.dirname(os.path.abspath(__file__))) not in sys.path:
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from database.db_manager import set_last_update
+
     if len(sys.argv) > 1 and sys.argv[1] == 'seed':
         seed_historical_data()
         return
-
-    # 1. Fetch Prices (Try Real, Fallback to Sim)
-    prices_df = fetch_real_prices()
+ 
+    # 1. Fetch Prices (Real/Simulated)
+    prices_df = fetch_real_prices(fallback=True)
     save_prices(prices_df)
-
-    
-    # 2. Fetch News (Real)
+ 
     # 2. Fetch News (Real)
     news_df = fetch_agri_news()
     save_news(news_df)
     
-    # 3. Fetch Weather (Simulated)
-    weather_df = fetch_weather_simulated()
+    # 3. Fetch Weather (Real)
+    weather_df = fetch_real_weather()
     save_weather(weather_df)
+    
+    # 4. Update Metadata
+    set_last_update()
     
     print("Latest News:")
     print(news_df[['title', 'source']].head())

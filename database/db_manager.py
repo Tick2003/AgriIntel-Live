@@ -47,7 +47,12 @@ def init_db():
             condition TEXT
         )
     ''')
-
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS app_metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
     print(f"Database {DB_NAME} initialized.")
@@ -99,6 +104,28 @@ def get_weather_logs(region=None):
     df = pd.read_sql(query, conn)
     conn.close()
     return df
+
+def get_last_update():
+    """Retrieve the last update timestamp from app_metadata."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute("SELECT value FROM app_metadata WHERE key = 'last_update'")
+        result = c.fetchone()
+        conn.close()
+        return result[0] if result else None
+    except Exception:
+        conn.close()
+        return None
+
+def set_last_update():
+    """Set the last update timestamp in app_metadata to the current time."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (now_str,))
+    conn.commit()
+    conn.close()
 
 def get_unique_items(column):
     """Get distinct values for a column (commodity/mandi)."""
