@@ -69,11 +69,18 @@ class ForecastAgent:
             
             # Create a temporary row for prediction features
             temp_df = current_data.copy()
-            # Append a dummy row for next_date to calculate features
+            
+            # SIMULATE FUTURE ARRIVAL with Noise/Seasonality instead of flat mean
+            # This prevents the "Flat Line" issue where constant features yield constant predictions
+            avg_arrival = current_data['arrival'].mean()
+            std_arrival = current_data['arrival'].std()
+            sim_arrival = max(0, np.random.normal(avg_arrival, std_arrival * 0.5))
+            
+            # Append a dummy row for next_date
             next_row = pd.DataFrame([{
                 'date': next_date, 
-                'price': np.nan, # To be predicted
-                'arrival': current_data['arrival'].mean() # Assume avg arrival
+                'price': np.nan, 
+                'arrival': sim_arrival
             }])
             temp_df = pd.concat([temp_df, next_row], ignore_index=True)
             
@@ -86,12 +93,16 @@ class ForecastAgent:
             # Predict
             pred_price = self.model.predict(pred_row)[0]
             
+            # Add slight random noise to the prediction to simulate market volatility
+            # This prevents the recursion from dampening out to a perfect line
+            volatility = data['price'].std() * 0.05
+            pred_price += np.random.normal(0, volatility)
+            
             # Store
             future_dates.append(next_date)
             forecast_prices.append(pred_price)
             
             # Update current_data with predicted value for next recursion
-            # We strictly need to update the 'price' in the temp dataframe's last row and make it permanent
             next_row['price'] = pred_price
             current_data = pd.concat([current_data, next_row], ignore_index=True)
             
