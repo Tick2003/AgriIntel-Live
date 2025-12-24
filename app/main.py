@@ -79,7 +79,14 @@ if page == "Market Overview":
     
     col1.metric("Current Price", f"₹{current_price:.2f}", f"{delta:.2f}")
     col2.metric("Daily Arrivals", f"{data['arrival'].iloc[-1]} tons")
-    col3.metric("Data Health", health_status['status'], delta_color="off" if health_status['status'] == "OK" else "inverse")
+    
+    # Regime Badge Logic
+    regime = risk_info['regime']
+    regime_color = "green" if regime == "Stable" else "orange" if regime == "Volatile" else "red"
+    col3.markdown(f"**Market Regime**")
+    col3.markdown(f":{regime_color}[**{regime}**]")
+    
+    # col3.metric("Data Health", health_status['status'], delta_color="off" if health_status['status'] == "OK" else "inverse")
     
     st.subheader("Historical Price Trend")
     fig = px.line(data, x='date', y='price', title='Price History (90 Days)')

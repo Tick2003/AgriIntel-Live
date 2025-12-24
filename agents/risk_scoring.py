@@ -28,26 +28,12 @@ class MarketRiskEngine:
         
         # 2. Volatility Influence (Mock logic)
         if market_volatility > 0.3: # High vol
-            score += 30
-            tags.append("High Market Volatility")
-        elif market_volatility > 0.1:
-            score += 10
-            
-        # 3. Forecast Uncertainty
-        if forecast_std > 500: # Arbitrary high std dev
-            score += 20
-            tags.append("High Forecast Uncertainty")
-            
-        # Cap score
-        score = min(score, 100)
-        
+            tags.append("Recent Shock Detected")
         if score > 70:
-            risk_level = "High"
+            tags.append("High Risk Factors")
         elif score > 30:
-            risk_level = "Medium"
-            
-        return {
-            "risk_score": score,
-            "risk_level": risk_level,
-            "explanation_tags": tags
-        }
+            tags.append("Moderate Risk Factors")
+        else:
+            tags.append("Low Risk Factors")
+        return tags
+```
