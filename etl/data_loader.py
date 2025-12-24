@@ -166,34 +166,75 @@ def seed_historical_data(days=90):
     save_prices(df)
     print("Historical seeding complete.")
 
-def fetch_weather_simulated():
+# Coordinate Mapping for Real Weather
+MANDI_COORDS = {
+    "Azadpur": {"lat": 28.7, "lon": 77.1}, # Delhi
+    "Lasalgaon": {"lat": 20.1, "lon": 74.2}, # Nashik
+    "Vashi": {"lat": 19.0, "lon": 73.0}, # Mumbai
+    "Kolar": {"lat": 13.1, "lon": 78.1}, # Karnataka
+    "Indore": {"lat": 22.7, "lon": 75.8}, # MP
+    "Pune": {"lat": 18.5, "lon": 73.8},
+    "Jaipur": {"lat": 26.9, "lon": 75.7},
+    "Ahmedabad": {"lat": 23.0, "lon": 72.5},
+    "Kolkata": {"lat": 22.5, "lon": 88.3},
+    "Bengaluru": {"lat": 12.9, "lon": 77.5},
+    "Agra": {"lat": 27.1, "lon": 78.0},
+    "Nasik": {"lat": 19.9, "lon": 73.7}
+}
+
+def fetch_real_weather():
     """
-    Simulates weather data.
+    Fetches REAL weather from Open-Meteo API (Free).
     """
-    regions = ["North India", "West India", "South India", "East India"]
-    data = []
-    today = datetime.now().strftime("%Y-%m-%d")
+    weather_data = []
+    print("Fetching Real Weather from Open-Meteo...")
     
-    for region in regions:
-        data.append({
-            "date": today,
-            "region": region,
-            "temperature": random.randint(20, 35),
-            "rainfall": random.choice([0, 0, 0, 5, 20]), # Mostly dry
-            "condition": random.choice(["Sunny", "Cloudy", "Rainy"])
-        })
-    return pd.DataFrame(data)
+    for mandi, coords in MANDI_COORDS.items():
+        try:
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={coords['lat']}&longitude={coords['lon']}&current_weather=true&daily=precipitation_sum&timezone=Asia%2FKolkata"
+            response = requests.get(url)
+            data = response.json()
+            
+            # Current Weather
+            current = data.get('current_weather', {})
+            temp = current.get('temperature', 25)
+            
+            # Daily Rain (Today)
+            daily = data.get('daily', {})
+            rain = daily.get('precipitation_sum', [0])[0] if 'precipitation_sum' in daily else 0
+            
+            condition = "Sunny"
+            if rain > 5: condition = "Rainy"
+            elif rain > 0: condition = "Drizzle"
+            elif temp > 35: condition = "Hot"
+            elif temp < 15: condition = "Cold"
+            
+            weather_data.append({
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "region": mandi,
+                "temperature": temp,
+                "rainfall": rain,
+                "condition": condition
+            })
+            
+        except Exception as e:
+            print(f"Failed to fetch weather for {mandi}: {e}")
+            # Minimal Fallback
+            weather_data.append({
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "region": mandi,
+                "temperature": 25.0,
+                "rainfall": 0.0,
+                "condition": "Unknown"
+            })
+            
+    return pd.DataFrame(weather_data)
 
 def run_daily_update():
     """
-    Master function to run the daily update.
+    Runs the full ETL pipeline.
     """
     print("Starting Update...")
-    
-    # Check if DB is empty (naive check) or just seed if needed
-    # For demo, we just add today's data. 
-    # BUT, if we want to ensure history, we might run seed if called explicitly.
-    # For this execution, I'll call seed_historical_data() once manually or here.
     
     # Let's check if we should seed (e.g. if file is small or based on arg)
     # We will just fetch today's simulated data normally.
