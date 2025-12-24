@@ -6,11 +6,8 @@ import os
 
 # Ensure root is in path to import database module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-try:
-    from database.db_manager import get_latest_prices
-except ImportError:
-    # Fallback/Error handling if something goes wrong with paths
-    print("Error importing db_manager. Ensure you are running from the project root.")
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs
 
 def load_css():
     """
@@ -78,3 +75,17 @@ def get_dummy_data_fallback(commodity, mandi):
         "commodity": commodity,
         "mandi": mandi
     })
+
+def get_news_feed():
+    """Fetch structured news."""
+    try:
+        return get_latest_news()
+    except:
+        return pd.DataFrame()
+
+def get_weather_data():
+    """Fetch weather logs."""
+    try:
+        return get_weather_logs()
+    except:
+        return pd.DataFrame()

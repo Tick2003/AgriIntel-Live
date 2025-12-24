@@ -71,5 +71,34 @@ def get_latest_prices(commodity=None):
     conn.close()
     return df
 
+def save_news(df):
+    """Save news to DB."""
+    conn = sqlite3.connect(DB_NAME)
+    df.to_sql('news_alerts', conn, if_exists='append', index=False)
+    conn.close()
+
+def get_latest_news():
+    """Get latest news."""
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql("SELECT * FROM news_alerts ORDER BY date DESC LIMIT 20", conn)
+    conn.close()
+    return df
+
+def save_weather(df):
+    """Save weather logs."""
+    conn = sqlite3.connect(DB_NAME)
+    df.to_sql('weather_logs', conn, if_exists='append', index=False)
+    conn.close()
+
+def get_weather_logs(region=None):
+    """Get weather logs."""
+    conn = sqlite3.connect(DB_NAME)
+    query = "SELECT * FROM weather_logs"
+    if region:
+        query += f" WHERE region = '{region}'"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
 if __name__ == "__main__":
     init_db()

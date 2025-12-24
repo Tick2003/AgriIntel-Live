@@ -13,7 +13,7 @@ from agents.forecast_execution import ForecastAgent
 from agents.shock_monitoring import ShockMonitoringAgent
 from agents.risk_scoring import RiskScoringAgent
 from agents.explanation_report import ExplanationAgent
-from app.utils import get_live_data, load_css
+from app.utils import get_live_data, load_css, get_news_feed, get_weather_data
 
 # Page Config
 st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
@@ -54,11 +54,18 @@ risk_info = agents["risk"].calculate_risk_score(shock_info, forecast_df['forecas
 explanation = agents["explain"].generate_explanation(selected_commodity, risk_info, shock_info, forecast_df)
 
 # Navigation
-page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Explanation & Insights"])
+page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Compare Markets", "News & Insights", "Explanation & Insights"])
 
 # --- PAGE 1: MARKET OVERVIEW ---
 if page == "Market Overview":
     st.header(f"Market Overview: {selected_commodity} in {selected_mandi}")
+    
+    # Weather Widget
+    weather_df = get_weather_data()
+    if not weather_df.empty:
+        # Simple random pick for demo or based on logic if region mapped
+        w = weather_df.iloc[-1] 
+        st.info(f"⛈️ **Weather Alert**: {w['condition']} | Temp: {w['temperature']}°C | Rainfall: {w['rainfall']}mm")
     
     col1, col2, col3 = st.columns(3)
     current_price = data['price'].iloc[-1]
@@ -134,6 +141,42 @@ elif page == "Risk & Shocks":
         st.subheader("Risk Factors")
         for tag in risk_info['explanation_tags']:
             st.warning(tag)
+
+# --- PAGE 4: COMPARE MARKETS ---
+elif page == "Compare Markets":
+    st.header("📊 Compare Markets")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        c1 = st.selectbox("Commodity 1", ["Potato", "Onion", "Tomato"], key="c1")
+        m1 = st.selectbox("Mandi 1", ["Agra", "Nasik", "Bengaluru"], key="m1")
+        data1 = get_live_data(c1, m1)
+        
+    with col2:
+        c2 = st.selectbox("Commodity 2", ["Onion", "Potato", "Tomato"], key="c2")
+        m2 = st.selectbox("Mandi 2", ["Nasik", "Agra", "Bengaluru"], key="m2")
+        data2 = get_live_data(c2, m2)
+    
+    st.subheader("Price Comparison")
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data1['date'], y=data1['price'], mode='lines', name=f"{c1} ({m1})"))
+    fig.add_trace(go.Scatter(x=data2['date'], y=data2['price'], mode='lines', name=f"{c2} ({m2})"))
+    st.plotly_chart(fig, use_container_width=True)
+
+# --- PAGE 5: NEWS ---
+elif page == "News & Insights":
+    st.header("📰 Global Agri-News & Sentiment")
+    
+    news = get_news_feed()
+    if not news.empty:
+        for index, row in news.iterrows():
+            with st.expander(f"{row['title']} - {row['source']}"):
+                st.write(f"**Published**: {row['date']}")
+                st.write(f"**Sentiment**: {row['sentiment']}")
+                st.markdown(f"[Read Full Story]({row['url']})")
+    else:
+        st.write("No news fetched yet. Run the data loader.")
 
 # --- PAGE 4: EXPLANATION ---
 elif page == "Explanation & Insights":

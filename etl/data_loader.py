@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from database.db_manager import save_prices
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from database.db_manager import save_prices, save_news, save_weather
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
 def fetch_agri_news(query="Agriculture Market India"):
@@ -24,7 +25,10 @@ def fetch_agri_news(query="Agriculture Market India"):
             "date": entry.published,
             "title": entry.title,
             "source": entry.source.title,
-            "url": entry.link
+            "title": entry.title,
+            "source": entry.source.title,
+            "url": entry.link,
+            "sentiment": "Neutral" # Placeholder for sentiment analysis
         })
     
     return pd.DataFrame(news_items)
@@ -103,6 +107,24 @@ def seed_historical_data(days=90):
     save_prices(df)
     print("Historical seeding complete.")
 
+def fetch_weather_simulated():
+    """
+    Simulates weather data.
+    """
+    regions = ["North India", "West India", "South India", "East India"]
+    data = []
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    for region in regions:
+        data.append({
+            "date": today,
+            "region": region,
+            "temperature": random.randint(20, 35),
+            "rainfall": random.choice([0, 0, 0, 5, 20]), # Mostly dry
+            "condition": random.choice(["Sunny", "Cloudy", "Rainy"])
+        })
+    return pd.DataFrame(data)
+
 def run_daily_update():
     """
     Master function to run the daily update.
@@ -128,7 +150,14 @@ def run_daily_update():
 
     
     # 2. Fetch News (Real)
+    # 2. Fetch News (Real)
     news_df = fetch_agri_news()
+    save_news(news_df)
+    
+    # 3. Fetch Weather (Simulated)
+    weather_df = fetch_weather_simulated()
+    save_weather(weather_df)
+    
     print("Latest News:")
     print(news_df[['title', 'source']].head())
     
