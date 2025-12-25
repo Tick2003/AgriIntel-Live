@@ -236,6 +236,10 @@ def run_daily_update():
     """
     print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
     
+    # Ensure DB is initialized
+    dbm.init_db()
+
+    
     # Let's check if we should seed (e.g. if file is small or based on arg)
     # Checking for seed argument (Optional)
     # if len(sys.argv) > 1 and sys.argv[1] == 'seed':
