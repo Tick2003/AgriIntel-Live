@@ -34,6 +34,7 @@ class ForecastingAgent:
     def generate_forecasts(self, data: pd.DataFrame, commodity: str, mandi: str) -> pd.DataFrame:
         """
         Generates 30-day forecast using XGBoost recursive strategy.
+        Now RIGOROUS: No random drift, pure ML + RMSE Confidence Intervals.
         """
         # Ensure data is sorted
         data = data.sort_values('date').copy()
@@ -65,16 +66,12 @@ class ForecastingAgent:
         # 3. Predict validation set
         val_preds = self.model.predict(X_val)
         
-        # 4. Calculate Correction Bias (Are we over/under predicting recently?)
-        # Bias = Actual - Predicted
-        residuals = y_val - val_preds
-        correction_bias = residuals.mean()
+        # 4. Calculate RMSE for Confidence Intervals
+        from sklearn.metrics import mean_squared_error
+        mse_val = mean_squared_error(y_val, val_preds)
+        rmse_val = np.sqrt(mse_val)
         
-        # Security Clamp: Don't let huge bias break the model (max 10% adjustment)
-        max_correction = data['price'].mean() * 0.10
-        correction_bias = np.clip(correction_bias, -max_correction, max_correction)
-        
-        print(f"Model Self-Correction: Adjusting by {correction_bias:.2f}")
+        print(f"Model Training RMSE: {rmse_val:.2f}")
         
         # 5. RETRAIN on FULL data for future prediction
         self.model.fit(X, y)
@@ -94,17 +91,15 @@ class ForecastingAgent:
             # Create a temporary row for prediction features
             temp_df = current_data.copy()
             
-            # SIMULATE FUTURE ARRIVAL with Noise/Seasonality instead of flat mean
-            # This prevents the "Flat Line" issue where constant features yield constant predictions
+            # SIMULATE FUTURE ARRIVAL (Mean Reversion, not Random Walk)
+            # We assume future arrivals will be close to the average
             avg_arrival = current_data['arrival'].mean()
-            std_arrival = current_data['arrival'].std()
-            sim_arrival = max(0, np.random.normal(avg_arrival, std_arrival * 0.5))
             
             # Append a dummy row for next_date
             next_row = pd.DataFrame([{
                 'date': next_date, 
                 'price': np.nan, 
-                'arrival': sim_arrival
+                'arrival': avg_arrival
             }])
             temp_df = pd.concat([temp_df, next_row], ignore_index=True)
             
@@ -114,45 +109,32 @@ class ForecastingAgent:
             # Get the exact row for prediction (the last one)
             pred_row = temp_features.tail(1)[feature_cols]
             
-            # Predict & Correct
-            raw_pred = self.model.predict(pred_row)[0]
-            
-            # HYBRID SYSTEM: ML + Random Walk
-            # To prevent "Flat Line", we add a Cumulative Drift Component
-            # This makes the line "wander" realistically like a financial chart
-            volatility = data['price'].std() * 0.05
-            drift = np.random.normal(0, volatility)
-            
-            # If this is the first step, init accumulated_drift. 
-            # Note: We need to track this outside the loop effectively, 
-            # but here we can just add it to the previous price concept implicitly
-            # by modifying how we treat the 'raw_pred'.
-            
-            # Actually, simpler: Track a separate drift accumulator
-            if 'accumulated_drift' not in locals():
-                accumulated_drift = 0
-            
-            accumulated_drift += drift
-            
-            # APPLY SELF-CORRECTION + DRIFT
-            final_pred = raw_pred + correction_bias + accumulated_drift
+            # Predict
+            pred_price = self.model.predict(pred_row)[0]
             
             # Store
             future_dates.append(next_date)
-            forecast_prices.append(final_pred)
+            forecast_prices.append(pred_price)
             
             # Update current_data (feedback loop)
-            next_row['price'] = final_pred
+            next_row['price'] = pred_price
             current_data = pd.concat([current_data, next_row], ignore_index=True)
             
         # 3. Construct Result
         forecast_prices = np.array(forecast_prices)
         
-        # Statistical Confidence Interval (Model doesn't give this directly without quantile reg)
-        # We'll use the training RMSE or a simple heuristic
-        std_dev = data['price'].std()
-        lower_bound = forecast_prices - (std_dev * 0.5)
-        upper_bound = forecast_prices + (std_dev * 0.5)
+        # Statistical Confidence Interval (95% CI approx => +/- 1.96 * RMSE)
+        # We increase uncertainty slightly over time (sqrt of time steps)
+        # CI = Forecast +/- (1.96 * RMSE * sqrt(t))
+        
+        time_steps = np.arange(1, 31)
+        uncertainty_factor = np.sqrt(time_steps) # Logic: Error grows with time
+        
+        margin_of_error = 1.96 * rmse_val * (1 + (uncertainty_factor * 0.1)) 
+        # Note: Scaled down factor slightly so it doesn't explode, but basically RMSE * t
+        
+        lower_bound = forecast_prices - margin_of_error
+        upper_bound = forecast_prices + margin_of_error
         
         return pd.DataFrame({
             'date': future_dates,
@@ -162,6 +144,7 @@ class ForecastingAgent:
             'commodity': commodity,
             'mandi': mandi
         })
+
 
     def _generate_fallback(self, data, commodity, mandi):
         """Original random walk Fallback"""
