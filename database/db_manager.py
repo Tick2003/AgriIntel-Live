@@ -9,6 +9,7 @@ def init_db():
     """Initialize the database with necessary tables."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    print(f"DEBUG: init_db called. DB context: {DB_NAME}")
     
     # Table: Market Prices
     c.execute('''
