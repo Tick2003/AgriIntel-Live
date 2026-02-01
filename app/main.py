@@ -14,6 +14,7 @@ from agents.forecast_execution import ForecastingAgent
 from agents.shock_monitoring import AnomalyDetectionEngine
 from agents.risk_scoring import MarketRiskEngine
 from agents.explanation_report import AIExplanationAgent
+from agents.decision_support import DecisionAgent
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
@@ -33,7 +34,6 @@ db_commodities, db_mandis = get_db_options()
 selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
-# --- AUTO-UPDATE LOGIC ---
 # --- AUTO-UPDATE LOGIC ---
 from datetime import datetime
 import etl.data_loader
@@ -77,7 +77,8 @@ def load_agents():
         "forecast": ForecastingAgent(),
         "shock": AnomalyDetectionEngine(),
         "risk": MarketRiskEngine(),
-        "explain": AIExplanationAgent()
+        "explain": AIExplanationAgent(),
+        "decision": DecisionAgent()
     }
 
 agents = load_agents()
@@ -108,15 +109,21 @@ def run_explanation_agent(commodity, risk_info, shock_info, forecast_df):
     explain_agent = AIExplanationAgent()
     return explain_agent.generate_explanation(commodity, risk_info, shock_info, forecast_df)
 
+@st.cache_data(ttl=3600)
+def run_decision_agent(current_price, forecast_df, risk_dict, shock_dict):
+    agent = DecisionAgent()
+    return agent.get_signal(current_price, forecast_df, risk_dict['risk_score'], shock_dict)
+
 # Load Data
 data = fetch_and_process_data(selected_commodity, selected_mandi)
 last_date = data['date'].max().strftime('%Y-%m-%d')
 st.caption(f"Data Source: Agmarknet (Simulated) | Last Updated: {last_date}")
 
 # Run Agents (Cached)
-health_status = agents["health"].check_daily_completeness(data) # Fast enough to not cache? Or cache if needed.
+health_status = agents["health"].check_daily_completeness(data) 
 forecast_df = run_forecasting_agent(data, selected_commodity, selected_mandi)
-shock_info, risk_info = run_shock_risk_agents(data, forecast_df) # Grouped to avoid multiple cache misses
+shock_info, risk_info = run_shock_risk_agents(data, forecast_df) 
+decision_signal = run_decision_agent(data['price'].iloc[-1], forecast_df, risk_info, shock_info)
 explanation = run_explanation_agent(selected_commodity, risk_info, shock_info, forecast_df)
 
 # Navigation
@@ -129,10 +136,22 @@ if page == "Market Overview":
     # Weather Widget
     weather_df = get_weather_data()
     if not weather_df.empty:
-        # Simple random pick for demo or based on logic if region mapped
         w = weather_df.iloc[-1] 
         st.info(f"⛈️ **Weather Alert**: {w['condition']} | Temp: {w['temperature']}°C | Rainfall: {w['rainfall']}mm")
     
+    # --- DECISION SIGNAL BANNER ---
+    sig_color = decision_signal['color']
+    sig_text = decision_signal['signal']
+    sig_reason = decision_signal['reason']
+    
+    st.markdown(f"""
+    <div style="padding: 15px; border-radius: 10px; background-color: {'#e6fffa' if sig_color=='green' else '#fff5f5' if sig_color=='red' else '#fffaf0'}; border: 1px solid {sig_color}; margin-bottom: 20px;">
+        <h3 style="color: {sig_color}; margin:0;">📢 Strategy: {sig_text}</h3>
+        <p style="margin:5px 0 0 0;">{sig_reason}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    # ------------------------------
+
     col1, col2, col3 = st.columns(3)
     current_price = data['price'].iloc[-1]
     prev_price = data['price'].iloc[-2]
@@ -147,8 +166,6 @@ if page == "Market Overview":
     col3.markdown(f"**Market Regime**")
     col3.markdown(f":{regime_color}[**{regime}**]")
     
-    # col3.metric("Data Health", health_status['status'], delta_color="off" if health_status['status'] == "OK" else "inverse")
-    
     st.subheader("Historical Price Trend")
     fig = px.line(data, x='date', y='price', title='Price History (90 Days)')
     st.plotly_chart(fig, use_container_width=True)
@@ -157,15 +174,10 @@ if page == "Market Overview":
 elif page == "Price Forecast":
     st.header("Price Forecast (Next 30 Days)")
     
+    # 1. Plot
     fig = go.Figure()
-    
-    # Historical
     fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines', name='Historical'))
-    
-    # Forecast
     fig.add_trace(go.Scatter(x=forecast_df['date'], y=forecast_df['forecast_price'], mode='lines', name='Forecast', line=dict(dash='dash', color='orange')))
-    
-    # Confidence Interval
     fig.add_trace(go.Scatter(
         x=pd.concat([forecast_df['date'], forecast_df['date'][::-1]]),
         y=pd.concat([forecast_df['upper_bound'], forecast_df['lower_bound'][::-1]]),
@@ -174,10 +186,40 @@ elif page == "Price Forecast":
         line=dict(color='rgba(255,255,255,0)'),
         name='Confidence Interval'
     ))
-    
     st.plotly_chart(fig, use_container_width=True)
     
-    st.subheader("Forecast Data")
+    # 2. Profit Simulator (NEW)
+    st.markdown("---")
+    st.subheader("💰 Profit Simulator")
+    st.write("Calculate potential returns if you hold your stock.")
+    
+    with st.container():
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            qty = st.number_input("Quantity (Quintals)", min_value=1, value=10, step=1)
+            current_val = data['price'].iloc[-1] * qty
+            st.metric("Current Value", f"₹{current_val:,.2f}")
+        
+        with c2:
+            # Run Simulation
+            sim_df = agents["decision"].simulate_profit(data['price'].iloc[-1], forecast_df, qty)
+            
+            # Formatting for display
+            display_df = sim_df.copy()
+            display_df['Expected P&L'] = display_df['Expected P&L'].apply(lambda x: f"₹{x:,.2f}")
+            display_df['Risk Adjusted P&L'] = display_df['Risk Adjusted P&L'].apply(lambda x: f"₹{x:,.2f}")
+            display_df['Expected Price'] = display_df['Expected Price'].apply(lambda x: f"₹{x:,.2f}")
+            
+            st.dataframe(display_df, use_container_width=True)
+            
+            # Simple Insight
+            best_scenario = sim_df.loc[sim_df['Expected P&L'].idxmax()]
+            if best_scenario['Expected P&L'] > 0:
+                st.success(f"💡 Best Opportunity: Sell in **{best_scenario['Horizon']}** for specific gain of approx ₹{best_scenario['Expected P&L']:.2f}")
+            else:
+                st.error("📉 Forecast suggests prices may fall. Selling now might be best.")
+
+    st.subheader("Detailed Forecast Data")
     st.dataframe(forecast_df[['date', 'forecast_price', 'lower_bound', 'upper_bound']])
 
 # --- PAGE 3: RISK & SHOCKS ---
@@ -241,7 +283,7 @@ elif page == "Compare Markets":
 elif page == "News & Insights":
     st.header("📰 Global Agri-News & Sentiment")
     
-    news_df = get_news_feed() # Renamed to news_df to avoid conflict with 'news' variable in snippet
+    news_df = get_news_feed() 
     if not news_df.empty:
         for index, row in news_df.iterrows():
             with st.expander(f"{row['title']} - {row['source']}"):
@@ -250,7 +292,7 @@ elif page == "News & Insights":
                 st.markdown(f"[Read Full Story]({row['url']})")
     else:
         st.subheader("Latest News")
-        st.dataframe(news_df) # This will show an empty dataframe if news_df is empty
+        st.dataframe(news_df)
 
 # --- MODEL PERFORMANCE ---
 elif page == "Model Performance":
@@ -268,8 +310,7 @@ elif page == "Model Performance":
         agent = ForecastingAgent()
         forecast_df = agent.generate_forecasts(train_data, selected_commodity, selected_mandi)
         
-        # Align dates for comparison
-        # Forecast generates next 30 days from end of train, which matches test_data dates
+        # Align dates
         
         # 4. Generate Baseline Forecast (Simple Moving Average of last 7 days of train)
         last_7_avg = train_data['price'].tail(7).mean()
@@ -281,7 +322,7 @@ elif page == "Model Performance":
         ml_preds = forecast_df['forecast_price'].values
         actuals = test_data['price'].values
         
-        # Ensure lengths match (forecast is fixed 30, test might be slightly diff if gaps)
+        # Ensure lengths match
         min_len = min(len(ml_preds), len(actuals))
         ml_preds = ml_preds[:min_len]
         actuals = actuals[:min_len]
