@@ -218,20 +218,41 @@ elif page == "Price Forecast":
             # Run Simulation
             sim_df = agents["decision"].simulate_profit(data['price'].iloc[-1], forecast_df, qty)
             
-            # Formatting for display
-            display_df = sim_df.copy()
-            display_df['Expected Profit'] = display_df['Expected Profit'].apply(lambda x: f"₹{x:,.2f}")
-            display_df['Risk (±)'] = display_df['Risk (±)'].apply(lambda x: f"₹{x:,.2f}")
-            display_df['Expected Price'] = display_df['Expected Price'].apply(lambda x: f"₹{x:,.2f}")
-            
-            st.dataframe(display_df, use_container_width=True)
-            
-            # Simple Insight
-            best_scenario = sim_df.loc[sim_df['Expected Profit'].idxmax()]
-            if best_scenario['Expected Profit'] > 0:
-                st.success(f"💡 Best Opportunity: Sell in **{best_scenario['Horizon']}** for expected gain of **₹{best_scenario['Expected Profit']:.2f}** (±{best_scenario['Risk (±)']:.0f})")
+            if not sim_df.empty:
+                # Formatting for display
+                display_df = sim_df.copy()
+                
+                # Robustness Check for Stale Cache/Columns
+                if 'Expected P&L' in display_df.columns:
+                    display_df.rename(columns={'Expected P&L': 'Expected Profit'}, inplace=True)
+                if 'Risk Adjusted P&L' in display_df.columns:
+                    display_df.rename(columns={'Risk Adjusted P&L': 'Risk (±)'}, inplace=True)
+                    
+                # Format Cols if they exist
+                if 'Expected Profit' in display_df.columns:
+                    display_df['Expected Profit'] = display_df['Expected Profit'].apply(lambda x: f"₹{x:,.2f}")
+                if 'Risk (±)' in display_df.columns:
+                    display_df['Risk (±)'] = display_df['Risk (±)'].apply(lambda x: f"₹{x:,.2f}")
+                if 'Expected Price' in display_df.columns:
+                    display_df['Expected Price'] = display_df['Expected Price'].apply(lambda x: f"₹{x:,.2f}")
+                
+                st.dataframe(display_df, use_container_width=True)
+                
+                # Simple Insight
+                if 'Expected Profit' in sim_df.columns:
+                    best_idx = sim_df['Expected Profit'].idxmax()
+                    best_scenario = sim_df.loc[best_idx]
+                    
+                    # Handle backward compat for risk col
+                    risk_val = best_scenario.get('Risk (±)', 0)
+                    if 'Risk Adjusted P&L' in best_scenario: risk_val = 0 # Fallback
+                    
+                    if best_scenario['Expected Profit'] > 0:
+                        st.success(f"💡 Best Opportunity: Sell in **{best_scenario['Horizon']}** for expected gain of **₹{best_scenario['Expected Profit']:.2f}** (±₹{risk_val:.0f})")
+                    else:
+                        st.error("📉 Forecast suggests prices may fall. Selling now might be best.")
             else:
-                st.error("📉 Forecast suggests prices may fall. Selling now might be best.")
+                st.warning("Not enough forecast data to run simulation.")
 
     st.subheader("Detailed Forecast Data")
     st.dataframe(forecast_df[['date', 'forecast_price', 'lower_bound', 'upper_bound']])
