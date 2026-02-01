@@ -83,16 +83,41 @@ def load_agents():
 agents = load_agents()
 
 # Load Data
-data = get_live_data(selected_commodity, selected_mandi)
+# Helper wrapper for caching
+@st.cache_data(ttl=3600)
+def fetch_and_process_data(commodity, mandi):
+    return get_live_data(commodity, mandi)
+
+@st.cache_data(ttl=3600)
+def run_forecasting_agent(data, commodity, mandi):
+    # This trains a model, so it MUST be cached
+    agent = ForecastingAgent()
+    return agent.generate_forecasts(data, commodity, mandi)
+
+@st.cache_data(ttl=3600)
+def run_shock_risk_agents(data, forecast_df):
+    shock_agent = AnomalyDetectionEngine()
+    risk_agent = MarketRiskEngine()
+    
+    shock_info = shock_agent.detect_shocks(data, forecast_df)
+    risk_info = risk_agent.calculate_risk_score(shock_info, forecast_df['forecast_price'].std(), data['price'].pct_change().std())
+    return shock_info, risk_info
+
+@st.cache_data(ttl=3600)
+def run_explanation_agent(commodity, risk_info, shock_info, forecast_df):
+    explain_agent = AIExplanationAgent()
+    return explain_agent.generate_explanation(commodity, risk_info, shock_info, forecast_df)
+
+# Load Data
+data = fetch_and_process_data(selected_commodity, selected_mandi)
 last_date = data['date'].max().strftime('%Y-%m-%d')
 st.caption(f"Data Source: Agmarknet (Simulated) | Last Updated: {last_date}")
 
-# Run Agents
-health_status = agents["health"].check_daily_completeness(data)
-forecast_df = agents["forecast"].generate_forecasts(data, selected_commodity, selected_mandi)
-shock_info = agents["shock"].detect_shocks(data, forecast_df)
-risk_info = agents["risk"].calculate_risk_score(shock_info, forecast_df['forecast_price'].std(), data['price'].pct_change().std())
-explanation = agents["explain"].generate_explanation(selected_commodity, risk_info, shock_info, forecast_df)
+# Run Agents (Cached)
+health_status = agents["health"].check_daily_completeness(data) # Fast enough to not cache? Or cache if needed.
+forecast_df = run_forecasting_agent(data, selected_commodity, selected_mandi)
+shock_info, risk_info = run_shock_risk_agents(data, forecast_df) # Grouped to avoid multiple cache misses
+explanation = run_explanation_agent(selected_commodity, risk_info, shock_info, forecast_df)
 
 # Navigation
 page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Compare Markets", "News & Insights", "Model Performance", "Explanation & Insights"])
