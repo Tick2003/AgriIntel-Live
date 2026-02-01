@@ -15,6 +15,7 @@ from agents.shock_monitoring import AnomalyDetectionEngine
 from agents.risk_scoring import MarketRiskEngine
 from agents.explanation_report import AIExplanationAgent
 from agents.decision_support import DecisionAgent
+from agents.arbitrage_engine import ArbitrageAgent
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
@@ -78,7 +79,8 @@ def load_agents():
         "shock": AnomalyDetectionEngine(),
         "risk": MarketRiskEngine(),
         "explain": AIExplanationAgent(),
-        "decision": DecisionAgent()
+        "decision": DecisionAgent(),
+        "arbitrage": ArbitrageAgent()
     }
 
 agents = load_agents()
@@ -113,6 +115,18 @@ def run_explanation_agent(commodity, risk_info, shock_info, forecast_df):
 def run_decision_agent(current_price, forecast_df, risk_dict, shock_dict):
     agent = DecisionAgent()
     return agent.get_signal(current_price, forecast_df, risk_dict['risk_score'], shock_dict)
+
+@st.cache_data(ttl=3600)
+def fetch_arbitrage_snapshot(commodity, all_mandis):
+    frames = []
+    for m in all_mandis:
+        df = get_live_data(commodity, m)
+        if not df.empty:
+             frames.append(df)
+    
+    if frames:
+        return pd.concat(frames)
+    return pd.DataFrame()
 
 # Load Data
 data = fetch_and_process_data(selected_commodity, selected_mandi)
@@ -259,7 +273,33 @@ elif page == "Risk & Shocks":
 
 # --- PAGE 4: COMPARE MARKETS ---
 elif page == "Compare Markets":
-    st.header("📊 Compare Markets")
+    st.header("📊 Compare Markets & Arbitrage")
+    
+    # 1. Arbitrage Analysis (NEW)
+    st.subheader("🚛 Regional Arbitrage Opportunities")
+    st.caption(f"Finding profit opportunities for **{selected_commodity}** starting from **{selected_mandi}**")
+    
+    with st.spinner("Scanning regional markets..."):
+        # Fetch data for current commodity across ALL mandis
+        # We limit to first 10 mandis for demo speed if list is long
+        scan_mandis = db_mandis[:10] if len(db_mandis) > 10 else db_mandis
+        
+        snapshot_df = fetch_arbitrage_snapshot(selected_commodity, scan_mandis)
+        
+        if not snapshot_df.empty:
+            arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df)
+            
+            if not arb_df.empty:
+                # Highlight best
+                st.success(f"Found {len(arb_df)} opportunities!")
+                st.dataframe(arb_df.style.format({'Net Profit/Qt': '₹{:.2f}'}), use_container_width=True)
+            else:
+                st.info("No significant price gaps found (> transport cost) for this commodity.")
+        else:
+            st.warning("Insufficient regional data for arbitrage.")
+
+    st.markdown("---")
+    st.subheader("⚔️ Head-to-Head Comparison")
     
     col1, col2 = st.columns(2)
     with col1:
