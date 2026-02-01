@@ -3,15 +3,20 @@ import numpy as np
 from datetime import timedelta
 import xgboost as xgb
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 
 class ForecastingAgent:
     """
     AGENT 2 — FORECAST EXECUTION AGENT (ML-REAL)
     Role: Price Forecast Agent
     Goal: Train an XGBoost model on-the-fly to generate realistic 30-day forecasts.
+    Strategy: Trend (Linear) + Residuals (XGBoost) to capture both direction and volatility.
     """
     def __init__(self):
-        self.model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, learning_rate=0.1)
+        # We will use a LinearRegression for trend and XGB for residuals
+        self.trend_model = LinearRegression()
+        self.residual_model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, learning_rate=0.1)
 
     def prepare_features(self, df):
         """
@@ -21,20 +26,23 @@ class ForecastingAgent:
         df['day_of_week'] = df['date'].dt.dayofweek
         df['month'] = df['date'].dt.month
         
-        # Lag features
-        df['lag_1'] = df['price'].shift(1)
-        df['lag_7'] = df['price'].shift(7)
+        # Determine target column for feature engineering
+        # If 'resid' exists, we are training/predicting residuals.
+        # If not (e.g. initial setup), we default to 'price' but logic below handles 'resid' primarily.
+        target_col = 'resid' if 'resid' in df.columns else 'price'
+        
+        df['lag_1'] = df[target_col].shift(1)
+        df['lag_7'] = df[target_col].shift(7)
         
         # Rolling features
-        df['rolling_mean_7'] = df['price'].rolling(window=7).mean()
-        df['rolling_std_7'] = df['price'].rolling(window=7).std()
+        df['rolling_mean_7'] = df[target_col].rolling(window=7).mean()
+        df['rolling_std_7'] = df[target_col].rolling(window=7).std()
         
         return df.dropna()
 
     def generate_forecasts(self, data: pd.DataFrame, commodity: str, mandi: str) -> pd.DataFrame:
         """
-        Generates 30-day forecast using XGBoost recursive strategy.
-        Now RIGOROUS: No random drift, pure ML + RMSE Confidence Intervals.
+        Generates 30-day forecast using Trend + Residual approach.
         """
         # Ensure data is sorted
         data = data.sort_values('date').copy()
@@ -43,95 +51,96 @@ class ForecastingAgent:
         if len(data) < 30:
             return self._generate_fallback(data, commodity, mandi)
 
-        # 1. Train Model
+        # --- STEP 1: DETRENDING ---
+        # Convert date to ordinal for regression
+        data['date_ordinal'] = data['date'].apply(lambda x: x.toordinal())
+        
+        X_trend = data[['date_ordinal']]
+        y_trend = data['price']
+        
+        self.trend_model.fit(X_trend, y_trend)
+        data['trend'] = self.trend_model.predict(X_trend)
+        data['resid'] = data['price'] - data['trend']
+        
+        # --- STEP 2: TRAIN XGBOOST ON RESIDUALS ---
         features_df = self.prepare_features(data)
-        feature_cols = ['day_of_week', 'month', 'lag_1', 'lag_7', 'rolling_mean_7', 'rolling_std_7', 'arrival']
+        feature_cols = ['day_of_week', 'month', 'lag_1', 'lag_7', 'rolling_mean_7', 'rolling_std_7']
         
-        # Mock 'arrival' for future if not present, assume mean
-        if 'arrival' not in features_df.columns:
-            features_df['arrival'] = 0
-            
         X = features_df[feature_cols]
-        y = features_df['price']
+        y = features_df['resid']
         
-        # --- SELF-CORRECTION / TUNING STEP ---
-        # 1. Validation Split: Hide last 5 days to check model accuracy
+        # Validation Split (Last 5 days)
         val_size = 5
         X_train, X_val = X.iloc[:-val_size], X.iloc[-val_size:]
         y_train, y_val = y.iloc[:-val_size], y.iloc[-val_size:]
         
-        # 2. Train on subset
-        self.model.fit(X_train, y_train)
+        self.residual_model.fit(X_train, y_train)
         
-        # 3. Predict validation set
-        val_preds = self.model.predict(X_val)
-        
-        # 4. Calculate RMSE for Confidence Intervals
-        from sklearn.metrics import mean_squared_error
+        # Calculate RMSE on residuals
+        val_preds = self.residual_model.predict(X_val)
         mse_val = mean_squared_error(y_val, val_preds)
         rmse_val = np.sqrt(mse_val)
         
-        print(f"Model Training RMSE: {rmse_val:.2f}")
+        print(f"Residual Model RMSE: {rmse_val:.2f}")
         
-        # 5. RETRAIN on FULL data for future prediction
-        self.model.fit(X, y)
+        # Retrain on full data
+        self.residual_model.fit(X, y)
         
-        # 2. Recursive Forecast
+        # --- STEP 3: RECURSIVE FORECAST ---
         future_dates = []
         forecast_prices = []
         
-        # append last known window to start recursion
+        # Start recursion from the last available data
         current_data = data.copy()
-        
         last_date = data['date'].max()
         
         for i in range(1, 31):
             next_date = last_date + timedelta(days=i)
+            next_ordinal = next_date.toordinal()
             
-            # Create a temporary row for prediction features
+            # A. Predict Trend
+            pred_trend = self.trend_model.predict([[next_ordinal]])[0]
+            
+            # B. Predict Residual (Recursive)
+            # Create temp row
             temp_df = current_data.copy()
-            
-            # SIMULATE FUTURE ARRIVAL (Mean Reversion, not Random Walk)
-            # We assume future arrivals will be close to the average
-            avg_arrival = current_data['arrival'].mean()
-            
-            # Append a dummy row for next_date
             next_row = pd.DataFrame([{
-                'date': next_date, 
-                'price': np.nan, 
-                'arrival': avg_arrival
+                'date': next_date,
+                'resid': np.nan, # To be filled
+                'trend': pred_trend,
+                'price': np.nan, # Placeholder
+                'date_ordinal': next_ordinal
             }])
             temp_df = pd.concat([temp_df, next_row], ignore_index=True)
             
-            # Engineer features
+            # Engineer features on this temp structure
             temp_features = self.prepare_features(temp_df)
             
-            # Get the exact row for prediction (the last one)
+            # Predict residual
             pred_row = temp_features.tail(1)[feature_cols]
+            pred_resid = self.residual_model.predict(pred_row)[0]
             
-            # Predict
-            pred_price = self.model.predict(pred_row)[0]
+            # Combine
+            pred_price = pred_trend + pred_resid
             
             # Store
             future_dates.append(next_date)
             forecast_prices.append(pred_price)
             
-            # Update current_data (feedback loop)
+            # C. Update Loop
+            next_row['resid'] = pred_resid
             next_row['price'] = pred_price
             current_data = pd.concat([current_data, next_row], ignore_index=True)
-            
-        # 3. Construct Result
+
+        # --- STEP 4: CONFIDENCE INTERVALS ---
         forecast_prices = np.array(forecast_prices)
         
-        # Statistical Confidence Interval (95% CI approx => +/- 1.96 * RMSE)
-        # We increase uncertainty slightly over time (sqrt of time steps)
-        # CI = Forecast +/- (1.96 * RMSE * sqrt(t))
-        
+        # Uncertainty grows with time (Trend uncertainty + Residual uncertainty)
+        # Simplified: Use Residual RMSE * sqrt(t)
         time_steps = np.arange(1, 31)
-        uncertainty_factor = np.sqrt(time_steps) # Logic: Error grows with time
+        uncertainty_factor = np.sqrt(time_steps)
         
-        margin_of_error = 1.96 * rmse_val * (1 + (uncertainty_factor * 0.1)) 
-        # Note: Scaled down factor slightly so it doesn't explode, but basically RMSE * t
+        margin_of_error = 1.96 * rmse_val * uncertainty_factor
         
         lower_bound = forecast_prices - margin_of_error
         upper_bound = forecast_prices + margin_of_error
