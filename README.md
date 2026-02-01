@@ -1,6 +1,6 @@
 # 🌾 AgriIntel - Agricultural Market Intelligence System
 
-A live dashboard for tracking agricultural commodities (Potato, Onion, Tomato) in Indian Mandis. This project uses simulated real-time data to demonstrate advanced market intelligence features.
+A live AI-powered dashboard for tracking agricultural commodities (Potato, Onion, Tomato) in Indian Mandis. This project uses simulated real-time data and advanced Machine Learning (XGBoost + Trend Decomposition) to provide accurate 30-day price forecasts and risk assessments.
 
 📘 **[Read the Full Architecture Documentation](ARCHITECTURE.md)** to understand every module from tip to toe.
 
