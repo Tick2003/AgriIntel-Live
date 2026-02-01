@@ -7,7 +7,8 @@ I’m excited to share my latest project, **AgriIntel**, an advanced Market Inte
 Farmers and traders often grapple with information asymmetry. AgriIntel bridges this gap by using a **Multi-Agent AI System** to provide real-time monitoring and actionable insights.
 
 **🌟 Key Features:**
-*   **🔮 AI-Powered Forecasting:** Uses on-the-fly **XGBoost** training to predict prices for the next 30 days with a hybrid drift mechanism for realism.
+*   **🔮 Robust AI Forecasting:** Implements a sophisticated **Trend Decomposition + XGBoost Residual Modeling** strategy. It detrends market prices to capture long-term direction while using ML to predict short-term volatility 30 days out.
+*   **⚡ Blazing Fast Performance:** Engineered for speed with intelligent **Data Caching**, ensuring instant analysis even with heavy ML computations running in the background.
 *   **⚡ Shock Detection:** Automatically flags market anomalies and sudden price spikes (e.g., +15% shocks).
 *   **🛡️ Risk Scoring:** A proprietary "Risk Engine" that calculates a 0-100 risk score based on volatility and forecast uncertainty.
 *   **🤖 Agentic Architecture:** Built with specialized autonomous agents (Forecaster, Risk Manager, Data Health Monitor) working in harmony.
