@@ -91,9 +91,32 @@ def get_latest_prices(commodity=None):
     return df
 
 def save_news(df):
-    """Save news to DB."""
+    """Save news to DB, avoiding duplicates."""
+    if df.empty:
+        return
+
     conn = sqlite3.connect(DB_NAME)
-    df.to_sql('news_alerts', conn, if_exists='append', index=False)
+    
+    # 1. Get existing titles
+    try:
+        existing_titles = pd.read_sql("SELECT title FROM news_alerts", conn)['title'].tolist()
+        existing_titles = set(existing_titles)
+    except Exception:
+        existing_titles = set()
+
+    # 2. Filter new items
+    if 'title' in df.columns:
+        # Deduplicate input df first
+        df = df.drop_duplicates(subset=['title'])
+        # Filter against DB
+        new_df = df[~df['title'].isin(existing_titles)]
+        
+        if not new_df.empty:
+            new_df.to_sql('news_alerts', conn, if_exists='append', index=False)
+            print(f"Added {len(new_df)} new news items.")
+        else:
+            print("No new unique news items found.")
+            
     conn.close()
 
 def get_latest_news():
