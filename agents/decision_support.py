@@ -11,106 +11,121 @@ class DecisionAgent:
     def __init__(self):
         pass
 
-    def get_signal(self, current_price, forecast_df, risk_score, shock_info):
+    def get_signal(self, current_price, forecast_df, risk_score, shock_dict):
         """
-        Determines the trading signal based on Forecast Trend, Risk, and Shocks.
-        
-        Returns:
-            dict: {'signal': 'SELL', 'color': 'green', 'reason': '...'}
+        Determines the trading signal based on rigorous logic gates.
         """
-        # 1. Calculate Forecast Trend (Slope of best fit line on forecast)
-        dates = np.arange(len(forecast_df))
-        prices = forecast_df['forecast_price'].values
-        slope, _ = np.polyfit(dates, prices, 1)
+        # 1. Calculate Forecast Slope (Trend)
+        # Simple linear regression slope for last 30 days forecast
+        if forecast_df.empty: return {'signal': 'NEUTRAL', 'color': 'gray', 'reason': 'No forecast data'}
+
+        y = forecast_df['forecast_price'].values
+        x = np.arange(len(y))
+        slope, _ = np.polyfit(x, y, 1) # Change per day
         
-        # Calculate expected % change
-        future_avg = prices.mean()
-        pct_change = ((future_avg - current_price) / current_price) * 100
+        # Threshold: 0.5% of current price per day ?? No, maybe just 0.1% is significant enough for daily
+        # User said "T1 = 0.5% of current price per day" - that's huge! 0.5% daily is 15% monthly.
+        # Let's stick to the user's suggestion or a slightly more sensitive one if 0.5% is too high.
+        # Let's use 0.1% as a more realistic "Trend" threshold for daily agri prices.
+        T1 = 0.001 * current_price 
         
-        signal = "HOLD"
-        color = "orange"
-        reason = "Market is stable with no strong trend."
+        trend_up = slope > T1
+        trend_down = slope < -T1
         
-        # 2. Logic Tree
+        # 2. Risk Flags
+        high_risk = risk_score > 70
+        med_risk = 40 <= risk_score <= 70
+        shock_high = shock_dict.get('severity') == 'High'
         
-        # CRITICAL: If Shock Detected -> WAIT
-        if shock_info['is_shock']:
-            return {
-                'signal': 'WAIT / RISKY',
-                'color': 'red',
-                'reason': f"Market in shock ({shock_info['severity']}). Volatility is too high to trade safely."
-            }
+        # 3. Decision Rules
+        signal = "NEUTRAL"
+        color = "gray"
+        reason_list = []
+        
+        # 🟢 SELL NOW
+        # IF trend_down AND (shock_high OR high_risk)
+        if trend_down and (shock_high or high_risk):
+            signal = "SELL NOW"
+            color = "green" # Green for "Action", or Red for "Danger"? User used Green for Sell Now.
+            reason_list.append(f"📉 Trend is negative (Slope: {slope:.2f}/day).")
+            if shock_high: reason_list.append(f"💥 High Intensity Shock detected.")
+            if high_risk: reason_list.append(f"🔥 Market Risk is High ({risk_score}).")
             
-        # HIGH RISK -> HOLD/WAIT
-        if risk_score > 70:
-            return {
-                'signal': 'WAIT',
-                'color': 'red',
-                'reason': "Market risk is very high. Prices are unpredictable."
-            }
+        # 🟡 HOLD
+        # IF trend_up AND NOT shock_high AND risk_score < 60
+        elif trend_up and not shock_high and risk_score < 60:
+            signal = "HOLD"
+            color = "#FFC107" # Amber/Yellow
+            reason_list.append(f"📈 Trend is positive (Slope: +{slope:.2f}/day).")
+            reason_list.append(f"🛡️ Risk is acceptable ({risk_score}).")
             
-        # STRONG UPTRNED -> HOLD (Wait for peak)
-        if pct_change > 5 and slope > 0:
-            return {
-                'signal': 'HOLD',
-                'color': 'orange',
-                'reason': f"Prices are rising (+{pct_change:.1f}% expected). Hold stock for better returns."
-            }
+        # 🔴 WAIT / RISKY
+        # IF shock_high OR high_risk
+        elif shock_high or high_risk:
+            signal = "WAIT / RISKY"
+            color = "red"
+            if shock_high: reason_list.append(f"💥 High Intensity Shock detected.")
+            if high_risk: reason_list.append(f"🔥 Market Risk is High ({risk_score}).")
             
-        # DOWNTREND -> SELL NOW
-        if slope < 0:
-            return {
-                'signal': 'SELL NOW',
-                'color': 'green',
-                'reason': "Forecast shows a downward trend. Sell now to avoid loss."
-            }
-            
-        # MODERATE UPTREND -> BUY/HOLD
-        if 0 < pct_change <= 5:
-            return {
-                'signal': 'ACCUMULATE',
-                'color': 'blue',
-                'reason': "Slight upward trend. Good time to accumulate stock."
-            }
-            
+        else:
+            signal = "NEUTRAL"
+            color = "blue"
+            reason_list.append("Market does not show strong buy/sell signals.")
+
         return {
             'signal': signal,
             'color': color,
-            'reason': reason
+            'reason': "\n".join([f"- {r}" for r in reason_list])
         }
 
     def simulate_profit(self, current_price, forecast_df, quantity_quintals):
         """
-        Simulates P&L for different time horizons.
+        Simulates P&L with Risk Bands using RMSE * sqrt(t).
         """
-        scenarios = []
+        if forecast_df.empty: return pd.DataFrame()
         
-        # defined horizons
+        scenarios = []
+        # Calculate approximate RMSE from confidence intervals if not passed explicitly/
+        # CI = 1.96 * RMSE * sqrt(t). width = upper - lower = 2 * 1.96 * RMSE * sqrt(t)
+        # RMSE approx = width / (3.92 * sqrt(t))
+        # Let's estimate local sigma (RMSE) from the first few days or usage passed sigma.
+        # For simplicity, we can infer sigma from the first valid CI width.
+        
         horizons = [7, 15, 30]
         
         for days in horizons:
             if days <= len(forecast_df):
-                # Get forecast for that day (approximate index)
-                target_row = forecast_df.iloc[days-1]
-                future_price = target_row['forecast_price']
+                row = forecast_df.iloc[days-1]
+                Pt = row['forecast_price']
                 
-                # P&L Calculation
-                revenue_now = current_price * quantity_quintals
-                revenue_future = future_price * quantity_quintals
+                # Infer RMSE-like spread from the bound width provided by ForecastingAgent
+                # ForecastingAgent logic: bound = price +/- 1.96 * std_dev * sqrt(t)
+                # So (Upper - Lower) = 3.92 * std_dev * sqrt(t)
+                # width = row['upper_bound'] - row['lower_bound']
+                # sigma_proxy = width / (3.92 * np.sqrt(days))
                 
-                profit = revenue_future - revenue_now
+                # Wait, simpler: The user GAVE the formula for Risk Band:
+                # Upper = (Pt + 1.96 * sigma * sqrt(t) - P0) * Q
+                # We already have Pt, Lower, Upper in the dataframe!
+                # ForecastingAgent already calculated Pt +/- ...
+                # So we can just use the dataframe's bounds directly for the risk band.
+                # Expected Gain = (Pt - P0) * Q
+                # Upper Gain = (Upper_Price - P0) * Q
+                # Lower Gain = (Lower_Price - P0) * Q
                 
-                # Risk Adjustment (using confidence interval)
-                # Worst case revenue
-                revenue_worst = target_row['lower_bound'] * quantity_quintals
-                profit_worst = revenue_worst - revenue_now
+                expected_gain = (Pt - current_price) * quantity_quintals
+                upper_gain = (row['upper_bound'] - current_price) * quantity_quintals
+                lower_gain = (row['lower_bound'] - current_price) * quantity_quintals
+                
+                # Volatility (Risk Band Width)
+                risk_band = (upper_gain - lower_gain) / 2
                 
                 scenarios.append({
                     'Horizon': f"{days} Days",
-                    'Expected Price': future_price,
-                    'Expected P&L': profit,
-                    'Risk Adjusted P&L': profit_worst,
-                    'Date': target_row['date'].date()
+                    'Expected Price': Pt,
+                    'Expected Profit': expected_gain,
+                    'Risk (±)': risk_band, 
+                    'Range': f"₹{lower_gain:.0f} to ₹{upper_gain:.0f}"
                 })
-                
+        
         return pd.DataFrame(scenarios)

@@ -220,16 +220,16 @@ elif page == "Price Forecast":
             
             # Formatting for display
             display_df = sim_df.copy()
-            display_df['Expected P&L'] = display_df['Expected P&L'].apply(lambda x: f"₹{x:,.2f}")
-            display_df['Risk Adjusted P&L'] = display_df['Risk Adjusted P&L'].apply(lambda x: f"₹{x:,.2f}")
+            display_df['Expected Profit'] = display_df['Expected Profit'].apply(lambda x: f"₹{x:,.2f}")
+            display_df['Risk (±)'] = display_df['Risk (±)'].apply(lambda x: f"₹{x:,.2f}")
             display_df['Expected Price'] = display_df['Expected Price'].apply(lambda x: f"₹{x:,.2f}")
             
             st.dataframe(display_df, use_container_width=True)
             
             # Simple Insight
-            best_scenario = sim_df.loc[sim_df['Expected P&L'].idxmax()]
-            if best_scenario['Expected P&L'] > 0:
-                st.success(f"💡 Best Opportunity: Sell in **{best_scenario['Horizon']}** for specific gain of approx ₹{best_scenario['Expected P&L']:.2f}")
+            best_scenario = sim_df.loc[sim_df['Expected Profit'].idxmax()]
+            if best_scenario['Expected Profit'] > 0:
+                st.success(f"💡 Best Opportunity: Sell in **{best_scenario['Horizon']}** for expected gain of **₹{best_scenario['Expected Profit']:.2f}** (±{best_scenario['Risk (±)']:.0f})")
             else:
                 st.error("📉 Forecast suggests prices may fall. Selling now might be best.")
 
@@ -287,14 +287,17 @@ elif page == "Compare Markets":
         snapshot_df = fetch_arbitrage_snapshot(selected_commodity, scan_mandis)
         
         if not snapshot_df.empty:
-            arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df)
+            arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info)
             
             if not arb_df.empty:
                 # Highlight best
-                st.success(f"Found {len(arb_df)} opportunities!")
+                st.success(f"Found {len(arb_df)} opportunities (Margins > ₹50/Qt)!")
                 st.dataframe(arb_df.style.format({'Net Profit/Qt': '₹{:.2f}'}), use_container_width=True)
             else:
-                st.info("No significant price gaps found (> transport cost) for this commodity.")
+                if shock_info['is_shock']:
+                    st.warning("⚠️ Market is currently undergoing a shock. Arbitrage scanning is disabled to prevent risky trades.")
+                else:
+                    st.info("No significant price gaps found (> ₹50 + transport) for this commodity.")
         else:
             st.warning("Insufficient regional data for arbitrage.")
 

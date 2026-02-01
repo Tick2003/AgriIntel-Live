@@ -14,10 +14,15 @@ class ArbitrageAgent:
         # Or simpler: Fixed cost per Quintal between known hubs
         self.avg_transport_cost = 150 # INR per Quintal (approx for inter-state)
 
-    def find_opportunities(self, current_commodity, current_mandi, all_data_df):
+    def find_opportunities(self, current_commodity, current_mandi, all_data_df, shock_status_current):
         """
         Scans for price gaps > transport cost.
+        Includes Smart Filter: If shock_high in CURRENT mandi, avoid logic (or show warning).
         """
+        # Smart Filter: Avoid noise if current market is already unstable
+        if shock_status_current.get('is_shock') and shock_status_current.get('severity') == 'High':
+            return pd.DataFrame() # Return empty, unstable
+            
         if all_data_df.empty:
             return pd.DataFrame()
 
@@ -34,6 +39,7 @@ class ArbitrageAgent:
         latest_prices = all_data_df[all_data_df['commodity'] == current_commodity].sort_values('date').groupby('mandi').tail(1)
         
         opportunities = []
+        min_margin = 50 # Theta = 50Rs/Qt
         
         for _, row in latest_prices.iterrows():
             target_mandi = row['mandi']
@@ -49,7 +55,7 @@ class ArbitrageAgent:
             gross_margin = target_price - my_price
             net_profit = gross_margin - self.avg_transport_cost
             
-            if net_profit > 0:
+            if net_profit > min_margin:
                 opportunities.append({
                     'Type': 'Sell to',
                     'Target Mandi': target_mandi,
@@ -64,7 +70,7 @@ class ArbitrageAgent:
             buy_margin = my_price - target_price
             buy_profit = buy_margin - self.avg_transport_cost
             
-            if buy_profit > 0:
+            if buy_profit > min_margin:
                 opportunities.append({
                     'Type': 'Buy from',
                     'Target Mandi': target_mandi,
