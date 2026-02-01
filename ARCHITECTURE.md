@@ -49,11 +49,11 @@ This layer handles the visual presentation and user inputs.
 The entry point of the Streamlit application.
 *   **Initialization**: Configures the page layout, title, and loads custom CSS.
 *   **Dependencies**: Imports all Agents and Utils.
-*   **State Management**: Uses `@st.cache_resource` to initialize agents only once to optimize performance.
+*   **State Management & Performance**: Uses `@st.cache_data(ttl=3600)` to cache expensive operations (Data Loading, Model Training, Risk Scoring) for 1 hour, ensuring instant page navigation.
 *   **Execution Loop**:
     1.  **Sidebar**: Collects user preference (Commodity, Mandi).
-    2.  **Data Fetch**: Calls `get_live_data` to retrieve historical traces.
-    3.  **Agent Chain**: Sequentially calls agents:
+    2.  **Data Fetch**: Calls `get_live_data` (Cached) to retrieve historical traces.
+    3.  **Agent Chain**: Sequentially calls agents (most are Cached):
         *   `health` -> `forecast` -> `shock` -> `risk` -> `explain`
     4.  **UI Routing**: Switches between views ("Market Overview", "Price Forecast", etc.) based on sidebar selection.
 
@@ -69,12 +69,15 @@ Helper utilities for the frontend.
 The "Brains" of the application. Each agent is a specialized class with a specific responsibility.
 
 #### `agents/forecast_execution.py` (`ForecastingAgent`)
-**Purpose**: Predict future prices (30 days out) using a Hybrid ML approach.
-*   **Algorithm**: **XGBoost Regressor** + **Cumulative Random Walk**.
+**Purpose**: Predict future prices (30 days out) using a Robust Hybrid ML approach.
+*   **Algorithm**: **Trend Decomposition (Linear Regression) + Residual Modeling (XGBoost)**.
 *   **Key Features**:
-    *   **On-the-fly Training**: Trains a fresh model for every user request based on the latest data.
-    *   **Self-Correction**: Uses a validation split to detect if the model is currently under/over-estimating and applies a "bias correction" term.
-    *   **Anti-Flatline Logic**: Adds a controlled random drift ("Random Walk") to ML predictions to simulate realistic market volatility, preventing the common ML issue of "flat line" forecasts in low-variance data.
+    *   **Trend + Residual Strategy**: Solves the "Flat-line" problem of tree-based models.
+        1.  **Detrend**: Fits a linear trend to the price history to capture long-term direction.
+        2.  **Residuals**: Trains XGBoost on the *residuals* (Price - Trend) to capture volatility and seasonality.
+        3.  **Recombine**: Final Forecast = Projected Trend + Predicted Residuals.
+    *   **Recursive Forecasting**: Uses a recursive window strategy where future predictions become inputs for subsequent steps.
+    *   **Dynamic Confidence Intervals**: Calculates RMSE on a hidden validation set and scales uncertainty over time (Confidence Interval = Forecast +/- 1.96 * RMSE * sqrt(t)).
 
 #### `agents/risk_scoring.py` (`MarketRiskEngine`)
 **Purpose**: Quantify market stability.
