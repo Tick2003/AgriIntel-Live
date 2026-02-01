@@ -144,11 +144,27 @@ explanation = run_explanation_agent(selected_commodity, risk_info, shock_info, f
 
 # --- SIGNAL LOGGING (Phase 3) ---
 last_date_str = data['date'].iloc[-1].strftime("%Y-%m-%d")
-# Log signal (only if new day)
-db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
+
+# Robust Logging
+try:
+    if hasattr(db_manager, 'log_signal'):
+        db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
+    else:
+        # Hot-fix for stale module reload issue
+        import importlib
+        importlib.reload(db_manager)
+        if hasattr(db_manager, 'log_signal'):
+            db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
+except Exception as e:
+    print(f"Logging Error: {e}")
 
 # Fetch Stats
-signal_stats = db_manager.get_signal_stats(selected_commodity, selected_mandi)
+signal_stats = {}
+try:
+    if hasattr(db_manager, 'get_signal_stats'):
+        signal_stats = db_manager.get_signal_stats(selected_commodity, selected_mandi)
+except Exception as e:
+    print(f"Stats Error: {e}")
 # -------------------------------
 
 # Navigation
