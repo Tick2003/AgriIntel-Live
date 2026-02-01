@@ -140,6 +140,15 @@ shock_info, risk_info = run_shock_risk_agents(data, forecast_df)
 decision_signal = run_decision_agent(data['price'].iloc[-1], forecast_df, risk_info, shock_info)
 explanation = run_explanation_agent(selected_commodity, risk_info, shock_info, forecast_df)
 
+# --- SIGNAL LOGGING (Phase 3) ---
+last_date_str = data['date'].iloc[-1].strftime("%Y-%m-%d")
+# Log signal (only if new day)
+db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
+
+# Fetch Stats
+signal_stats = db_manager.get_signal_stats(selected_commodity, selected_mandi)
+# -------------------------------
+
 # Navigation
 page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Compare Markets", "News & Insights", "Model Performance", "Explanation & Insights"])
 
@@ -158,9 +167,26 @@ if page == "Market Overview":
     sig_text = decision_signal['signal']
     sig_reason = decision_signal['reason']
     
+    # Calculate Reliability Label
+    win_rate = signal_stats.get('win_rate', 0)
+    total_signals = signal_stats.get('total', 0)
+    
+    reliability_badge = ""
+    if total_signals > 5:
+        if win_rate > 70: reliability_badge = "🏆 High Accuracy"
+        elif win_rate > 50: reliability_badge = "✅ Reliable"
+        else: reliability_badge = "⚠️ Low Confidence"
+    else:
+        reliability_badge = "🆕 Calibrating"
+
     st.markdown(f"""
     <div style="padding: 15px; border-radius: 10px; background-color: {'#e6fffa' if sig_color=='green' else '#fff5f5' if sig_color=='red' else '#fffaf0'}; border: 1px solid {sig_color}; margin-bottom: 20px;">
-        <h3 style="color: {sig_color}; margin:0;">📢 Strategy: {sig_text}</h3>
+        <div style="display: flex; justify-content: space-between; align_items: center;">
+            <h3 style="color: {sig_color}; margin:0;">📢 Strategy: {sig_text}</h3>
+            <span style="background-color: #fff; padding: 5px 10px; border-radius: 15px; border: 1px solid #ccc; font-size: 0.9em;">
+                🎯 Accuracy: {win_rate:.0f}% ({reliability_badge})
+            </span>
+        </div>
         <p style="margin:5px 0 0 0;">{sig_reason}</p>
     </div>
     """, unsafe_allow_html=True)
