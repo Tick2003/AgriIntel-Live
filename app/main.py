@@ -16,6 +16,7 @@ from agents.risk_scoring import MarketRiskEngine
 from agents.explanation_report import AIExplanationAgent
 from agents.decision_support import DecisionAgent
 from agents.arbitrage_engine import ArbitrageAgent
+from agents.intelligence_core import IntelligenceAgent
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
@@ -80,7 +81,8 @@ def load_agents():
         "risk": MarketRiskEngine(),
         "explain": AIExplanationAgent(),
         "decision": DecisionAgent(),
-        "arbitrage": ArbitrageAgent()
+        "arbitrage": ArbitrageAgent(),
+        "intel": IntelligenceAgent()
     }
 
 agents = load_agents()
@@ -150,7 +152,8 @@ signal_stats = db_manager.get_signal_stats(selected_commodity, selected_mandi)
 # -------------------------------
 
 # Navigation
-page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Compare Markets", "News & Insights", "Model Performance", "Explanation & Insights"])
+page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Compare Markets", "News & Insights", "Model Performance", "Explanation & Insights", "AI Consultant"])
+
 
 # --- PAGE 1: MARKET OVERVIEW ---
 if page == "Market Overview":
@@ -164,7 +167,8 @@ if page == "Market Overview":
     
     # --- DECISION SIGNAL BANNER ---
     sig_color = decision_signal['color']
-    sig_text = decision_signal['signal']
+    # Use the confidence-rich text if available (Phase 4), else fallback
+    sig_text = decision_signal.get('signal_text', decision_signal['signal']) 
     sig_reason = decision_signal['reason']
     
     # Calculate Reliability Label
@@ -457,3 +461,59 @@ elif page == "Explanation & Insights":
     
     st.subheader("Recommended Next Steps")
     st.write(explanation['next_steps'])
+
+# --- AI CONSULTANT (Phase 4) ---
+elif page == "AI Consultant":
+    st.header("🤖 AI Market Consultant")
+    
+    # Context for the Agent
+    context_data = {
+        "signal": decision_signal['signal'],
+        "confidence": decision_signal.get('confidence', 50),
+        "reason": decision_signal['reason'],
+        "current_price": data['price'].iloc[-1],
+        "commodity": selected_commodity,
+        "mandi": selected_mandi
+    }
+
+    # 1. Chat Interface
+    st.markdown("ask me anything about the market, e.g., *'Should I sell?', 'What if it rains?', 'Forecast check'*")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("Type your question..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            response = agents['intel'].get_chat_response(prompt, context_data)
+            st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # 2. Scenario Simulator (Sidebar)
+    with st.sidebar:
+        st.markdown("---")
+        st.subheader("⚡ Scenario Simulator")
+        st.caption("Test 'What-If' Events")
+        
+        sim_options = {
+            "Heavy Rain": "heavy_rain",
+            "Export Ban": "export_ban", 
+            "Fuel Hike": "fuel_hike",
+            "Festival": "festival_demand"
+        }
+        
+        selected_sim = st.selectbox("Select Event", list(sim_options.keys()))
+        
+        if st.button("Simulate Impact"):
+            sim_res = agents['intel'].run_scenario(context_data['current_price'], sim_options[selected_sim])
+            if sim_res:
+                st.sidebar.success(f"Price Change: {sim_res['change_pct']}")
+                st.sidebar.metric("New Projected Price", f"₹{sim_res['new_price']:.2f}")
+                st.sidebar.info(f"Reason: {sim_res['reason']}")

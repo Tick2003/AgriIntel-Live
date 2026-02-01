@@ -72,8 +72,26 @@ class DecisionAgent:
             color = "blue"
             reason_list.append("Market does not show strong buy/sell signals.")
 
+        # 4. Calculate Confidence Score
+        # Logic: High Risk -> Lower Confidence. Strong Trend -> Higher Confidence.
+        # Base: 100
+        # Penalties: Risk Score (* 0.4), Shock (-20 if Med)
+        # Bonus: Abs(Slope) if significant
+        
+        confidence = 100 - (risk_score * 0.4)
+        if shock_high: confidence -= 30
+        elif shock_dict.get('severity') == 'Medium': confidence -= 15
+        
+        # Clamp 0-99
+        confidence = max(10, min(99, confidence))
+        
+        # Format "SELL NOW (Confidence: 82%)"
+        signal_text = f"{signal} (Confidence: {int(confidence)}%)"
+
         return {
-            'signal': signal,
+            'signal': signal, # Raw signal for logic
+            'signal_text': signal_text, # UI display
+            'confidence': confidence,
             'color': color,
             'reason': "\n".join([f"- {r}" for r in reason_list])
         }
