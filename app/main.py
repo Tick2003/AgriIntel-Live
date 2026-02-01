@@ -354,7 +354,19 @@ elif page == "Compare Markets":
         snapshot_df = fetch_arbitrage_snapshot(selected_commodity, scan_mandis)
         
         if not snapshot_df.empty:
-            arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info)
+            try:
+                arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info)
+            except TypeError:
+                # Handle Stale Cache: Old find_opportunities signature call failed
+                # Reload module and re-instantiate
+                import importlib
+                import agents.arbitrage_engine
+                importlib.reload(agents.arbitrage_engine)
+                from agents.arbitrage_engine import ArbitrageAgent
+                
+                # Re-run with new agent
+                temp_agent = ArbitrageAgent()
+                arb_df = temp_agent.find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info)
             
             if not arb_df.empty:
                 # Highlight best
