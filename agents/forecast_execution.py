@@ -20,15 +20,13 @@ class ForecastingAgent:
 
     def prepare_features(self, df):
         """
-        Feature Engineering: Lags, Rolling Means, Date parts.
+        Feature Engineering: Lags, Rolling Means, Date parts, Technicals, Weather.
         """
         df = df.copy()
         df['day_of_week'] = df['date'].dt.dayofweek
         df['month'] = df['date'].dt.month
         
         # Determine target column for feature engineering
-        # If 'resid' exists, we are training/predicting residuals.
-        # If not (e.g. initial setup), we default to 'price' but logic below handles 'resid' primarily.
         target_col = 'resid' if 'resid' in df.columns else 'price'
         
         # --- TECHNICAL INDICATORS (ML Heavy) ---
@@ -38,14 +36,13 @@ class ForecastingAgent:
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
         df['rsi'] = 100 - (100 / (1 + rs))
-        df['rsi'] = df['rsi'].fillna(50) # Neutral fill
+        df['rsi'] = df['rsi'].fillna(50)
         
         # 2. Bollinger Bands
         df['bb_mid'] = df[target_col].rolling(window=20).mean()
         df['bb_std'] = df[target_col].rolling(window=20).std()
         df['bb_upper'] = df['bb_mid'] + (2 * df['bb_std'])
         df['bb_lower'] = df['bb_mid'] - (2 * df['bb_std'])
-        # Feature: Distance from upper band (normalized)
         df['bb_dist'] = (df[target_col] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'] + 1e-9)
         
         # 3. MACD
@@ -57,27 +54,62 @@ class ForecastingAgent:
         # Lags
         df['lag_1'] = df[target_col].shift(1)
         df['lag_7'] = df[target_col].shift(7)
+        df['lag_14'] = df[target_col].shift(14) # New Lag
         
         # Rolling features
         df['rolling_mean_7'] = df[target_col].rolling(window=7).mean()
         df['rolling_std_7'] = df[target_col].rolling(window=7).std()
         
-        # Clean NaN from rolling
+        # Weather Lag (if columns exist)
+        if 'rainfall' in df.columns:
+            df['rain_lag_1'] = df['rainfall'].shift(1).fillna(0)
+            df['temp_lag_1'] = df['temperature'].shift(1).fillna(25)
+        
         return df.fillna(method='bfill').fillna(0)
 
-    def generate_forecasts(self, data: pd.DataFrame, commodity: str, mandi: str) -> pd.DataFrame:
+    def _tune_model(self, X, y):
         """
-        Generates 30-day forecast using Trend + Residual approach.
+        Simple Grid Search for Hyperparameter Tuning.
+        """
+        from sklearn.model_selection import RandomizedSearchCV
+        
+        param_grid = {
+            'learning_rate': [0.01, 0.05, 0.1],
+            'max_depth': [3, 5, 7],
+            'n_estimators': [50, 100, 200],
+            'subsample': [0.8, 1.0]
+        }
+        
+        xgb_model = xgb.XGBRegressor(objective='reg:squarederror')
+        
+        # Use RandomizedSearch for speed (5 iterations)
+        search = RandomizedSearchCV(xgb_model, param_grid, n_iter=5, cv=3, scoring='neg_root_mean_squared_error', n_jobs=1, random_state=42)
+        search.fit(X, y)
+        
+        print(f"Best Params: {search.best_params_}")
+        return search.best_estimator_
+
+    def generate_forecasts(self, data: pd.DataFrame, commodity: str, mandi: str, weather_df: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Generates 30-day forecast using Trend + Residual approach with Weather Integration.
         """
         # Ensure data is sorted
         data = data.sort_values('date').copy()
+        
+        # Merge Weather if available
+        if weather_df is not None and not weather_df.empty:
+            # Ensure dates match for merge
+            weather_df['date'] = pd.to_datetime(weather_df['date'])
+            data = pd.merge(data, weather_df[['date', 'rainfall', 'temperature']], on='date', how='left')
+            # Forward fill missing weather (persistence)
+            data['rainfall'] = data['rainfall'].fillna(0)
+            data['temperature'] = data['temperature'].fillna(method='ffill').fillna(25)
         
         # Minimum data check
         if len(data) < 30:
             return self._generate_fallback(data, commodity, mandi)
 
         # --- STEP 1: DETRENDING ---
-        # Convert date to ordinal for regression
         data['date_ordinal'] = data['date'].apply(lambda x: x.toordinal())
         
         X_trend = data[['date_ordinal']]
@@ -90,20 +122,24 @@ class ForecastingAgent:
         # --- STEP 2: TRAIN XGBOOST ON RESIDUALS ---
         features_df = self.prepare_features(data)
         feature_cols = [
-            'day_of_week', 'month', 'lag_1', 'lag_7', 
+            'day_of_week', 'month', 'lag_1', 'lag_7', 'lag_14',
             'rolling_mean_7', 'rolling_std_7',
-            'rsi', 'bb_dist', 'macd', 'macd_signal' # Added TIs
+            'rsi', 'bb_dist', 'macd', 'macd_signal'
         ]
+        
+        if 'rain_lag_1' in features_df.columns:
+            feature_cols.extend(['rain_lag_1', 'temp_lag_1'])
         
         X = features_df[feature_cols]
         y = features_df['resid']
         
         # Validation Split (Last 5 days)
         val_size = 5
-        X_train, X_val = X.iloc[:-val_size], X.iloc[-val_size:]
-        y_train, y_val = y.iloc[:-val_size], y.iloc[-val_size:]
+        X_train_full, X_val = X.iloc[:-val_size], X.iloc[-val_size:]
+        y_train_full, y_val = y.iloc[:-val_size], y.iloc[-val_size:]
         
-        self.residual_model.fit(X_train, y_train)
+        # AUTO-TUNE (Optimization Step)
+        self.residual_model = self._tune_model(X_train_full, y_train_full)
         
         # Calculate RMSE on residuals
         val_preds = self.residual_model.predict(X_val)
@@ -112,7 +148,7 @@ class ForecastingAgent:
         
         print(f"Residual Model RMSE: {rmse_val:.2f}")
         
-        # Retrain on full data
+        # Retrain on full data with best params
         self.residual_model.fit(X, y)
         
         # --- STEP 3: RECURSIVE FORECAST ---
@@ -135,10 +171,12 @@ class ForecastingAgent:
             temp_df = current_data.copy()
             next_row = pd.DataFrame([{
                 'date': next_date,
-                'resid': np.nan, # To be filled
+                'resid': np.nan, 
                 'trend': pred_trend,
-                'price': np.nan, # Placeholder
-                'date_ordinal': next_ordinal
+                'price': np.nan, 
+                'date_ordinal': next_ordinal,
+                'rainfall': temp_df['rainfall'].iloc[-1] if 'rainfall' in temp_df.columns else 0, # Weather Persistence
+                'temperature': temp_df['temperature'].iloc[-1] if 'temperature' in temp_df.columns else 25
             }])
             temp_df = pd.concat([temp_df, next_row], ignore_index=True)
             
@@ -164,10 +202,10 @@ class ForecastingAgent:
         # --- STEP 4: CONFIDENCE INTERVALS ---
         forecast_prices = np.array(forecast_prices)
         
-        # Uncertainty grows with time (Trend uncertainty + Residual uncertainty)
-        # Simplified: Use Residual RMSE * sqrt(t)
+        # Uncertainty grows with time, but tuned model should be tighter
+        # Use simple heuristic: RMSE * log(t) instead of sqrt(t) for slightly tighter bounds initially
         time_steps = np.arange(1, 31)
-        uncertainty_factor = np.sqrt(time_steps)
+        uncertainty_factor = np.log(time_steps + 1) + 0.5 
         
         margin_of_error = 1.96 * rmse_val * uncertainty_factor
         
