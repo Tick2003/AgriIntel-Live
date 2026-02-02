@@ -45,6 +45,7 @@ class MarketRiskEngine:
         return {
             "risk_score": int(score),
             "risk_level": risk_level,
+            "volatility": market_volatility,
             "regime": self.determine_regime(market_volatility, shock_info.get('is_shock', False)),
             "explanation_tags": tags
         }

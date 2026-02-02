@@ -8,10 +8,7 @@ class DecisionAgent:
     Role: Strategic Advisor
     Goal: Translate forecast data into actionable Buy/Sell/Hold signals and simulate profit scenarios.
     """
-    def __init__(self):
-        pass
-
-    def get_signal(self, current_price, forecast_df, risk_score, shock_dict):
+    def get_signal(self, current_price, forecast_df, risk_dict, shock_dict):
         """
         Determines the trading signal based on rigorous logic gates.
         """
@@ -23,14 +20,17 @@ class DecisionAgent:
         x = np.arange(len(y))
         slope, _ = np.polyfit(x, y, 1) # Change per day
         
-        # Threshold: 0.5% of current price per day ?? No, maybe just 0.1% is significant enough for daily
-        # User said "T1 = 0.5% of current price per day" - that's huge! 0.5% daily is 15% monthly.
-        # Let's stick to the user's suggestion or a slightly more sensitive one if 0.5% is too high.
-        # Let's use 0.1% as a more realistic "Trend" threshold for daily agri prices.
-        T1 = 0.001 * current_price 
+        # 2. Adaptive Trend Threshold (Adaptive Learning Engine)
+        # Scale T1 based on volatility. High vol = Higher threshold needed (Noise filter).
+        # Base sensitivity: 0.1% daily.
+        # Formula: T1 = Price * max(0.001, Volatility * 0.2)
+        volatility = risk_dict.get('volatility', 0.01)
+        risk_score = risk_dict.get('risk_score', 50)
         
-        trend_up = slope > T1
-        trend_down = slope < -T1
+        dynamic_T1 = current_price * max(0.001, volatility * 0.2)
+        
+        trend_up = slope > dynamic_T1
+        trend_down = slope < -dynamic_T1
         
         # 2. Risk Flags
         high_risk = risk_score > 70

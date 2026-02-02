@@ -17,6 +17,8 @@ from agents.explanation_report import AIExplanationAgent
 from agents.decision_support import DecisionAgent
 from agents.arbitrage_engine import ArbitrageAgent
 from agents.intelligence_core import IntelligenceAgent
+from agents.user_profile import UserProfileAgent
+from agents.notification_service import NotificationService # New
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
@@ -82,10 +84,32 @@ def load_agents():
         "explain": AIExplanationAgent(),
         "decision": DecisionAgent(),
         "arbitrage": ArbitrageAgent(),
-        "intel": IntelligenceAgent()
+        "intel": IntelligenceAgent(),
+        "profile": UserProfileAgent(),
+        "notify": NotificationService() # New
     }
 
 agents = load_agents()
+
+# --- PERSONALIZATION UI ---
+try:
+    user_profile = agents["profile"].get_profile()
+    with st.sidebar.expander("⚙️ Personalization"):
+        p_risk = st.selectbox("Risk Tolerance", ["Low", "Medium", "High"], index=["Low", "Medium", "High"].index(user_profile.get('risk_tolerance', 'Medium')))
+        p_transport = st.number_input("Transport Cost (₹/Q)", value=float(user_profile.get('transport_cost', 0.0)))
+        
+        if st.button("Save Preferences"):
+            agents["profile"].update_profile(risk_tolerance=p_risk, transport_cost=p_transport)
+            st.sidebar.success("Saved!")
+            st.rerun()
+except Exception as e:
+    st.sidebar.error(f"Profile Error: {e}")
+
+# Notification Log (Sidebar)
+if "alerts" in st.session_state and st.session_state["alerts"]:
+    with st.sidebar.expander("🔔 Notification Log", expanded=True):
+        for alert in st.session_state["alerts"][:5]:
+            st.code(alert, language="text")
 
 # Load Data
 # Helper wrapper for caching
@@ -101,11 +125,12 @@ def run_forecasting_agent(data, commodity, mandi):
 
 @st.cache_data(ttl=3600)
 def run_shock_risk_agents(data, forecast_df):
-    shock_agent = AnomalyDetectionEngine()
-    risk_agent = MarketRiskEngine()
+    # shock_agent = AnomalyDetectionEngine() # Removed as agents dict is used
+    # risk_agent = MarketRiskEngine() # Removed as agents dict is used
     
-    shock_info = shock_agent.detect_shocks(data, forecast_df)
-    risk_info = risk_agent.calculate_risk_score(shock_info, forecast_df['forecast_price'].std(), data['price'].pct_change().std())
+    shock_info = agents["shock"].detect_shocks(data, forecast_df)
+    risk_info = agents["risk"].calculate_risk_score(shock_info, forecast_df['forecast_price'].std(), data['price'].pct_change().std())
+    
     return shock_info, risk_info
 
 @st.cache_data(ttl=3600)
@@ -116,7 +141,7 @@ def run_explanation_agent(commodity, risk_info, shock_info, forecast_df):
 @st.cache_data(ttl=3600)
 def run_decision_agent(current_price, forecast_df, risk_dict, shock_dict):
     agent = DecisionAgent()
-    return agent.get_signal(current_price, forecast_df, risk_dict['risk_score'], shock_dict)
+    return agent.get_signal(current_price, forecast_df, risk_dict, shock_dict)
 
 @st.cache_data(ttl=3600)
 def fetch_arbitrage_snapshot(commodity, all_mandis):
@@ -139,6 +164,10 @@ st.caption(f"Data Source: Agmarknet (Simulated) | Last Updated: {last_date}")
 health_status = agents["health"].check_daily_completeness(data) 
 forecast_df = run_forecasting_agent(data, selected_commodity, selected_mandi)
 shock_info, risk_info = run_shock_risk_agents(data, forecast_df) 
+
+# Check Notifications (Real-time)
+agents["notify"].check_triggers(shock_info, risk_info, selected_commodity, selected_mandi)
+
 decision_signal = run_decision_agent(data['price'].iloc[-1], forecast_df, risk_info, shock_info)
 explanation = run_explanation_agent(selected_commodity, risk_info, shock_info, forecast_df)
 

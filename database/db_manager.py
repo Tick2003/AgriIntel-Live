@@ -67,6 +67,18 @@ def init_db():
             profitability_status TEXT
         )
     ''') 
+    
+    # Table: User Config (New Phase 4)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_config (
+            user_id TEXT PRIMARY KEY,
+            risk_tolerance TEXT DEFAULT 'Medium',
+            transport_cost REAL DEFAULT 0.0,
+            default_mandi TEXT,
+            default_commodity TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
     print(f"Database {DB_NAME} initialized.")
