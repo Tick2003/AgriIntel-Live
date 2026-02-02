@@ -6,10 +6,12 @@ A live AI-powered dashboard for tracking agricultural commodities (Potato, Onion
 
 ## 🚀 Features
 - **Live Market Data**: Simulated real-time prices and arrivals for major Mandis.
-- **Compare Markets**: Side-by-side comparison of commodities and regions.
-- **Weather Intelligence**: Live weather impact alerts (Temperature, Rainfall).
-- **Global News Hub**: Real-time agriculture news feed with sentiment analysis.
-- **Price Forecasting**: 30-day AI-driven price predictions.
+- **AI Consultant 🤖**: Chat with the system ("Should I sell?") or run "What-If" scenarios (Rain/Export Ban).
+- **Signal Accuracy Tracker**: Automated backtesting of past signals with a real-time "Win Rate" badge.
+- **Actionable Signals**: "Sell Now", "Hold", "Accumulate" recommendations with Confidence Scores.
+- **Regional Arbitrage**: Identify profitable trade routes between Mandis.
+- **Global News Hub**: Real-time agriculture news feed (De-duplicated) with sentiment analysis.
+- **Price Forecasting**: 30-day AI-driven price predictions using XGBoost.
 - **Risk Scoring**: Automated market risk assessment.
 
 ## 🛠️ Tech Stack

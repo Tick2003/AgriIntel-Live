@@ -122,6 +122,7 @@ Handles all SQLite interactions.
     *   **`market_prices`**: `date` (TEXT), `commodity` (TEXT), `mandi` (TEXT), `price_modal` (REAL), `arrival` (REAL).
     *   **`news_alerts`**: `date`, `title`, `source`, `sentiment`.
     *   **`weather_logs`**: `date`, `region`, `temperature`, `rainfall`.
+    *   **`signal_logs`**: Stores historical signals (`date`, `signal`, `price_at_signal`, `price_after_7d`, `profitability_status`) for the Win Rate tracker.
 
 #### `etl/data_loader.py`
 The simulation engine.
