@@ -4,15 +4,33 @@ A live AI-powered dashboard for tracking agricultural commodities (Potato, Onion
 
 📘 **[Read the Full Architecture Documentation](ARCHITECTURE.md)** to understand every module from tip to toe.
 
-## 🚀 Features
-- **Live Market Data**: Simulated real-time prices and arrivals for major Mandis.
-- **AI Consultant 🤖**: Chat with the system ("Should I sell?") or run "What-If" scenarios (Rain/Export Ban).
-- **Signal Accuracy Tracker**: Automated backtesting of past signals with a real-time "Win Rate" badge.
-- **Actionable Signals**: "Sell Now", "Hold", "Accumulate" recommendations with Confidence Scores.
-- **Regional Arbitrage**: Identify profitable trade routes between Mandis.
-- **Global News Hub**: Real-time agriculture news feed (De-duplicated) with sentiment analysis.
-- **Price Forecasting**: 30-day AI-driven price predictions using XGBoost.
-- **Risk Scoring**: Automated market risk assessment.
+## 🚀 Features & Roadmap
+
+### 🤖 1. AI Market Consultant (Live)
+- **Conversational**: Ask "Should I sell onions in Agra?" and get a Buy/Hold/Sell signal.
+- **Context-Aware**: Considers Price trends, Risk scores, and News sentiment.
+- **Persona**: Acts as a Senior Analyst, not a chatbot.
+
+### 📲 2. Smart Alerts (Beta)
+- **Shock Detection**: Automatic banners for sudden price crashes (>5%).
+- **Arbitrage**: Scans nearby mandis for price gaps > Transport Cost.
+
+### 📊 3. Self-Evaluation & Trust (New)
+- **Accuracy Boost**: Displays how much better the AI is vs a Naive Baseline.
+- **Backtesting**: Validates model performance on hidden test sets (Last 30 days).
+
+### 👤 4. User Personalization & Simulation
+- **Sidebar Config**: Set your preferred Commodity and Mandi.
+- **Scenario Simulator**: Run "What-If" analysis (e.g., "Heavy Rain", "Export Ban") to see price impact.
+
+### 🧠 5. Learning Strategy Engine
+- **Auto-Tuning**: XGBoost model optimizes its own hyperparameters (Learning Rate, Depth) before every run.
+- **Weather Fusion**: Ingests Rainfall/Temp data to refine forecasts.
+
+### 🌍 6. Roadmap (Upcoming)
+- **Real-Time API**: Connect to live Agmarknet XML feeds.
+- **Mobile Mode**: Low-bandwidth UI for rural access.
+- **Personalized Accounts**: Save transport costs and risk preferences.
 
 ## 🛠️ Tech Stack
 - **Frontend**: Streamlit
