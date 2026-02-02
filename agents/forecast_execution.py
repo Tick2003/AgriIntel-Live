@@ -31,6 +31,30 @@ class ForecastingAgent:
         # If not (e.g. initial setup), we default to 'price' but logic below handles 'resid' primarily.
         target_col = 'resid' if 'resid' in df.columns else 'price'
         
+        # --- TECHNICAL INDICATORS (ML Heavy) ---
+        # 1. RSI (Relative Strength Index)
+        delta = df[target_col].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['rsi'] = 100 - (100 / (1 + rs))
+        df['rsi'] = df['rsi'].fillna(50) # Neutral fill
+        
+        # 2. Bollinger Bands
+        df['bb_mid'] = df[target_col].rolling(window=20).mean()
+        df['bb_std'] = df[target_col].rolling(window=20).std()
+        df['bb_upper'] = df['bb_mid'] + (2 * df['bb_std'])
+        df['bb_lower'] = df['bb_mid'] - (2 * df['bb_std'])
+        # Feature: Distance from upper band (normalized)
+        df['bb_dist'] = (df[target_col] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'] + 1e-9)
+        
+        # 3. MACD
+        exp12 = df[target_col].ewm(span=12, adjust=False).mean()
+        exp26 = df[target_col].ewm(span=26, adjust=False).mean()
+        df['macd'] = exp12 - exp26
+        df['macd_signal'] = df['macd'].ewm(span=9, adjust=False).mean()
+        
+        # Lags
         df['lag_1'] = df[target_col].shift(1)
         df['lag_7'] = df[target_col].shift(7)
         
@@ -38,7 +62,8 @@ class ForecastingAgent:
         df['rolling_mean_7'] = df[target_col].rolling(window=7).mean()
         df['rolling_std_7'] = df[target_col].rolling(window=7).std()
         
-        return df.dropna()
+        # Clean NaN from rolling
+        return df.fillna(method='bfill').fillna(0)
 
     def generate_forecasts(self, data: pd.DataFrame, commodity: str, mandi: str) -> pd.DataFrame:
         """
@@ -64,7 +89,11 @@ class ForecastingAgent:
         
         # --- STEP 2: TRAIN XGBOOST ON RESIDUALS ---
         features_df = self.prepare_features(data)
-        feature_cols = ['day_of_week', 'month', 'lag_1', 'lag_7', 'rolling_mean_7', 'rolling_std_7']
+        feature_cols = [
+            'day_of_week', 'month', 'lag_1', 'lag_7', 
+            'rolling_mean_7', 'rolling_std_7',
+            'rsi', 'bb_dist', 'macd', 'macd_signal' # Added TIs
+        ]
         
         X = features_df[feature_cols]
         y = features_df['resid']

@@ -19,16 +19,28 @@ def fetch_agri_news(query="Agri Market India"):
     rss_url = f"https://news.google.com/rss/search?q={query.replace(' ', '+')}&hl=en-IN&gl=IN&ceid=IN:en"
     feed = feedparser.parse(rss_url)
     
+    # Load Sentiment Agent
+    try:
+        from agents.sentiment_analysis import SentimentAgent
+        sa = SentimentAgent()
+    except Exception as e:
+        print(f"Sentiment Agent Warning: {e}")
+        sa = None
+
     news_items = []
     for entry in feed.entries[:5]: # Top 5 news
+        
+        sentiment = "Neutral"
+        if sa:
+            analysis = sa.analyze(entry.title)
+            sentiment = analysis['label']
+            
         news_items.append({
             "date": entry.published,
             "title": entry.title,
             "source": entry.source.title,
-            "title": entry.title,
-            "source": entry.source.title,
             "url": entry.link,
-            "sentiment": "Neutral" # Placeholder for sentiment analysis
+            "sentiment": sentiment
         })
     
     return pd.DataFrame(news_items)
