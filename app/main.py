@@ -14,12 +14,18 @@ from agents.forecast_execution import ForecastingAgent
 from agents.shock_monitoring import AnomalyDetectionEngine
 from agents.risk_scoring import MarketRiskEngine
 from agents.explanation_report import AIExplanationAgent
-from agents.decision_support import DecisionAgent
-from agents.arbitrage_engine import ArbitrageAgent
 from agents.intelligence_core import IntelligenceAgent
 from agents.user_profile import UserProfileAgent
-from agents.notification_service import NotificationService # New
+from agents.notification_service import NotificationService
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
+import importlib 
+import agents.decision_support
+import agents.risk_scoring
+# Force Reload to prevent Stale Module errors on Cloud
+importlib.reload(agents.decision_support)
+importlib.reload(agents.risk_scoring)
+from agents.decision_support import DecisionAgent
+from agents.risk_scoring import MarketRiskEngine
 
 # Page Config
 st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
