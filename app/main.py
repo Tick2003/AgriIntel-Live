@@ -14,6 +14,7 @@ from agents.forecast_execution import ForecastingAgent
 from agents.shock_monitoring import AnomalyDetectionEngine
 from agents.risk_scoring import MarketRiskEngine
 from agents.explanation_report import AIExplanationAgent
+from agents.arbitrage_engine import ArbitrageAgent # Restored
 from agents.intelligence_core import IntelligenceAgent
 from agents.user_profile import UserProfileAgent
 from agents.notification_service import NotificationService
