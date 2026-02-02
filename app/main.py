@@ -439,9 +439,9 @@ elif page == "Model Performance":
         
         # Align dates
         
-        # 4. Generate Baseline Forecast (Simple Moving Average of last 7 days of train)
-        last_7_avg = train_data['price'].tail(7).mean()
-        baseline_preds = [last_7_avg] * 30
+        # 4. Generate Baseline Forecast (Naive Persistence: Last Known Price)
+        last_price = train_data['price'].iloc[-1]
+        baseline_preds = [last_price] * 30
         
         # 5. Calculate Metrics
         from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -456,29 +456,28 @@ elif page == "Model Performance":
         baseline_preds = baseline_preds[:min_len]
         
         mae_ml = mean_absolute_error(actuals, ml_preds)
-        rmse_ml = np.sqrt(mean_squared_error(actuals, ml_preds))
-        
         mae_base = mean_absolute_error(actuals, baseline_preds)
-        rmse_base = np.sqrt(mean_squared_error(actuals, baseline_preds))
+        
+        improvement = ((mae_base - mae_ml) / mae_base) * 100
         
         # 6. Display Metrics
         c1, c2, c3 = st.columns(3)
-        c1.metric("ML Model MAE", f"₹{mae_ml:.2f}", delta=f"{-(mae_ml-mae_base):.2f} vs Baseline", delta_color="inverse")
-        c2.metric("ML Model RMSE", f"₹{rmse_ml:.2f}")
-        c3.metric("Baseline MAE", f"₹{mae_base:.2f}")
+        c1.metric("ML Accuracy Boost", f"{improvement:.1f}%", "vs Naive Baseline")
+        c2.metric("ML Error (MAE)", f"₹{mae_ml:.2f}")
+        c3.metric("Baseline Error", f"₹{mae_base:.2f}")
         
-        st.info(f"**Evaluation on Hidden Test Set**: The model was trained on data up to {train_data['date'].max().date()} and asked to predict the next 30 days. We then compared it to what actually happened.")
+        st.info(f"**Evaluation on Hidden Test Set**: We hid the last 30 days of data and asked the AI to predict them. The chart below proves if the AI beat the market.")
         
-        # 7. Plot Comparison
-        eval_df = pd.DataFrame({
-            "Date": test_data['date'].values[:min_len],
-            "Actual Price": actuals,
-            "ML Forecast": ml_preds,
-            "Baseline (Avg)": baseline_preds
-        })
-        eval_df.set_index("Date", inplace=True)
+        # 7. Plot Comparison (Smooth & Professional)
+        dates_eval = test_data['date'].values[:min_len]
         
-        st.line_chart(eval_df)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=dates_eval, y=actuals, mode='lines', name='Actual Price (Truth)', line_shape='spline', line=dict(color='gray', width=3)))
+        fig.add_trace(go.Scatter(x=dates_eval, y=ml_preds, mode='lines', name='AI Forecast', line_shape='spline', line=dict(color='#00C853', width=3, dash='solid')))
+        fig.add_trace(go.Scatter(x=dates_eval, y=baseline_preds, mode='lines', name='Naive Baseline', line_shape='spline', line=dict(color='#FF5252', width=2, dash='dot')))
+        
+        fig.update_layout(template="plotly_white", hovermode="x unified", title="Backtest Verification: AI vs Reality")
+        st.plotly_chart(fig, use_container_width=True)
         
     else:
         st.warning("Not enough historical data to run a full 30-day backtest evaluation.")
