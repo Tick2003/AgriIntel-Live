@@ -57,35 +57,82 @@ class IntelligenceAgent:
 
     def get_chat_response(self, user_query, context_data):
         """
-        Simple Intent-Based Chat Engine.
-        Context Data contains: signal, price, commodity, mandi
+        Advanced Intent-Based Chat Engine with 'Senior Analyst' Persona.
+        Context Data contains: signal, price, commodity, mandi, risk_score, sentiment, regime
         """
         q = user_query.lower()
         
-        # Intent 1: Advice / Signal
+        # EXTRACT CONTEXT
+        signal = context_data.get('signal', 'NEUTRAL')
+        conf = context_data.get('confidence', 0)
+        risk_score = context_data.get('risk_score', 0)
+        regime = context_data.get('regime', 'Unknown')
+        sentiment_label = context_data.get('sentiment', 'Neutral')
+        curr_price = context_data.get('current_price', 0)
+        
+        # PERSONA HEADER
+        analyst_intro = "🤖 **AgriIntel Analyst**: "
+        
+        # --- INTENT 1: TRADING ADVICE ---
         if any(w in q for w in ['sell', 'buy', 'hold', 'advice', 'strategy', 'do']):
-            signal = context_data.get('signal', 'NEUTRAL')
-            conf = context_data.get('confidence', 0)
-            reason = context_data.get('reason', '')
             
-            return f"**My Recommendation**: {signal} (Confidence: {int(conf)}%)\n\n**Reasoning**:\n{reason}\n\nBased on your audit history, strategies like this have a high success rate in similar conditions."
+            # Construct a nuanced argument
+            tone = "cautious" if risk_score > 50 else "confident"
+            
+            response = f"""
+            {analyst_intro} Based on my analysis, the current strategy is **{signal}**.
+            
+            **📊 key Market Indicators:**
+            *   **Market Regime**: {regime}
+            *   **Risk Score**: {risk_score}/100 ({tone})
+            *   **News Sentiment**: {sentiment_label}
+            *   **Model Confidence**: {int(conf)}%
+            
+            **💡 Recommendation:**
+            {context_data.get('reason', 'Trends suggest following the signal.')}
+            """
+            return response
 
-        # Intent 2: Price / Forecast
-        if any(w in q for w in ['price', 'forecast', 'tomorrow', 'future']):
-            price = context_data.get('current_price', 0)
-            # Fake forecast reference since we don't assume we have the full df here for simplicity, 
-            # or we rely on the prompt to trust the systems' general advice.
-            # But better: Use the context!
-            return f"The current price is ₹{price:.2f}. Our models predict increased volatility. Check the 'Price Forecast' tab for the detailed 30-day view."
+        # --- INTENT 2: PRICE & FORECAST ---
+        if any(w in q for w in ['price', 'forecast', 'tomorrow', 'future', 'trend']):
+            return f"""
+            {analyst_intro} The market is currently trading at **₹{curr_price:.2f}**.
+            
+            Our 30-day forecast models (XGBoost + Trend) indicate **{regime}** behavior ahead. 
+            Please check the **Price Forecast** tab for the detailed projection curve and confidence intervals.
+            """
 
-        # Intent 3: Scenarios (Rain, Etc)
+        # --- INTENT 3: SCENARIOS (What-If) ---
         if 'rain' in q or 'flood' in q:
-            sim = self.run_scenario(context_data.get('current_price', 0), 'heavy_rain')
-            return f"⚠️ **Scenario Analysis: Heavy Rain**\n\nIf it rains heavily, prices typically rise by **{sim['change_pct']}** due to supply constraints.\n\nProjected Price: **₹{sim['new_price']:.2f}**\nReason: {sim['reason']}"
+            sim = self.run_scenario(curr_price, 'heavy_rain')
+            return f"""
+            {analyst_intro} **Simulation Result: Heavy Rain Event** 🌧️
+            
+            Historical data suggests heavy rainfall disrupts supply chains immediately.
+            *   **projected Impact**: {sim['change_pct']}
+            *   **Target Price**: ₹{sim['new_price']:.2f}
+            
+            *Reasoning: {sim['reason']}*
+            """
             
         if 'policy' in q or 'ban' in q or 'export' in q:
-            sim = self.run_scenario(context_data.get('current_price', 0), 'export_ban')
-            return f"⚠️ **Scenario Analysis: Export Ban**\n\nAn export ban usually crashes local prices by **{sim['change_pct']}** due to oversupply.\n\nProjected Price: **₹{sim['new_price']:.2f}**\nReason: {sim['reason']}"
+            sim = self.run_scenario(curr_price, 'export_ban')
+            return f"""
+            {analyst_intro} **Simulation Result: Export Ban** 🚫
+            
+            An export ban typically creates an immediate local oversupply.
+            *   **Projected Impact**: {sim['change_pct']}
+            *   **Target Price**: ₹{sim['new_price']:.2f}
+            
+            *Reasoning: {sim['reason']}*
+            """
 
-        # Default
-        return "I can help you with trading signals, price forecasts, or 'What-If' scenarios (e.g., 'What if it rains?', 'Should I sell?'). Try asking one of those!"
+        # --- INTENT 4: SENTIMENT / NEWS ---
+        if 'news' in q or 'sentiment' in q or 'mood' in q:
+            return f"""
+            {analyst_intro} The current market sentiment is **{sentiment_label}**.
+            This is derived from analyzing recent headlines using our NLP engine. A {sentiment_label} mood often precedes {'price increases' if 'Bullish' in sentiment_label else 'price corrections'}.
+            """
+
+        # DEFAULT FALLBACK
+        return f"{analyst_intro} I am ready to analyze the market. You can ask me about **Trading Signals**, **Price Trends**, **Market Scenarios** (e.g., 'Effect of rain'), or **News Sentiment**."

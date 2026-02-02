@@ -227,7 +227,10 @@ if page == "Market Overview":
     col3.markdown(f":{regime_color}[**{regime}**]")
     
     st.subheader("Historical Price Trend")
-    fig = px.line(data, x='date', y='price', title='Price History (90 Days)')
+    # fig = px.line(data, x='date', y='price', title='Price History (90 Days)') # OLD
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines', name='Price', line_shape='spline', line=dict(color='#2962FF', width=2)))
+    fig.update_layout(template="plotly_white", hovermode="x unified", title="Price History (90 Days)")
     st.plotly_chart(fig, use_container_width=True)
 
 # --- PAGE 2: PRICE FORECAST ---
@@ -236,16 +239,17 @@ elif page == "Price Forecast":
     
     # 1. Plot
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines', name='Historical'))
-    fig.add_trace(go.Scatter(x=forecast_df['date'], y=forecast_df['forecast_price'], mode='lines', name='Forecast', line=dict(dash='dash', color='orange')))
+    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines', name='Historical', line_shape='spline', line=dict(color='gray')))
+    fig.add_trace(go.Scatter(x=forecast_df['date'], y=forecast_df['forecast_price'], mode='lines', name='Forecast', line_shape='spline', line=dict(dash='dash', color='#00C853', width=2)))
     fig.add_trace(go.Scatter(
         x=pd.concat([forecast_df['date'], forecast_df['date'][::-1]]),
         y=pd.concat([forecast_df['upper_bound'], forecast_df['lower_bound'][::-1]]),
         fill='toself',
-        fillcolor='rgba(255, 165, 0, 0.2)',
+        fillcolor='rgba(0, 200, 83, 0.15)', # Matches forecast green
         line=dict(color='rgba(255,255,255,0)'),
         name='Confidence Interval'
     ))
+    fig.update_layout(template="plotly_white", hovermode="x unified")
     st.plotly_chart(fig, use_container_width=True)
     
     # 2. Profit Simulator (NEW)
@@ -397,8 +401,9 @@ elif page == "Compare Markets":
     st.subheader("Price Comparison")
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data1['date'], y=data1['price'], mode='lines', name=f"{c1} ({m1})"))
-    fig.add_trace(go.Scatter(x=data2['date'], y=data2['price'], mode='lines', name=f"{c2} ({m2})"))
+    fig.add_trace(go.Scatter(x=data1['date'], y=data1['price'], mode='lines', name=f"{c1} ({m1})", line_shape='spline'))
+    fig.add_trace(go.Scatter(x=data2['date'], y=data2['price'], mode='lines', name=f"{c2} ({m2})", line_shape='spline'))
+    fig.update_layout(template="plotly_white", hovermode="x unified")
     st.plotly_chart(fig, use_container_width=True)
 
 # --- PAGE 5: NEWS ---
@@ -495,13 +500,23 @@ elif page == "AI Consultant":
     st.header("🤖 AI Market Consultant")
     
     # Context for the Agent
+    # Fetch sentiment summary
+    latest_news = get_news_feed()
+    if not latest_news.empty and 'sentiment_label' in latest_news.columns:
+        sentiment_mode = latest_news['sentiment_label'].mode()[0]
+    else:
+        sentiment_mode = "Neutral"
+
     context_data = {
         "signal": decision_signal['signal'],
         "confidence": decision_signal.get('confidence', 50),
         "reason": decision_signal['reason'],
         "current_price": data['price'].iloc[-1],
         "commodity": selected_commodity,
-        "mandi": selected_mandi
+        "mandi": selected_mandi,
+        "risk_score": risk_info.get('risk_score', 0),
+        "regime": risk_info.get('regime', 'Unknown'),
+        "sentiment": sentiment_mode
     }
 
     # 1. Chat Interface
