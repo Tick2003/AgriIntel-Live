@@ -18,6 +18,7 @@ from agents.arbitrage_engine import ArbitrageAgent # Restored
 from agents.intelligence_core import IntelligenceAgent
 from agents.user_profile import UserProfileAgent
 from agents.notification_service import NotificationService
+from agents.auth_manager import AuthAgent # New
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 import importlib 
 import agents.decision_support
@@ -32,9 +33,21 @@ from agents.risk_scoring import MarketRiskEngine
 st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
 st.markdown(load_css(), unsafe_allow_html=True)
 
-# Title
 st.title("🌾 Agricultural Market Intelligence System")
 st.markdown("---")
+
+# --- AUTHENTICATION GATEKEEPER ---
+auth_agent = AuthAgent()
+
+if not auth_agent.check_session():
+    auth_agent.login_page()
+    st.stop() # Stop execution here if not logged in
+
+# User is logged in
+user_email = auth_agent.get_user_email()
+auth_agent.logout_button() # Show logout in sidebar
+st.sidebar.success(f"👤 Logged in as: {user_email}")
+# ---------------------------------
 
 # Sidebar
 st.sidebar.header("Configuration")
@@ -92,8 +105,9 @@ def load_agents():
         "decision": DecisionAgent(),
         "arbitrage": ArbitrageAgent(),
         "intel": IntelligenceAgent(),
-        "profile": UserProfileAgent(),
-        "notify": NotificationService() # New
+        "intel": IntelligenceAgent(),
+        "profile": UserProfileAgent(user_id=user_email), # Personalized
+        "notify": NotificationService() 
     }
 
 agents = load_agents()
