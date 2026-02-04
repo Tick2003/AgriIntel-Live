@@ -45,7 +45,9 @@ def init_db():
             region TEXT,
             temperature REAL,
             rainfall REAL,
-            condition TEXT
+            condition TEXT,
+            wind_speed REAL,
+            humidity REAL
         )
     ''')
     c.execute('''
@@ -79,6 +81,18 @@ def init_db():
         )
     ''')
     
+    # --- MIGRATIONS ---
+    # Check if 'wind_speed' exists in weather_logs (Phase 2 update)
+    try:
+        c.execute("SELECT wind_speed FROM weather_logs LIMIT 1")
+    except sqlite3.OperationalError:
+        print("Migrating: Adding 'wind_speed' and 'humidity' to weather_logs")
+        try:
+            c.execute("ALTER TABLE weather_logs ADD COLUMN wind_speed REAL DEFAULT 0.0")
+            c.execute("ALTER TABLE weather_logs ADD COLUMN humidity REAL DEFAULT 0.0")
+        except Exception as e:
+            print(f"Migration warning: {e}")
+
     conn.commit()
     conn.close()
     print(f"Database {DB_NAME} initialized.")
