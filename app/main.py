@@ -82,6 +82,12 @@ from datetime import datetime
 import etl.data_loader
 import database.db_manager as db_manager
 
+# Ensure DB is initialized and migrated
+try:
+    db_manager.init_db()
+except Exception as e:
+    print(f"DB Init failed: {e}")
+
 try:
     if hasattr(db_manager, 'get_last_update'):
         last_update_str = db_manager.get_last_update()
