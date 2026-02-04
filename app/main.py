@@ -656,16 +656,19 @@ elif page == "WhatsApp Bot (Demo)":
         st.session_state.chat_history = []
         
     # Input
-    with st.form("chat_form", clear_on_submit=True):
-        c1, c2 = st.columns([4, 1])
-        with c1:
+    # Layout: Form for Text Input | Button for Voice
+    c1, c2 = st.columns([4, 1])
+    
+    with c1:
+        with st.form("chat_form", clear_on_submit=True):
             user_msg = st.text_input("Message", placeholder="e.g. Onion price in Cuttack?")
-        with c2:
-            st.write("") # Spacer
-            st.write("") 
-            mic_clicked = st.button("🎤") # Simulated Voice Input
+            sent = st.form_submit_button("Send 🚀")
             
-        sent = st.form_submit_button("Send 🚀")
+    with c2:
+        st.write("") 
+        st.write("") 
+        # Voice Trigger (Outside Form)
+        mic_clicked = st.button("🎤 Voice") 
         
     if sent and user_msg:
         st.session_state.chat_history.append({"role": "user", "msg": user_msg})
@@ -678,6 +681,8 @@ elif page == "WhatsApp Bot (Demo)":
         # Mocking voice input processing
         mock_voice_text = "Price of Tomato in Bhubaneswar"
         st.session_state.chat_history.append({"role": "user", "msg": mock_voice_text})
+        resp = agents['chat'].process_query(mock_voice_text)
+        st.session_state.chat_history.append({"role": "bot", "msg": resp})
         resp = agents['chat'].process_query(mock_voice_text)
         st.session_state.chat_history.append({"role": "bot", "msg": resp})
         
