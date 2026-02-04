@@ -3,6 +3,8 @@
 ## 📖 Introduction
 AgriIntel is a live simulated market intelligence dashboard for agricultural commodities in India. It leverages a multi-agent system to process real-time (simulated) data, forecast prices using machine learning, detect market shocks, and assess risk.
 
+**Version 2.0 (Full Scale)** now includes Computer Vision, Linguistics, Logistics Optimization, and a Business Layer (Fintech/B2B).
+
 ---
 
 ## 🏗️ System Architecture
@@ -13,29 +15,32 @@ The following diagram illustrates the high-level data flow and component interac
 graph TD
     User((User)) -->|Interacts| UI(Streamlit Dashboard)
     
-    subgraph "Application Layer (app/)"
-        UI -->|Selects Commodity/Region| Controller(main.py)
+    subgraph "Application Layer"
+        UI -->|Selects Page| Controller(main.py)
+        Controller -->|Voice/Text| Chat(Chatbot Interface)
     end
     
-    subgraph "Data Layer (database/ & etl/)"
+    subgraph "Data Layer"
         Controller -->|Request Data| DB[(SQLite Database)]
         ETL(Simulated ETL Process) -->|Writes| DB
+        Weather(OpenWeatherMap API) -->|updates| DB
     end
     
-    subgraph "Agent Layer (agents/)"
-        Controller -->|1. Check Logs| Ag1(DataHealthAgent)
-        Controller -->|2. Generate Preds| Ag2(ForecastingAgent)
-        Controller -->|3. Monitor| Ag3(AnomalyDetectionEngine)
-        Controller -->|4. Assess Risk| Ag4(MarketRiskEngine)
-        Controller -->|5. Explain| Ag5(AIExplanationAgent)
+    subgraph "Intelligence Swarm (agents/)"
+        Controller -->|1. Check Health| Ag1(DataHealthAgent)
+        Controller -->|2. Forecast| Ag2(ForecastingAgent)
+        Controller -->|3. Risk/Shock| Ag3(RiskEngine)
+        Controller -->|4. Explain| Ag4(IntelligenceCore)
         
-        Ag2 -->|Forecasts| Ag3
-        Ag3 -->|Shock Flags| Ag4
-        Ag4 -->|Risk Score| Ag5
+        Controller -->|5. Optimize| Opt(OptimizationEngine)
+        Controller -->|6. Transact| Biz(BusinessEngine)
+        Controller -->|7. Translate| Lang(LanguageManager)
     end
-    
-    Ag5 -->|Natural Language Report| UI
-    Ag2 -->|Chart Data| UI
+
+    subgraph "Specialized Modules"
+        Controller -->|Route Opt| Graph(MandiGraph)
+        Controller -->|Image| CV(GradingModel)
+    end
 ```
 
 ---
@@ -46,104 +51,80 @@ graph TD
 This layer handles the visual presentation and user inputs.
 
 #### `app/main.py`
-The entry point of the Streamlit application.
-*   **Initialization**: Configures the page layout, title, and loads custom CSS.
-*   **Dependencies**: Imports all Agents and Utils.
-*   **State Management & Performance**: Uses `@st.cache_data(ttl=3600)` to cache expensive operations (Data Loading, Model Training, Risk Scoring) for 1 hour, ensuring instant page navigation.
-*   **Execution Loop**:
-    1.  **Sidebar**: Collects user preference (Commodity, Mandi).
-    2.  **Data Fetch**: Calls `get_live_data` (Cached) to retrieve historical traces.
-    3.  **Agent Chain**: Sequentially calls agents (most are Cached):
-        *   `health` -> `forecast` -> `shock` -> `risk` -> `explain`
-    4.  **UI Routing**: Switches between views ("Market Overview", "Price Forecast", etc.) based on sidebar selection.
+The entry point.
+*   **Initialization**: Configures page, loads CSS, and initializes the `agents` dictionary.
+*   **Gatekeeper**: `AuthAgent` handles login/session.
+*   **Navigation**:
+    *   **Dashboard**: Market Overview, Forecast, Risk.
+    *   **Tools**: Quality Grading (CV), Logistics (Graph), Advanced Planning (Simplex/EOQ).
+    *   **Business**: B2B Marketplace, Fintech Services, Developer API.
+    *   **Accessibility**: WhatsApp Bot (Chat), Language Toggle (En/Hi/Or).
+*   **Migration**: Explicitly calls `db_manager.init_db()` at startup to ensure schema consistency.
 
 #### `app/utils.py`
-Helper utilities for the frontend.
-*   `get_db_options()`: Queries `market_prices` table for distinct Commodities and Mandis to populate dropdowns.
-*   `get_live_data(commodity, mandi)`: Retrievals sorted time-series data. Includes intelligent fallbacks (dummy data) if the database is empty.
-*   `load_css()`: Injectable CSS for styling the dashboard (custom colors, card aesthetics).
+Helper utilities.
+*   `load_css()`: Custom styling.
+*   `get_live_data()`: Cached data fetcher.
 
 ---
 
 ### 2. Agent Layer (`agents/`)
-The "Brains" of the application. Each agent is a specialized class with a specific responsibility.
+The "Brains" of the application.
 
-#### `agents/forecast_execution.py` (`ForecastingAgent`)
-**Purpose**: Predict future prices (30 days out) using a Robust Hybrid ML approach.
-*   **Algorithm**: **Trend Decomposition (Linear Regression) + Residual Modeling (XGBoost)**.
-*   **Key Features**:
-    *   **Trend + Residual Strategy**: Solves the "Flat-line" problem of tree-based models.
-        1.  **Detrend**: Fits a linear trend to the price history to capture long-term direction.
-        2.  **Residuals**: Trains XGBoost on the *residuals* (Price - Trend) to capture volatility and seasonality.
-        3.  **Recombine**: Final Forecast = Projected Trend + Predicted Residuals.
-    *   **Recursive Forecasting**: Uses a recursive window strategy where future predictions become inputs for subsequent steps.
-    *   **Dynamic Confidence Intervals**: Calculates RMSE on a hidden validation set and scales uncertainty over time (Confidence Interval = Forecast +/- 1.96 * RMSE * sqrt(t)).
+#### Core Intelligence
+*   **`ForecastingAgent`**: Hybrid ML (Trend + XGBoost Residuals) to predict prices 30 days out.
+*   **`MarketRiskEngine`**: Quantifies volatility and shock severity into a 0-100 Risk Score.
+*   **`IntelligenceAgent`**: The "Consultant". Runs What-If scenarios (e.g., "Effect of Rain") and suggests "Hold Duration".
+*   **`AnomalyDetectionEngine`**: Flags abnormal price spikes (>15%).
 
-#### `agents/risk_scoring.py` (`MarketRiskEngine`)
-**Purpose**: Quantify market stability.
-*   **Algorithm**: Weighted Scoring System.
-*   **Inputs**: Shock severity, Forecast volatility, Historical volatility.
-*   **Scoring Logic**:
-    *   Base Score: 0
-    *   **+50**: High Severity Shock detected.
-    *   **+20**: Medium Severity Shock / High Forecast Uncertainty.
-    *   **+30**: High Daily Volatility (>2%).
-*   **Output**: A clean 0-100 score and a "Risk Regime" label (Stable vs. Volatile).
+#### Optimization (Phase 3)
+*   **`OptimizationEngine`**:
+    *   **Crop Rotation**: Uses **Linear Programming (Simplex)** to maximize profit given Land/Budget constraints.
+    *   **Inventory**: Calculates **Economic Order Quantity (EOQ)** for warehouse efficiency.
 
-#### `agents/shock_monitoring.py` (`AnomalyDetectionEngine`)
-**Purpose**: Detect sudden, abnormal market moves.
-*   **Algorithm**: Threshold-based Anomaly Detection.
-*   **Thresholds**:
-    *   **>15% Change**: "High" Severity.
-    *   **>5% Change**: "Medium" Severity.
-    *   **Else**: Normal.
-*   **Usage**: Prevents users from being blindsided by sudden crashes or spikes.
-
-#### `agents/data_health.py` (`DataHealthAgent`)
-**Purpose**: Ensure trust in the underlying data.
-*   **Checks**:
-    1.  **Completeness**: Are there missing dates in the timeline?
-    2.  **Validity**: Are there '0' price values?
-*   **Output**: Renders a status badge (OK/Critical) on the dashboard (currently hidden in main view but calculated).
-
-#### `agents/explanation_report.py` (`AIExplanationAgent`)
-**Purpose**: translate numbers into words.
-*   **Function**: Takes the outputs of all other agents (Risk Score, Shock Status, Forecast Trend) and fills a natural language template.
-*   **Future**: Designed to be the integration point for LLM (Gemini/GPT) APIs for generated market commentary.
+#### Business & Accessibility (Phase 2 & 4)
+*   **`BusinessEngine`**:
+    *   **B2B**: Matchmaking algorithm to connect Farmers with nearby Buyers (based on location/crop).
+    *   **Fintech**: Scoring algorithm to assess creditworthiness based on yield stability.
+*   **`LanguageManager`**: Dictionary-based translation for UI elements (English, Hindi, Odia).
+*   **`ChatbotEngine`**: Regex/NLP-based intent parser for natural language queries (Text/Voice).
 
 ---
 
-### 3. Data & ETL Layer
+### 3. Specialized Modules
+
+#### `cv/grading_model.py`
+*   **Purpose**: Quality Grading.
+*   **Tech**: Structural CNN (Convolutional Neural Network) using PyTorch/TensorFlow (simulated logic for demo).
+*   **Input**: Product Image -> **Output**: Grade A/B/C.
+
+#### `utils/graph_algo.py`
+*   **Purpose**: Logistics Optimization.
+*   **Tech**: **NetworkX** (Dijkstra's Algorithm).
+*   **Logic**: Finds the "Best Profit Route" considering Price at Destination - Transport Cost (Distance * Rate).
+
+---
+
+### 4. Data & ETL Layer
 
 #### `database/db_manager.py`
-Handles all SQLite interactions.
-*   **File**: `agri_intel.db`
-*   **Schema**:
-    *   **`market_prices`**: `date` (TEXT), `commodity` (TEXT), `mandi` (TEXT), `price_modal` (REAL), `arrival` (REAL).
-    *   **`news_alerts`**: `date`, `title`, `source`, `sentiment`.
-    *   **`weather_logs`**: `date`, `region`, `temperature`, `rainfall`.
-    *   **`signal_logs`**: Stores historical signals (`date`, `signal`, `price_at_signal`, `price_after_7d`, `profitability_status`) for the Win Rate tracker.
+Handles SQLite interactions.
+*   **Schema Migration**: Auto-detects missing columns (e.g., `wind_speed`) and updates table structure on startup.
+*   **Tables**: `market_prices`, `weather_logs` (w/ wind/humidity), `news_alerts`, `signal_logs`.
 
 #### `etl/data_loader.py`
 The simulation engine.
-*   **`seed_historical_data()`**: Generates 90 days of realistic "Random Walk" price history for multiple commodities/mandis. Used to initialize the app.
-*   **`fetch_real_weather()`**: Connects to the **Open-Meteo API** to fetch *actual* live weather for specific Mandi coordinates (Lat/Lon mapped).
-*   **`fetch_mandi_prices_simulated()`**: Generates daily price updates with realistic noise to simulate a live market feed in the absence of a paid Agmarknet API subscription.
+*   **`fetch_real_weather()`**: Integration with **OpenWeatherMap API**.
+*   **`run_daily_update()`**: Orchestrates the daily data refresh pipeline.
 
 ---
 
 ## 🛠️ Configuration & Setup
 
-1.  **Prerequisites**: Python 3.8+
-2.  **Dependencies**: Listed in `requirements.txt` (Streamlit, Pandas, Plotly, XGBoost).
+1.  **Prerequisites**: Python 3.9+
+2.  **Dependencies**: `requirements.txt` (Streamlit, Pandas, Plotly, XGBoost, Scipy, Pillow, Requests).
 3.  **First Run**:
     ```bash
-    # 1. Install
     pip install -r requirements.txt
-    
-    # 2. Seed Database (Vital for first run)
-    python etl/data_loader.py seed
-    
-    # 3. Launch
     streamlit run app/main.py
     ```
