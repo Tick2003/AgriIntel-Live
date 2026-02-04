@@ -1,63 +1,68 @@
-# 🌾 AgriIntel - Agricultural Market Intelligence System
+# 🌾 AgriIntel 2.0 - The Full Stack Agricultural Intelligence Suite
 
-A live AI-powered dashboard for tracking agricultural commodities (Potato, Onion, Tomato) in Indian Mandis. This project uses simulated real-time data and advanced Machine Learning (XGBoost + Trend Decomposition) to provide accurate 30-day price forecasts and risk assessments.
+**AgriIntel 2.0** is a comprehensive ecosystem designed to empower Indian farmers, traders, and enterprises with actionable insights. From **Forecasting Prices** to **Connecting Buyers**, it covers the entire agricultural lifecycle.
 
-📘 **[Read the Full Architecture Documentation](ARCHITECTURE.md)** to understand every module from tip to toe.
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://agriintel-live.streamlit.app/)
 
-## 🚀 Features & Roadmap
+> 📘 **[Architecture Documentation](ARCHITECTURE.md)** | 🛠️ **[Installation Guide](#-how-to-run-locally)**
 
-### 🤖 1. AI Market Consultant (Live)
-- **Conversational**: Ask "Should I sell onions in Agra?" and get a Buy/Hold/Sell signal.
-- **Context-Aware**: Considers Price trends, Risk scores, and News sentiment.
-- **Persona**: Acts as a Senior Analyst, not a chatbot.
+---
 
-### 📲 2. Smart Alerts (Beta)
-- **Shock Detection**: Automatic banners for sudden price crashes (>5%).
-- **Arbitrage**: Scans nearby mandis for price gaps > Transport Cost.
+## 🚀 Key Modules (The 4 Pillars)
 
-### 📊 3. Self-Evaluation & Trust (New)
-- **Accuracy Boost**: Displays how much better the AI is vs a Naive Baseline.
-- **Backtesting**: Validates model performance on hidden test sets (Last 30 days).
+### 📊 1. Market Intelligence (The "Brain")
+*   **Price Forecasting**: Hybrid ML models (XGBoost + Trend Decomposition) predict prices 30 days ahead with dynamic confidence intervals.
+*   **Risk & Shocks**: Automatic detection of market anomalies (>15% price drops) and volatility regimes.
+*   **Smart Consultant**: Interactive AI agent that runs "What-If" scenarios (e.g., *"Effect of Heavy Rain on Onion prices"*) and suggests specific **Hold Durations**.
 
-### 👤 4. User Personalization & Simulation
-- **Sidebar Config**: Set your preferred Commodity and Mandi.
-- **Scenario Simulator**: Run "What-If" analysis (e.g., "Heavy Rain", "Export Ban") to see price impact.
+### 📸 2. Quality & Logistics (The "Eyes & Legs")
+*   **Computer Vision Grading**: Upload crop images to get an instant **Grade A/B/C** assessment using a structural CNN.
+*   **Smart Logistics**: Uses **Dijkstra’s Algorithm** (Graph Theory) to find the "Best Profit Route" by balancing Market Price vs. Transport Costs across varying distances.
 
-### 🧠 5. Learning Strategy Engine
-- **Auto-Tuning**: XGBoost model optimizes its own hyperparameters (Learning Rate, Depth) before every run.
-- **Weather Fusion**: Ingests Rainfall/Temp data to refine forecasts.
+### 🌏 3. Accessibility (The "Voice")
+*   **Vernacular UI**: Fully translated interface in **Hindi** and **Odia** for rural adoption.
+*   **WhatsApp Bot Simulation**: A low-bandwidth "Chat Mode" that mimics SMS/WhatsApp queries (e.g., *"Onion rate Cuttack?"*) with **Voice-to-Text** support.
 
-### 🌍 6. Roadmap (Upcoming)
-- **Real-Time API**: Connect to live Agmarknet XML feeds.
-- **Mobile Mode**: Low-bandwidth UI for rural access.
-- **Personalized Accounts**: Save transport costs and risk preferences.
+### 💼 4. Business & Monetization (The "Wallet")
+*   **B2B Marketplace**: "Tinder for Crops" — Matches Farmers with Millers, Exporters, and Retail Chains based on location and commodity.
+*   **Fintech Hub**: Generates an **Agri-Credit Score** (300-900) based on historical yield stability, enabling instant loan eligibility checks.
+*   **SaaS API**: Developer portal for enterprises to access AgriIntel's data streams via API keys.
+
+---
 
 ## 🛠️ Tech Stack
-- **Frontend**: Streamlit
-- **Backend**: Python (Pandas, Plotly)
-- **Database**: SQLite
-- **Data Sources**: Agmarknet (Simulated), Google News RSS, Weather (Simulated)
+*   **Core**: Python 3.9+
+*   **Frontend**: Streamlit
+*   **ML & Math**: XGBoost, Scikit-Learn, Scipy (Linear Programming), NetworkX (Graph Algo), PyTorch/TensorFlow (CV Structure).
+*   **Data**: SQLite, OpenWeatherMap API, Simulated Agmarknet Feed.
+
+---
 
 ## 📦 How to Run Locally
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Tick2003/AgriIntel-Live.git
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Seed the database with historical data:
-   ```bash
-   python etl/data_loader.py seed
-   ```
-4. Run the dashboard:
-   ```bash
-   streamlit run app/main.py
-   ```
 
-## ☁️ Deployment
-This app is ready for [Streamlit Cloud](https://streamlit.io/cloud). Just connect your repository and deploy!
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Tick2003/AgriIntel-Live.git
+    cd AgriIntel-Live
+    ```
+
+2.  **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Seed the Database** (Important for first run):
+    ```bash
+    python etl/data_loader.py seed
+    ```
+
+4.  **Run the App**:
+    ```bash
+    streamlit run app/main.py
+    ```
+
+## ☁️ Live Demo
+AgriIntel is deployed on **Streamlit Cloud**. To update the live version, simply push to the `main` branch.
 
 ---
 *Built with ❤️ for Indian Agriculture*
