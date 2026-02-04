@@ -19,6 +19,14 @@ from agents.intelligence_core import IntelligenceAgent
 from agents.user_profile import UserProfileAgent
 from agents.notification_service import NotificationService
 from agents.auth_manager import AuthAgent # New
+
+# New Modules
+from cv.grading_model import GradingModel
+from utils.graph_algo import MandiGraph, get_demo_graph
+from agents.language_manager import LanguageManager
+from agents.chatbot_engine import ChatbotEngine
+from agents.optimization_engine import OptimizationEngine
+from agents.business_engine import B2BMatcher, FintechEngine
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 import importlib 
 import agents.decision_support
@@ -33,7 +41,18 @@ from agents.risk_scoring import MarketRiskEngine
 st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
 st.markdown(load_css(), unsafe_allow_html=True)
 
-st.title("🌾 Agricultural Market Intelligence System")
+# --- LANGUAGE SELECTOR ---
+col_lang, _ = st.sidebar.columns([10, 1]) # Place at top of sidebar
+with col_lang:
+    selected_lang = st.selectbox("🌐 Language / भाषा / ଭାଷା", ["English", "Hindi", "Odia"])
+
+# Load Lang Manager (Temp Access before full init just to translate title if needed, 
+# but usually we init agents later. Let's do a quick inline init for title or wait).
+# Better to init agents first. 
+# Re-ordering main.py slightly to init agents earlier is complex.
+# We will use the 'agents' dict later. For now, let's just proceed and using dynamic text.
+
+st.title("🌾 AgriIntel / एग्री-इंटेल / ଆଗ୍ରି-ଇଣ୍ଟେଲ") 
 st.markdown("---")
 
 # --- AUTHENTICATION GATEKEEPER ---
@@ -97,16 +116,20 @@ if should_update:
 @st.cache_resource
 def load_agents():
     return {
-        "health": DataHealthAgent(),
-        "forecast": ForecastingAgent(),
-        "shock": AnomalyDetectionEngine(),
-        "risk": MarketRiskEngine(),
-        "explain": AIExplanationAgent(),
-        "decision": DecisionAgent(),
-        "arbitrage": ArbitrageAgent(),
-        "intel": IntelligenceAgent(),
-        "intel": IntelligenceAgent(),
         "profile": UserProfileAgent(user_id=user_email), # Personalized
+        "decision": DecisionAgent(),
+        "risk": MarketRiskEngine(),
+        "forecast": ForecastingAgent(),
+        "explain": AIExplanationAgent(),
+        "intel": IntelligenceAgent(),
+        "lang": LanguageManager(),
+        "chat": ChatbotEngine(db_manager),
+        "opt": OptimizationEngine(),
+        "b2b": B2BMatcher(),
+        "fintech": FintechEngine(),
+        "health": DataHealthAgent(),
+        "shock": AnomalyDetectionEngine(),
+        "arbitrage": ArbitrageAgent(),
         "notify": NotificationService() 
     }
 
@@ -218,7 +241,14 @@ except Exception as e:
 # -------------------------------
 
 # Navigation
-page = st.sidebar.radio("Navigate", ["Market Overview", "Price Forecast", "Risk & Shocks", "Compare Markets", "News & Insights", "Model Performance", "Explanation & Insights", "AI Consultant"])
+nav_options = [
+    "Market Overview", "Price Forecast", "Risk & Shocks", 
+    "Compare Markets", "News & Insights", "Model Performance", 
+    "Quality Grading (CV)", "Logistics (Graph)", "Advanced Planning",
+    "B2B Marketplace", "Fintech Services", "Developer API (SaaS)",
+    "WhatsApp Bot (Demo)", "Explanation & Insights", "AI Consultant"
+]
+page = st.sidebar.radio("Navigate", nav_options)
 
 
 # --- PAGE 1: MARKET OVERVIEW ---
@@ -609,3 +639,295 @@ elif page == "AI Consultant":
                 st.sidebar.success(f"Price Change: {sim_res['change_pct']}")
                 st.sidebar.metric("New Projected Price", f"₹{sim_res['new_price']:.2f}")
                 st.sidebar.info(f"Reason: {sim_res['reason']}")
+
+# --- PAGE: WHATSAPP BOT (ACCESSIBILITY) ---
+elif page == "WhatsApp Bot (Demo)":
+    st.header("💬 AgriBot (WhatsApp Mode)")
+    st.caption("Simulating the SMS/WhatsApp experience for low-bandwidth users.")
+    
+    # Chat Interface
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+        
+    # Input
+    with st.form("chat_form", clear_on_submit=True):
+        c1, c2 = st.columns([4, 1])
+        with c1:
+            user_msg = st.text_input("Message", placeholder="e.g. Onion price in Cuttack?")
+        with c2:
+            st.write("") # Spacer
+            st.write("") 
+            mic_clicked = st.button("🎤") # Simulated Voice Input
+            
+        sent = st.form_submit_button("Send 🚀")
+        
+    if sent and user_msg:
+        st.session_state.chat_history.append({"role": "user", "msg": user_msg})
+        # Process
+        resp = agents['chat'].process_query(user_msg)
+        st.session_state.chat_history.append({"role": "bot", "msg": resp})
+        
+    if mic_clicked:
+        st.info("🎤 Listening... (Simulated: 'Price of Tomato in Bhubaneswar')")
+        # Mocking voice input processing
+        mock_voice_text = "Price of Tomato in Bhubaneswar"
+        st.session_state.chat_history.append({"role": "user", "msg": mock_voice_text})
+        resp = agents['chat'].process_query(mock_voice_text)
+        st.session_state.chat_history.append({"role": "bot", "msg": resp})
+        
+    # Display History (Newest on top)
+    for chat in reversed(st.session_state.chat_history):
+        if chat['role'] == 'user':
+            st.markdown(f"""
+            <div style='background-color: #DCF8C6; padding: 10px; border-radius: 10px; margin: 5px; text-align: right; color: black;'>
+                {chat['msg']}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style='background-color: #FFFFFF; padding: 10px; border-radius: 10px; margin: 5px; border: 1px solid #ddd; color: black;'>
+                {chat['msg']}
+            </div>
+            """, unsafe_allow_html=True)
+
+# --- PAGE: QUALITY GRADING (CV) ---
+elif page == "Quality Grading (CV)":
+    st.header("📸 AI Quality Grading")
+    st.write("Upload a photo of your produce to get an instant standard grade (A, B, or C).")
+    
+    grader = GradingModel()
+    
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
+    
+    if uploaded_file is not None:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.image(uploaded_file, caption="Uploaded Produce", use_column_width=True)
+            
+        with c2:
+            with st.spinner("Analyzing quality..."):
+                # Save temp file for the mock/real grader
+                with open("temp_grading_img.jpg", "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+                result = grader.predict("temp_grading_img.jpg")
+                
+                # cleanup
+                try:
+                    os.remove("temp_grading_img.jpg")
+                except: pass
+                
+            if result:
+                grade = result['grade']
+                color = "green" if grade == "Grade A" else "orange" if grade == "Grade B" else "red"
+                
+                st.markdown(f"### Grade: :{color}[{grade}]")
+                st.metric("Confidence", f"{result['confidence']*100:.1f}%")
+                st.info(f"**Details**: {result['details']}")
+                
+                if grade == "Grade A":
+                    st.success("✨ Premium Quality! You can list this at a 10-15% premium price.")
+                elif grade == "Grade C":
+                    st.warning("⚠️ Low Grade. Recommended for processing/canning industries rather than direct retail.")
+                    
+# --- PAGE: LOGISTICS (GRAPH ALGO) ---
+elif page == "Logistics (Graph)":
+    st.header("🚚 Smart Logistics Optimization")
+    st.write("Find the most profitable market to sell at, accounting for transport costs.")
+    
+    mg = get_demo_graph()
+    
+    with st.form("logistics_form"):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            start_loc = st.selectbox("Starting Location", list(mg.graph.keys()))
+        with c2:
+            qty_tons = st.number_input("Quantity (Tons)", min_value=1.0, value=5.0, step=0.5)
+        with c3:
+            # We use the selected commodity from global state or ask again
+            comm = st.selectbox("Commodity", ["Onion", "Tomato", "Potato", "Rice"])
+            
+        submit = st.form_submit_button("Find Best Market")
+        
+    if submit:
+        # 1. Fetch live prices for all destinations (Simulation/Real)
+        # In real app, we'd query DB for all Mandis. Here we generate variation for demo.
+        prices = {}
+        base_price = 2500  # Rs/Quintal
+        import random
+        for mandi in mg.graph.keys():
+            # Add random variation to simulate price differences
+            prices[mandi] = base_price + random.randint(-400, 600)
+            
+        # 2. Run Algo
+        best, all_options = mg.find_best_profit_route(start_loc, qty_tons, prices)
+        
+        if best:
+            st.subheader(f"🏆 Best Destination: {best['mandi']}")
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Net Profit", f"₹{best['net_profit']:,.0f}")
+            m2.metric("Distance", f"{best['distance_km']} km")
+            m3.metric("Selling Price", f"₹{best['price_per_q']}/q")
+            
+            st.success(f"**Recommendation**: Drive **{best['distance_km']} km** to **{best['mandi']}**. You will earn **₹{best['net_profit']:,.0f}** after paying **₹{best['transport_cost']:,.0f}** in fuel/transport.")
+            
+            st.markdown("### 📊 Comparison Table")
+            df_logistics = pd.DataFrame(all_options)
+            st.dataframe(df_logistics[['mandi', 'distance_km', 'price_per_q', 'transport_cost', 'net_profit']].style.highlight_max(subset=['net_profit'], color='#90ee90'))
+        else:
+            st.error("No valid routes found.")
+
+# --- PAGE: ADVANCED PLANNING (PHASE 3) ---
+elif page == "Advanced Planning":
+    st.header("🧠 Advanced Planning & Optimization")
+    
+    tab1, tab2 = st.tabs(["🌱 Crop Rotation (Next Season)", "🏭 Warehouse (Inventory)"])
+    
+    # --- TAB 1: CROP OPTIMIZATION ---
+    with tab1:
+        st.subheader("Profit Maximation Calculator")
+        st.info("Uses Linear Programming to suggest the optimal area allocation for maximum profit.")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            total_land = st.number_input("Total Land Available (Acres)", 1.0, 100.0, 5.0)
+        with c2:
+            budget = st.number_input("Total Budget (₹)", 10000, 1000000, 50000, step=5000)
+            
+        if st.button("Generate Optimal Plan"):
+            with st.spinner("Running Simplex Algorithm..."):
+                res = agents['opt'].optimize_crop_mix(total_land, budget)
+            
+            if res['status'] == 'Failed':
+                st.error(f"Optimization Failed: {res.get('message')}")
+            else:
+                st.success(f"Optimization Status: {res['status']}")
+                
+                # Metrics
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Projected Profit", f"₹{res['total_profit']:,.0f}")
+                m2.metric("Land Utilized", f"{res['used_land']} / {total_land} Acres")
+                m3.metric("Capital Used", f"₹{res['used_budget']:,.0f}")
+                
+                # Chart
+                alloc = res['allocations']
+                if sum(alloc.values()) > 0:
+                    df_alloc = pd.DataFrame(list(alloc.items()), columns=['Crop', 'Acres'])
+                    fig = px.pie(df_alloc, values='Acres', names='Crop', title='Recommended Land Allocation')
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("Budget too low to plant available crops.")
+
+    # --- TAB 2: INVENTORY OPTIMIZATION ---
+    with tab2:
+        st.subheader("Inventory Control (EOQ)")
+        st.write("Determine the ideal order size to minimize holding and ordering costs.")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            annual_demand = st.number_input("Annual Demand (Units)", 100, 10000, 1000)
+        with c2:
+            order_cost = st.number_input("Ordering Cost per Order (₹)", 100, 5000, 500)
+        with c3:
+            hold_cost = st.number_input("Holding Cost per Unit/Year (₹)", 1, 500, 20)
+            
+        eoq = agents['opt'].calculate_eoq(annual_demand, order_cost, hold_cost)
+        
+        st.divider()
+        st.metric("Economic Order Quantity (EOQ)", f"{eoq} Units")
+        
+        st.info(f"💡 You should order **{eoq} units** at a time to minimize total costs.")
+
+# --- PAGE: B2B MARKETPLACE ---
+elif page == "B2B Marketplace":
+    st.header("🤝 B2B Matchmaking")
+    st.caption("Connect directly with Millers, Retail Chains, and Exporters.")
+    
+    with st.expander("📝 Post a Sell Order", expanded=True):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            sell_crop = st.selectbox("Crop to Sell", ["Onion", "Tomato", "Potato", "Rice", "Wheat"])
+        with c2:
+            sell_qty = st.number_input("Quantity (Tons)", 1.0, 100.0, 5.0)
+        with c3:
+            sell_mandi = st.selectbox("Your Location", ["Nasik", "Cuttack", "Bhubaneswar", "Azadpur", "Kolkata"])
+            
+    if st.button("Find Buyers"):
+        matches = agents['b2b'].find_buyers(sell_crop, sell_qty, sell_mandi)
+        
+        st.subheader(f"Found {len(matches)} Interested Buyers")
+        for m in matches:
+            with st.container():
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                with col1:
+                    st.markdown(f"**{m['buyer_name']}** ({m['type']})")
+                    st.caption(f"📍 {m['location']} • {m['distance']} km away")
+                with col2:
+                    st.metric("Bid Price", f"₹{m['bid_price']}/q")
+                with col3:
+                    score_color = "green" if m['match_score'] > 80 else "orange"
+                    st.markdown(f"Match: :{score_color}[**{m['match_score']}%**]")
+                with col4:
+                    st.button("Connect 📞", key=m['buyer_name'])
+                st.divider()
+
+# --- PAGE: FINTECH SERVICES ---
+elif page == "Fintech Services":
+    st.header("🏦 Agri-Fintech Hub")
+    st.write("Get instant loans based on your crop yield history and reliability score.")
+    
+    # Mock History Data
+    st.subheader("Your Farm Profile")
+    yield_data = [4.5, 4.2, 4.8, 4.6, 4.7] # Tons/Acre for last 5 seasons
+    reliability = 0.95 # High
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.line_chart(yield_data)
+        st.caption("Yield Stability (Last 5 Seasons)")
+    with col2:
+        offer = agents['fintech'].calculate_credit_score(yield_data, reliability)
+        
+        # Credit Card UI
+        st.markdown(f"""
+        <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; color: white;">
+            <h3>Agri-Credit Score</h3>
+            <h1 style="font-size: 48px; margin: 0;">{offer['credit_score']}</h1>
+            <p>Rating: <strong>{offer['rating']}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    st.subheader("Loan Offers for You")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Max Loan Eligibility", f"₹{offer['max_loan']:,.0f}")
+    c2.metric("Interest Rate", f"{offer['interest_rate']}% p.a.")
+    c3.button("Apply Now 🚀")
+
+# --- PAGE: DEVELOPER API ---
+elif page == "Developer API (SaaS)":
+    st.header("🔌 AgriIntel for Developers")
+    st.write("Power your own apps with our market intelligence API.")
+    
+    st.markdown("### Pricing Plans")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.info("**Starter**\n\nFree\n\n100 req/day")
+    with c2:
+        st.success("**Pro**\n\n₹499/mo\n\n10,000 req/day")
+    with c3:
+        st.warning("**Enterprise**\n\nCustom\n\nUnlimited")
+        
+    st.divider()
+    
+    st.subheader("Your API Key")
+    st.code("sk_live_51Ha7x...", language="bash")
+    
+    st.subheader("Documentation Example")
+    st.code("""
+# GET /api/v1/forecast?commodity=Onion&mandi=Nasik
+import requests
+res = requests.get("https://api.agriintel.in/v1/forecast")
+print(res.json())
+# Output: {"predicted_price": 2650, "trend": "Bullish"}
+    """, language="python")

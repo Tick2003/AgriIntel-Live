@@ -9,4 +9,6 @@ beautifulsoup4
 feedparser
 nltk
 streamlit-oauth
+scipy
+Pillow
 # Force Cloud Rebuild

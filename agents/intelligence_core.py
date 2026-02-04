@@ -55,6 +55,29 @@ class IntelligenceAgent:
             "sentiment": scen['sentiment']
         }
 
+    def calculate_hold_duration(self, current_price, forecast_trend):
+        """
+        Advises how long to hold the crop based on forecast probability.
+        """
+        # Simple Logic: If trend is up, hold. If flat/down, sell.
+        # forecast_trend is list of next 7 days prices
+        
+        if not forecast_trend or len(forecast_trend) < 3:
+            return "Insufficient Data"
+            
+        start_price = current_price
+        max_price = max(forecast_trend)
+        max_day = forecast_trend.index(max_price) + 1
+        
+        profit_potential = ((max_price - start_price) / start_price) * 100
+        
+        if profit_potential > 5:
+            return f"Hold for {max_day} days. Price expected to rise by {profit_potential:.1f}%."
+        elif profit_potential > 1:
+            return f"Hold for {max_day} days. Slight increase expected ({profit_potential:.1f}%)."
+        else:
+            return "Sell Now. No significant price rise expected soon."
+
     def get_chat_response(self, user_query, context_data):
         """
         Advanced Intent-Based Chat Engine with 'Senior Analyst' Persona.
