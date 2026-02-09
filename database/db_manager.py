@@ -96,6 +96,30 @@ def init_db():
     conn.commit()
     conn.close()
     print(f"Database {DB_NAME} initialized.")
+    
+    # Auto-Restore from CSV if DB is empty (Phase 5 - Git Sync)
+    import_prices_from_csv()
+
+def import_prices_from_csv():
+    """Restores prices from CSV if DB table is empty."""
+    import os
+    if not os.path.exists("data/market_prices.csv"):
+        return
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT count(*) FROM market_prices")
+    count = c.fetchone()[0]
+    
+    if count == 0:
+        print("Restoring data from data/market_prices.csv...")
+        try:
+            df = pd.read_csv("data/market_prices.csv")
+            df.to_sql('market_prices', conn, if_exists='append', index=False)
+            print(f"Restored {len(df)} records.")
+        except Exception as e:
+            print(f"Restore failed: {e}")
+    conn.close()
 
 def save_prices(df):
     """Save a pandas DataFrame of prices to the DB."""
@@ -290,6 +314,20 @@ def get_signal_stats(commodity, mandi):
         "win_rate": win_rate,
         "profitable": profitable
     }
+
+def export_prices_to_csv():
+    """Export market prices to CSV for Git tracking."""
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql("SELECT * FROM market_prices ORDER BY date", conn)
+    conn.close()
+    
+    # Ensure data dir exists
+    import os
+    if not os.path.exists("data"):
+        os.makedirs("data")
+        
+    df.to_csv("data/market_prices.csv", index=False)
+    print("Exported prices to data/market_prices.csv")
 
 if __name__ == "__main__":
     init_db()

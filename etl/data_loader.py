@@ -317,6 +317,9 @@ def run_daily_update():
     print("Latest News:")
     print(news_df[['title', 'source']].head())
     
+    # 5. Export for Git Tracking
+    dbm.export_prices_to_csv()
+    
     print("Update Complete.")
 
 if __name__ == "__main__":
