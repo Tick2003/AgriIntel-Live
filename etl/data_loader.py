@@ -293,8 +293,15 @@ def run_daily_update():
     #     return
  
     # 1. Fetch Prices (Real/Simulated)
-    prices_df = fetch_real_prices(fallback=True)
-    dbm.save_prices(prices_df)
+    # Check if we need to seed history (First run on Cloud)
+    existing_data = dbm.get_latest_prices()
+    if existing_data.empty:
+        print("Fresh DB detected! Seeding 90 days of historical data...")
+        seed_historical_data(days=90)
+    else:
+        print("DB exists. Appending latest daily prices...")
+        prices_df = fetch_real_prices(fallback=True)
+        dbm.save_prices(prices_df)
  
     # 2. Fetch News (Real)
     news_df = fetch_agri_news()

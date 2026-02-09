@@ -107,6 +107,16 @@ else:
     last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
     if (datetime.now() - last_update).total_seconds() > 6 * 3600:
         should_update = True
+    
+    # Check for Sparse Data (e.g. only 1 row) -> Force Update to Seed History
+    try:
+        # Quick check on a default commodity
+        test_df = db_manager.get_latest_prices("Potato")
+        if not test_df.empty and len(test_df) < 5:
+            should_update = True
+            print("Force updating due to sparse data...")
+    except:
+        pass
 
 if should_update:
     try:
