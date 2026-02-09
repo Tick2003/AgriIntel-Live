@@ -300,12 +300,18 @@ if page == "Market Overview":
     # ------------------------------
 
     col1, col2, col3 = st.columns(3)
-    current_price = data['price'].iloc[-1]
-    prev_price = data['price'].iloc[-2]
-    delta = current_price - prev_price
-    
-    col1.metric("Current Price", f"₹{current_price:.2f}", f"{delta:.2f}")
-    col2.metric("Daily Arrivals", f"{data['arrival'].iloc[-1]} tons")
+    if not data.empty:
+        current_price = data['price'].iloc[-1]
+        
+        if len(data) >= 2:
+            prev_price = data['price'].iloc[-2]
+            delta = current_price - prev_price
+        else:
+            prev_price = current_price
+            delta = 0.0
+
+        col1.metric("Current Price", f"₹{current_price:.2f}", f"{delta:.2f}")
+        col2.metric("Daily Arrivals", f"{data['arrival'].iloc[-1]} tons")
     
     # Regime Badge Logic
     regime = risk_info['regime']
