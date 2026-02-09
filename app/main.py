@@ -322,7 +322,7 @@ if page == "Market Overview":
     st.subheader("Historical Price Trend")
     # fig = px.line(data, x='date', y='price', title='Price History (90 Days)') # OLD
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines', name='Price', line_shape='spline', line=dict(color='#2962FF', width=2)))
+    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines+markers', name='Price', line_shape='spline', line=dict(color='#2962FF', width=2)))
     fig.update_layout(template="plotly_white", hovermode="x unified", title="Price History (90 Days)")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -332,7 +332,7 @@ elif page == "Price Forecast":
     
     # 1. Plot
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines', name='Historical', line_shape='spline', line=dict(color='gray')))
+    fig.add_trace(go.Scatter(x=data['date'], y=data['price'], mode='lines+markers', name='Historical', line_shape='spline', line=dict(color='gray')))
     fig.add_trace(go.Scatter(x=forecast_df['date'], y=forecast_df['forecast_price'], mode='lines', name='Forecast', line_shape='spline', line=dict(dash='dash', color='#00C853', width=2)))
     fig.add_trace(go.Scatter(
         x=pd.concat([forecast_df['date'], forecast_df['date'][::-1]]),
@@ -494,8 +494,8 @@ elif page == "Compare Markets":
     st.subheader("Price Comparison")
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data1['date'], y=data1['price'], mode='lines', name=f"{c1} ({m1})", line_shape='spline'))
-    fig.add_trace(go.Scatter(x=data2['date'], y=data2['price'], mode='lines', name=f"{c2} ({m2})", line_shape='spline'))
+    fig.add_trace(go.Scatter(x=data1['date'], y=data1['price'], mode='lines+markers', name=f"{c1} ({m1})", line_shape='spline'))
+    fig.add_trace(go.Scatter(x=data2['date'], y=data2['price'], mode='lines+markers', name=f"{c2} ({m2})", line_shape='spline'))
     fig.update_layout(template="plotly_white", hovermode="x unified")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -565,9 +565,9 @@ elif page == "Model Performance":
         dates_eval = test_data['date'].values[:min_len]
         
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=dates_eval, y=actuals, mode='lines', name='Actual Price (Truth)', line_shape='spline', line=dict(color='gray', width=3)))
-        fig.add_trace(go.Scatter(x=dates_eval, y=ml_preds, mode='lines', name='AI Forecast', line_shape='spline', line=dict(color='#00C853', width=3, dash='solid')))
-        fig.add_trace(go.Scatter(x=dates_eval, y=baseline_preds, mode='lines', name='Naive Baseline', line_shape='spline', line=dict(color='#FF5252', width=2, dash='dot')))
+        fig.add_trace(go.Scatter(x=dates_eval, y=actuals, mode='lines+markers', name='Actual Price (Truth)', line_shape='spline', line=dict(color='gray', width=3)))
+        fig.add_trace(go.Scatter(x=dates_eval, y=ml_preds, mode='lines+markers', name='AI Forecast', line_shape='spline', line=dict(color='#00C853', width=3, dash='solid')))
+        fig.add_trace(go.Scatter(x=dates_eval, y=baseline_preds, mode='lines+markers', name='Naive Baseline', line_shape='spline', line=dict(color='#FF5252', width=2, dash='dot')))
         
         fig.update_layout(template="plotly_white", hovermode="x unified", title="Backtest Verification: AI vs Reality")
         st.plotly_chart(fig, use_container_width=True)
