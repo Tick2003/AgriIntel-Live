@@ -1,4 +1,5 @@
 import streamlit as st
+# Version 1.1 - Hotfix for dependencies (xgboost, streamlit-oauth)
 import pandas as pd
 import numpy as np
 import plotly.express as px
