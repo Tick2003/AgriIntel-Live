@@ -207,7 +207,7 @@ def fetch_weather_owm(lat, lon, api_key=None):
         
     try:
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=10)
         data = response.json()
         
         if response.status_code == 200:
@@ -231,7 +231,7 @@ def fetch_weather_open_meteo(lat, lon):
     """
     try:
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=10)
         data = response.json()
         
         if "current_weather" in data:
