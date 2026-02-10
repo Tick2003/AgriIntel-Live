@@ -100,30 +100,19 @@ def fetch_real_prices(fallback=True):
     """
     try:
         print("Attempting to fetch REAL data from Agmarknet...")
-        # Target: A report page that often lists daily prices (Example URL)
-        # Note: This URL is liable to change. 
-        url = "https://agmarknet.gov.in/PriceTrends/SA_Pri_Month.aspx"
+        # Import the new scraper
+        from etl.agmarknet_scraper import get_all_commodities_data
         
-        # We need to spoof headers to look like a browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        real_df = get_all_commodities_data()
         
-        # In a real scenario, we'd need to POST data to the form.
-        # Since that's complex without Selenium, we'll try to read any table present
-        # or just fail gracefully to the simulator.
-        # For this logic, we will assume the User WANTS real data but we can't easily get it 
-        # without a complex scraper.
-        
-        # Let's try to hit the main page ticker or a simpler report if found.
-        # For now, we will Simulate "Real" data by adding slightly different noise 
-        # to prove the pipeline works, effectively mocking the 'Success' of a scraper
-        # to ensure the USER sees "Live" updates in the repo.
-        
-        raise Exception("Scraping auth failed (Expected for Agmarknet without Selenium)")
+        if real_df.empty:
+            raise Exception("Scraper returned no data")
+            
+        print(f"Successfully scraped {len(real_df)} records from AgMarknet!")
+        return real_df
 
     except Exception as e:
-        print(f"Real Data Fetch failed ({e}). using robust simulation.")
+        print(f"Real Data Fetch failed ({e}). Using robust simulation.")
         return fetch_mandi_prices_simulated()
 
 def seed_historical_data(days=90):
