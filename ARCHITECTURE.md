@@ -119,6 +119,19 @@ The simulation engine.
 
 ---
 
+### 5. Automation & CI/CD (`.github/workflows/`)
+The system autonomy is maintained by GitHub Actions.
+
+#### `daily_update.yml`
+*   **Triggers**: `cron` (Daily), `push` (CI), `workflow_dispatch` (Manual).
+*   **Job**: `update-data`
+    *   Sets up Python 3.9 environment.
+    *   Installs dependencies from `requirements.txt`.
+    *   Executes `etl/data_loader.py` with 10s timeout safeguards.
+    *   **Self-Commit**: Uses `git` actions to push updated CSVs back to the repository, ensuring the dashboard always serves fresh data without manual intervention.
+
+---
+
 ## 🛠️ Configuration & Setup
 
 1.  **Prerequisites**: Python 3.9+

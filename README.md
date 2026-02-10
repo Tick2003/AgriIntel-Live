@@ -38,6 +38,18 @@
 
 ---
 
+## 🔄 Automated Data Pipeline
+The system features a **Self-Healing Data Pipeline** powered by **GitHub Actions**.
+*   **Schedule**: Runs automatically every day at 00:00 UTC.
+*   **Trigger**: Also runs on every `git push` to `main` for immediate feedback.
+*   **Process**:
+    1.  Fetches latest Simulated Market Prices.
+    2.  Scrapes News via Google RSS.
+    3.  Fetches Real Weather from OpenWeatherMap.
+    4.  **Commits & Pushes** data back to the repo (`data/market_prices.csv`) for persistence.
+
+---
+
 ## 📦 How to Run Locally
 
 1.  **Clone the repository**:
