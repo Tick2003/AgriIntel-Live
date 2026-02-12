@@ -251,6 +251,16 @@ def fetch_weather_open_meteo(lat, lon):
         
     return {"temp": 25.0, "humidity": 60, "condition": "Sunny", "wind_speed": 10}
 
+import contextlib
+import os
+
+@contextlib.contextmanager
+def suppress_output():
+    """Context manager to suppress stdout and stderr."""
+    with open(os.devnull, 'w') as devnull:
+        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+            yield
+
 def fetch_real_weather(api_key=None):
     """
     Iterates through Mandis and fetches weather for each.
@@ -271,6 +281,16 @@ def fetch_real_weather(api_key=None):
         })
             
     return pd.DataFrame(weather_data)
+
+import contextlib
+import os
+
+@contextlib.contextmanager
+def suppress_output():
+    """Context manager to suppress stdout and stderr."""
+    with open(os.devnull, 'w') as devnull:
+        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+            yield
 
 def run_daily_update(progress_callback=None):
     """
@@ -337,82 +357,77 @@ def run_daily_update(progress_callback=None):
         progress_callback(0.25, "Starting Intelligence Swarm...")
     
     processed_count = 0
-    
     try:
-        # Initialize Agents
-        forecaster = ForecastingAgent()
-        risk_engine = MarketRiskEngine()
-        decision_agent = DecisionAgent()
-        shock_agent = AnomalyDetectionEngine()
-        
-        # Get all unique commodity/mandi pairs to process
+        # Get unique Commodity-Mandi pairs from DB
         commodities = dbm.get_unique_items("commodity")
         mandis = dbm.get_unique_items("mandi")
         
         total_pairs = len(commodities) * len(mandis)
         current_pair_idx = 0
         
-        for com in commodities:
-            for man in mandis:
-                current_pair_idx += 1
-                
-                try:
-                    # Get History
-                    df = dbm.get_latest_prices(commodity=com)
-                    df = df[df['mandi'] == man]
+        # GLOBAL SILENCE FOR SWARM LOOP
+        with suppress_output():
+            for com in commodities:
+                for man in mandis:
+                    current_pair_idx += 1
                     
-                    if len(df) < 15: # Need minimum data for forecast
-                        continue
+                    try:
+                        # Get History
+                        df = dbm.get_latest_prices(commodity=com)
+                        df = df[df['mandi'] == man]
                         
-                    # Update Progress Bar (Scale 0.25 to 0.95)
-                    if progress_callback:
-                        progress = 0.25 + (0.7 * (current_pair_idx / total_pairs))
-                        progress_callback(progress, f"Processing {com} in {man}...")
+                        if len(df) < 15: # Need minimum data for forecast
+                            continue
+                            
+                        # Update Progress Bar (Scale 0.25 to 0.95)
+                        if progress_callback:
+                            progress = 0.25 + (0.7 * (current_pair_idx / total_pairs))
+                            progress_callback(progress, f"Processing {com} in {man}...")
 
-                    # Rename for compatibility with agents ('price_modal' -> 'price')
-                    df_agent = df.copy()
-                    if 'price_modal' in df_agent.columns:
-                        df_agent = df_agent.rename(columns={'price_modal': 'price'})
-                    # Ensure dates are datetime
-                    df_agent['date'] = pd.to_datetime(df_agent['date'])
+                        # Rename for compatibility with agents ('price_modal' -> 'price')
+                        df_agent = df.copy()
+                        if 'price_modal' in df_agent.columns:
+                            df_agent = df_agent.rename(columns={'price_modal': 'price'})
+                        # Ensure dates are datetime
+                        df_agent['date'] = pd.to_datetime(df_agent['date'])
+                            
+                        # A. Forecast
+                        forecast_df = forecaster.generate_forecasts(df_agent, com, man)
                         
-                    # A. Forecast
-                    forecast_df = forecaster.generate_forecasts(df_agent, com, man)
-                    
-                    if forecast_df.empty:
+                        if forecast_df.empty:
+                            continue
+                        
+                        # B. Risk & Shock
+                        # Calculate volatility (std dev of daily returns)
+                        current_price = df_agent['price'].iloc[-1]
+                        df_agent['returns'] = df_agent['price'].pct_change()
+                        volatility = df_agent['returns'].std()
+                        forecast_std = forecast_df['forecast_price'].std()
+                        
+                        # Detect Shock
+                        shock_info = shock_agent.detect_shocks(df_agent, forecast_df)
+                        
+                        # Calculate Risk Score
+                        risk_data = risk_engine.calculate_risk_score(shock_info, forecast_std, volatility)
+                        
+                        # C. Decision Signal
+                        signal_data = decision_agent.get_signal(current_price, forecast_df, risk_data, shock_info)
+                        
+                        # D. Log Signal
+                        # We log the signal for "Today"
+                        today_str = datetime.now().strftime("%Y-%m-%d")
+                        dbm.log_signal(
+                            date=today_str,
+                            commodity=com,
+                            mandi=man,
+                            signal=signal_data['signal'],
+                            price_at_signal=current_price
+                        )
+                        processed_count += 1
+                    except Exception as inner_e:
+                        # Log individual failures but continue loop
+                        # print(f"Error processing {com}-{man}: {inner_e}") # Squelch spam
                         continue
-                    
-                    # B. Risk & Shock
-                    # Calculate volatility (std dev of daily returns)
-                    current_price = df_agent['price'].iloc[-1]
-                    df_agent['returns'] = df_agent['price'].pct_change()
-                    volatility = df_agent['returns'].std()
-                    forecast_std = forecast_df['forecast_price'].std()
-                    
-                    # Detect Shock
-                    shock_info = shock_agent.detect_shocks(df_agent, forecast_df)
-                    
-                    # Calculate Risk Score
-                    risk_data = risk_engine.calculate_risk_score(shock_info, forecast_std, volatility)
-                    
-                    # C. Decision Signal
-                    signal_data = decision_agent.get_signal(current_price, forecast_df, risk_data, shock_info)
-                    
-                    # D. Log Signal
-                    # We log the signal for "Today"
-                    today_str = datetime.now().strftime("%Y-%m-%d")
-                    dbm.log_signal(
-                        date=today_str,
-                        commodity=com,
-                        mandi=man,
-                        signal=signal_data['signal'],
-                        price_at_signal=current_price
-                    )
-                    processed_count += 1
-                except Exception as inner_e:
-                    # Log individual failures but continue loop
-                    # print(f"Error processing {com}-{man}: {inner_e}") # Squelch spam
-                    continue
 
         print(f"Intelligence Processing Complete. Generated signals for {processed_count} markets.")
         
