@@ -119,13 +119,29 @@ else:
         pass
 
 if should_update:
+    import time
     try:
-        with st.spinner("Data is stale (>6 hours). Updating market data..."):
-            etl.data_loader.run_daily_update()
-            st.cache_resource.clear()
-            st.rerun()
+        # Progress UI
+        st.info("🚀 New data available! Updating market intelligence...")
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        def update_progress(p, text):
+            # Ensure p is float between 0.0 and 1.0
+            p = min(max(float(p), 0.0), 1.0)
+            progress_bar.progress(p)
+            status_text.markdown(f"**{text}**")
+            
+        etl.data_loader.run_daily_update(progress_callback=update_progress)
+        
+        status_text.success("✅ Update Complete!")
+        time.sleep(1)
+        st.cache_resource.clear()
+        st.rerun()
     except Exception as e:
+        import traceback
         st.error(f"Auto-update failed: {e}")
+        st.code(traceback.format_exc())
         print(f"Update Error: {e}")
 # -------------------------
 

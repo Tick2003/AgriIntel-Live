@@ -269,24 +269,22 @@ def fetch_real_weather(api_key=None):
             
     return pd.DataFrame(weather_data)
 
-def run_daily_update():
+def run_daily_update(progress_callback=None):
     """
     Runs the full ETL pipeline.
     """
     print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
     
+    if progress_callback:
+        progress_callback(0.05, "Initializing Database...")
+
     # Ensure DB is initialized
     dbm.init_db()
 
-
-    
-    # Let's check if we should seed (e.g. if file is small or based on arg)
-    # Checking for seed argument (Optional)
-    # if len(sys.argv) > 1 and sys.argv[1] == 'seed':
-    #     seed_historical_data()
-    #     return
- 
     # 1. Fetch Prices (Real/Simulated)
+    if progress_callback:
+        progress_callback(0.1, "Fetching Simulation Data...")
+        
     # Check if we need to seed history (First run on Cloud)
     existing_data = dbm.get_latest_prices()
     if existing_data.empty:
@@ -298,15 +296,21 @@ def run_daily_update():
         dbm.save_prices(prices_df)
  
     # 2. Fetch News (Real)
+    if progress_callback:
+        progress_callback(0.15, "Fetching Global News...")
     news_df = fetch_agri_news()
     dbm.save_news(news_df)
     
     # 3. Fetch Weather (Real)
+    if progress_callback:
+        progress_callback(0.20, "Fetching Weather Data...")
     weather_df = fetch_real_weather()
     dbm.save_weather(weather_df)
     
     # 4. Intelligence Processing (ML + Risk + Decision)
     print("Running Intelligence Swarm (Forecast + Risk + Decision)...")
+    if progress_callback:
+        progress_callback(0.25, "Starting Intelligence Swarm...")
     
     # Initialize Agents
     forecaster = ForecastingAgent()
@@ -318,10 +322,14 @@ def run_daily_update():
     commodities = dbm.get_unique_items("commodity")
     mandis = dbm.get_unique_items("mandi")
     
+    total_pairs = len(commodities) * len(mandis)
     processed_count = 0
+    current_pair_idx = 0
     
     for com in commodities:
         for man in mandis:
+            current_pair_idx += 1
+            
             # Get History
             df = dbm.get_latest_prices(commodity=com)
             df = df[df['mandi'] == man]
@@ -329,6 +337,11 @@ def run_daily_update():
             if len(df) < 15: # Need minimum data for forecast
                 continue
                 
+            # Update Progress Bar (Scale 0.25 to 0.95)
+            if progress_callback:
+                progress = 0.25 + (0.7 * (current_pair_idx / total_pairs))
+                progress_callback(progress, f"Processing {com} in {man}...")
+
             # Rename for compatibility with agents ('price_modal' -> 'price')
             df_agent = df.copy()
             if 'price_modal' in df_agent.columns:
@@ -374,6 +387,8 @@ def run_daily_update():
     print(f"Intelligence Processing Complete. Generated signals for {processed_count} markets.")
 
     # 5. Update Metadata
+    if progress_callback:
+        progress_callback(0.98, "Finalizing Update...")
     dbm.set_last_update()
     
     print("Latest News:")
@@ -382,6 +397,8 @@ def run_daily_update():
     # 6. Export for Git Tracking
     dbm.export_prices_to_csv()
     
+    if progress_callback:
+        progress_callback(1.0, "Update Complete!")
     print("Update Complete.")
 
 if __name__ == "__main__":
