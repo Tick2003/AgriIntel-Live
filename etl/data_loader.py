@@ -3,6 +3,8 @@ import feedparser
 import pandas as pd
 import random
 import time
+import warnings
+warnings.filterwarnings('ignore') # Squelch all warnings for clean output
 from datetime import datetime, timedelta
 
 # Import database manager (Assuming it's in a sibling directory or added to path)

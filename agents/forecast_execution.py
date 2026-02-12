@@ -80,7 +80,8 @@ class ForecastingAgent:
             'max_depth': 5,
             'n_estimators': 100,
             'subsample': 0.8,
-            'objective': 'reg:squarederror'
+            'objective': 'reg:squarederror',
+            'verbosity': 0 # Silent mode
         }
         
         # print("Skipping Auto-Tune for speed...") 
