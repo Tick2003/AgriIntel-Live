@@ -132,6 +132,11 @@ if should_update:
             progress_bar.progress(p)
             status_text.markdown(f"**{text}**")
             
+        # Hot-fix: Force reload module to prevent Stale Module Error on Streamlit Cloud
+        import importlib
+        import etl.data_loader
+        importlib.reload(etl.data_loader)
+        
         etl.data_loader.run_daily_update(progress_callback=update_progress)
         
         status_text.success("✅ Update Complete!")
