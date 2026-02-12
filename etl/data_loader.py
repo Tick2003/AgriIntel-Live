@@ -2,6 +2,7 @@ import requests
 import feedparser
 import pandas as pd
 import random
+import time
 from datetime import datetime, timedelta
 
 # Import database manager (Assuming it's in a sibling directory or added to path)
@@ -271,135 +272,169 @@ def fetch_real_weather(api_key=None):
 
 def run_daily_update(progress_callback=None):
     """
-    Runs the full ETL pipeline.
+    Runs the full ETL pipeline with Robustness (Logs, Partial Updates, Duration).
     """
+    start_time = time.time()
+    dbm.log_system_event("INFO", "ETL", "Daily Update Started")
     print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
     
     if progress_callback:
         progress_callback(0.05, "Initializing Database...")
 
     # Ensure DB is initialized
-    dbm.init_db()
+    try:
+        dbm.init_db()
+    except Exception as e:
+        dbm.log_system_event("CRITICAL", "ETL", f"DB Init Failed: {e}")
+        return # Cannot proceed without DB
 
     # 1. Fetch Prices (Real/Simulated)
     if progress_callback:
         progress_callback(0.1, "Fetching Simulation Data...")
         
-    # Check if we need to seed history (First run on Cloud)
-    existing_data = dbm.get_latest_prices()
-    if existing_data.empty:
-        print("Fresh DB detected! Seeding 90 days of historical data...")
-        seed_historical_data(days=90)
-    else:
-        print("DB exists. Appending latest daily prices...")
-        prices_df = fetch_real_prices(fallback=True)
-        dbm.save_prices(prices_df)
+    try:
+        # Check if we need to seed history (First run on Cloud)
+        existing_data = dbm.get_latest_prices()
+        if existing_data.empty:
+            print("Fresh DB detected! Seeding 90 days of historical data...")
+            seed_historical_data(days=90)
+        else:
+            print("DB exists. Appending latest daily prices...")
+            prices_df = fetch_real_prices(fallback=True)
+            dbm.save_prices(prices_df)
+    except Exception as e:
+        print(f"Price Fetch Error: {e}")
+        dbm.log_system_event("ERROR", "ETL", f"Price Fetch Failed: {e}")
+        # Continue to other steps even if prices fail (Partial Update)
  
     # 2. Fetch News (Real)
     if progress_callback:
         progress_callback(0.15, "Fetching Global News...")
-    news_df = fetch_agri_news()
-    dbm.save_news(news_df)
     
+    try:
+        news_df = fetch_agri_news()
+        dbm.save_news(news_df)
+    except Exception as e:
+        print(f"News Fetch Error: {e}")
+        dbm.log_system_event("ERROR", "ETL", f"News Fetch Failed: {e}")
+
     # 3. Fetch Weather (Real)
     if progress_callback:
         progress_callback(0.20, "Fetching Weather Data...")
-    weather_df = fetch_real_weather()
-    dbm.save_weather(weather_df)
+    
+    try:
+        weather_df = fetch_real_weather()
+        dbm.save_weather(weather_df)
+    except Exception as e:
+        print(f"Weather Fetch Error: {e}")
+        dbm.log_system_event("ERROR", "ETL", f"Weather Fetch Failed: {e}")
     
     # 4. Intelligence Processing (ML + Risk + Decision)
     print("Running Intelligence Swarm (Forecast + Risk + Decision)...")
     if progress_callback:
         progress_callback(0.25, "Starting Intelligence Swarm...")
     
-    # Initialize Agents
-    forecaster = ForecastingAgent()
-    risk_engine = MarketRiskEngine()
-    decision_agent = DecisionAgent()
-    shock_agent = AnomalyDetectionEngine()
-    
-    # Get all unique commodity/mandi pairs to process
-    commodities = dbm.get_unique_items("commodity")
-    mandis = dbm.get_unique_items("mandi")
-    
-    total_pairs = len(commodities) * len(mandis)
     processed_count = 0
-    current_pair_idx = 0
     
-    for com in commodities:
-        for man in mandis:
-            current_pair_idx += 1
-            
-            # Get History
-            df = dbm.get_latest_prices(commodity=com)
-            df = df[df['mandi'] == man]
-            
-            if len(df) < 15: # Need minimum data for forecast
-                continue
+    try:
+        # Initialize Agents
+        forecaster = ForecastingAgent()
+        risk_engine = MarketRiskEngine()
+        decision_agent = DecisionAgent()
+        shock_agent = AnomalyDetectionEngine()
+        
+        # Get all unique commodity/mandi pairs to process
+        commodities = dbm.get_unique_items("commodity")
+        mandis = dbm.get_unique_items("mandi")
+        
+        total_pairs = len(commodities) * len(mandis)
+        current_pair_idx = 0
+        
+        for com in commodities:
+            for man in mandis:
+                current_pair_idx += 1
                 
-            # Update Progress Bar (Scale 0.25 to 0.95)
-            if progress_callback:
-                progress = 0.25 + (0.7 * (current_pair_idx / total_pairs))
-                progress_callback(progress, f"Processing {com} in {man}...")
+                try:
+                    # Get History
+                    df = dbm.get_latest_prices(commodity=com)
+                    df = df[df['mandi'] == man]
+                    
+                    if len(df) < 15: # Need minimum data for forecast
+                        continue
+                        
+                    # Update Progress Bar (Scale 0.25 to 0.95)
+                    if progress_callback:
+                        progress = 0.25 + (0.7 * (current_pair_idx / total_pairs))
+                        progress_callback(progress, f"Processing {com} in {man}...")
 
-            # Rename for compatibility with agents ('price_modal' -> 'price')
-            df_agent = df.copy()
-            if 'price_modal' in df_agent.columns:
-                df_agent = df_agent.rename(columns={'price_modal': 'price'})
-            # Ensure dates are datetime
-            df_agent['date'] = pd.to_datetime(df_agent['date'])
-                
-            # A. Forecast
-            forecast_df = forecaster.generate_forecasts(df_agent, com, man)
-            
-            if forecast_df.empty:
-                continue
-            
-            # B. Risk & Shock
-            # Calculate volatility (std dev of daily returns)
-            current_price = df_agent['price'].iloc[-1]
-            df_agent['returns'] = df_agent['price'].pct_change()
-            volatility = df_agent['returns'].std()
-            forecast_std = forecast_df['forecast_price'].std()
-            
-            # Detect Shock
-            shock_info = shock_agent.detect_shocks(df_agent, forecast_df)
-            
-            # Calculate Risk Score
-            risk_data = risk_engine.calculate_risk_score(shock_info, forecast_std, volatility)
-            
-            # C. Decision Signal
-            signal_data = decision_agent.get_signal(current_price, forecast_df, risk_data, shock_info)
-            
-            # D. Log Signal
-            # We log the signal for "Today"
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            dbm.log_signal(
-                date=today_str,
-                commodity=com,
-                mandi=man,
-                signal=signal_data['signal'],
-                price_at_signal=current_price
-            )
-            processed_count += 1
+                    # Rename for compatibility with agents ('price_modal' -> 'price')
+                    df_agent = df.copy()
+                    if 'price_modal' in df_agent.columns:
+                        df_agent = df_agent.rename(columns={'price_modal': 'price'})
+                    # Ensure dates are datetime
+                    df_agent['date'] = pd.to_datetime(df_agent['date'])
+                        
+                    # A. Forecast
+                    forecast_df = forecaster.generate_forecasts(df_agent, com, man)
+                    
+                    if forecast_df.empty:
+                        continue
+                    
+                    # B. Risk & Shock
+                    # Calculate volatility (std dev of daily returns)
+                    current_price = df_agent['price'].iloc[-1]
+                    df_agent['returns'] = df_agent['price'].pct_change()
+                    volatility = df_agent['returns'].std()
+                    forecast_std = forecast_df['forecast_price'].std()
+                    
+                    # Detect Shock
+                    shock_info = shock_agent.detect_shocks(df_agent, forecast_df)
+                    
+                    # Calculate Risk Score
+                    risk_data = risk_engine.calculate_risk_score(shock_info, forecast_std, volatility)
+                    
+                    # C. Decision Signal
+                    signal_data = decision_agent.get_signal(current_price, forecast_df, risk_data, shock_info)
+                    
+                    # D. Log Signal
+                    # We log the signal for "Today"
+                    today_str = datetime.now().strftime("%Y-%m-%d")
+                    dbm.log_signal(
+                        date=today_str,
+                        commodity=com,
+                        mandi=man,
+                        signal=signal_data['signal'],
+                        price_at_signal=current_price
+                    )
+                    processed_count += 1
+                except Exception as inner_e:
+                    # Log individual failures but continue loop
+                    # print(f"Error processing {com}-{man}: {inner_e}") # Squelch spam
+                    continue
 
-            
-    print(f"Intelligence Processing Complete. Generated signals for {processed_count} markets.")
+        print(f"Intelligence Processing Complete. Generated signals for {processed_count} markets.")
+        
+    except Exception as e:
+        print(f"Intelligence Swarm Critical Failure: {e}")
+        dbm.log_system_event("CRITICAL", "ETL", f"Swarm Failed: {e}")
 
     # 5. Update Metadata
     if progress_callback:
         progress_callback(0.98, "Finalizing Update...")
     dbm.set_last_update()
     
-    print("Latest News:")
-    print(news_df[['title', 'source']].head())
-    
     # 6. Export for Git Tracking
-    dbm.export_prices_to_csv()
+    try:
+        dbm.export_prices_to_csv()
+    except Exception as e:
+        print(f"Export Failed: {e}")
     
     if progress_callback:
         progress_callback(1.0, "Update Complete!")
-    print("Update Complete.")
+        
+    duration = time.time() - start_time
+    dbm.log_system_event("INFO", "ETL", "Daily Update Completed", f"Duration: {duration:.2f}s")
+    print(f"Update Complete in {duration:.2f}s.")
 
 if __name__ == "__main__":
     run_daily_update()

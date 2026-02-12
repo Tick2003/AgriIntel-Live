@@ -93,12 +93,37 @@ def init_db():
         except Exception as e:
             print(f"Migration warning: {e}")
 
+    # Table: System Logs (New)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS system_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            level TEXT,
+            source TEXT,
+            message TEXT,
+            metadata TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print(f"Database {DB_NAME} initialized.")
     
     # Auto-Restore from CSV if DB is empty (Phase 5 - Git Sync)
     import_prices_from_csv()
+
+def log_system_event(level, source, message, metadata=""):
+    """Logs a system event to the database."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("INSERT INTO system_logs (timestamp, level, source, message, metadata) VALUES (?, ?, ?, ?, ?)",
+                  (timestamp, level, source, message, str(metadata)))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Logging Failed: {e}")
 
 def import_prices_from_csv():
     """Restores prices from CSV if DB table is empty."""
