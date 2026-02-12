@@ -65,7 +65,8 @@ class ForecastingAgent:
             df['rain_lag_1'] = df['rainfall'].shift(1).fillna(0)
             df['temp_lag_1'] = df['temperature'].shift(1).fillna(25)
         
-        return df.fillna(method='bfill').fillna(0)
+        # Fix FutureWarning: fillna with method is deprecated
+        return df.bfill().fillna(0)
 
     def _tune_model(self, X, y):
         """
@@ -103,7 +104,8 @@ class ForecastingAgent:
             data = pd.merge(data, weather_df[['date', 'rainfall', 'temperature']], on='date', how='left')
             # Forward fill missing weather (persistence)
             data['rainfall'] = data['rainfall'].fillna(0)
-            data['temperature'] = data['temperature'].fillna(method='ffill').fillna(25)
+            # Fix FutureWarning
+            data['temperature'] = data['temperature'].ffill().fillna(25)
         
         # Minimum data check
         if len(data) < 30:
@@ -146,7 +148,8 @@ class ForecastingAgent:
         mse_val = mean_squared_error(y_val, val_preds)
         rmse_val = np.sqrt(mse_val)
         
-        print(f"Residual Model RMSE: {rmse_val:.2f}")
+        # Log to debug-level if needed, but remove print for production to avoid spam
+        # print(f"Residual Model RMSE: {rmse_val:.2f}") 
         
         # Retrain on full data with best params
         self.residual_model.fit(X, y)
@@ -164,7 +167,8 @@ class ForecastingAgent:
             next_ordinal = next_date.toordinal()
             
             # A. Predict Trend
-            pred_trend = self.trend_model.predict([[next_ordinal]])[0]
+            # Fix UserWarning: Ensure input has feature names
+            pred_trend = self.trend_model.predict(pd.DataFrame([[next_ordinal]], columns=['date_ordinal']))[0]
             
             # B. Predict Residual (Recursive)
             # Create temp row
