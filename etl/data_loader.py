@@ -314,6 +314,9 @@ def run_daily_update(progress_callback=None):
     if progress_callback:
         progress_callback(0.1, "Fetching Simulation Data...")
         
+    prices_df = pd.DataFrame()
+    batch_id = f"BATCH_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
     try:
         # Check if we need to seed history (First run on Cloud)
         existing_data = dbm.get_latest_prices()
@@ -321,12 +324,44 @@ def run_daily_update(progress_callback=None):
             print("Fresh DB detected! Seeding 90 days of historical data...")
             seed_historical_data(days=90)
         else:
-            print("DB exists. Appending latest daily prices...")
+            print(f"DB exists. Appending latest daily prices (Batch: {batch_id})...")
             prices_df = fetch_real_prices(fallback=True)
-            dbm.save_prices(prices_df)
+            
+            # --- DATA RELIABILITY (New Phase 6) ---
+            print("Running Data Reliability Checks...")
+            from agents.data_reliability import DataReliabilityAgent
+            dra = DataReliabilityAgent(db_manager=dbm)
+            
+            # 1. Save Raw
+            dbm.save_raw_prices(prices_df, batch_id)
+            
+            # 2. Validate
+            valid_df, issues, stats = dra.validate_batch(prices_df, batch_id)
+            
+            # 3. Log Issues
+            if issues:
+                dbm.log_quality_issues(issues)
+                print(f"Logged {len(issues)} data quality issues.")
+                
+            # 4. Save Clean Data
+            if not valid_df.empty:
+                dbm.save_prices(valid_df)
+                print(f"Promoted {len(valid_df)} valid records to Production DB.")
+            else:
+                print("Warning: No valid records to promote.")
+                
+            # 5. Log Execution Stats
+            try:
+                duration = time.time() - start_time
+                status = "SUCCESS" if not valid_df.empty else "PARTIAL_FAILURE"
+                dbm.log_scraper_execution(status, duration, len(prices_df), len(valid_df), stats['rejected'])
+            except Exception as e:
+                print(f"Failed to log stats: {e}")
+                
     except Exception as e:
         print(f"Price Fetch Error: {e}")
         dbm.log_system_event("ERROR", "ETL", f"Price Fetch Failed: {e}")
+        dbm.log_scraper_execution("FAILURE", time.time() - start_time, 0, 0, 0, str(e))
         # Continue to other steps even if prices fail (Partial Update)
  
     # 2. Fetch News (Real)
@@ -396,6 +431,13 @@ def run_daily_update(progress_callback=None):
                         
                         if forecast_df.empty:
                             continue
+
+                        # LOG FORECAST (Phase 5)
+                        try:
+                            gen_date = datetime.now().strftime("%Y-%m-%d")
+                            dbm.log_forecast(gen_date, com, man, forecast_df)
+                        except Exception as e:
+                            print(f"Forecast Savelog error: {e}")
                         
                         # B. Risk & Shock
                         # Calculate volatility (std dev of daily returns)

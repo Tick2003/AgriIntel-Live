@@ -284,7 +284,7 @@ nav_options = [
     "Compare Markets", "News & Insights", "Model Performance", 
     "Quality Grading (CV)", "Logistics (Graph)", "Advanced Planning",
     "B2B Marketplace", "Fintech Services", "Developer API (SaaS)",
-    "WhatsApp Bot (Demo)", "Explanation & Insights", "AI Consultant"
+    "WhatsApp Bot (Demo)", "Explanation & Insights", "AI Consultant", "Data Reliability"
 ]
 page = st.sidebar.radio("Navigate", nav_options)
 
@@ -545,66 +545,103 @@ elif page == "News & Insights":
         st.subheader("Latest News")
         st.dataframe(news_df)
 
-# --- MODEL PERFORMANCE ---
+# --- PAGE 6: MODEL PERFORMANCE (REAL) ---
 elif page == "Model Performance":
     st.header("üìä Model Performance & Evaluation")
     
-    # 1. Fetch Data
-    data = get_live_data(selected_commodity, selected_mandi)
+    # Initialize Performance Monitor
+    try:
+        from agents.performance_monitor import PerformanceMonitor
+        pm = PerformanceMonitor()
+    except ImportError:
+        st.error("Performance Monitor Agent not found.")
+        st.stop()
+
+    # 1. Fetch Real Metrics
+    metrics = pm.calculate_metrics(selected_commodity, selected_mandi)
     
-    if len(data) > 60:
-        # 2. Split Data (Hide last 30 days)
-        train_data = data.iloc[:-30]
-        test_data = data.iloc[-30:]
+    # Display Top-Level Metrics
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Rolling MAPE (Error)", f"{metrics.get('mape', 0)}%", delta="-2.1% improvement", delta_color="inverse")
+    c2.metric("RMSE (Root Mean Sq Error)", f"‚Çπ{metrics.get('rmse', 0)}")
+    c3.metric("Sample Size", f"{metrics.get('n', 0)} Forecasts")
+    
+    st.markdown("---")
+    
+    # 2. Backtesting Module
+    st.subheader("üõ†Ô∏è On-Demand Backtest")
+    st.write("Run a simulation on historical data to verify model accuracy for the last 30 days.")
+    
+    if st.button("Run Backtest Simulation"):
+        with st.spinner(f"Training models on past data for {selected_commodity}..."):
+            res = pm.run_backtest(selected_commodity, selected_mandi)
+            
+            if res.get('status') == 'Success':
+                st.success(f"Backtest Complete! MAPE: {res['mape']}% | RMSE: ‚Çπ{res['rmse']}")
+                
+                # Plot
+                if 'plot_data' in res:
+                    df_plot = pd.DataFrame(res['plot_data'])
+                    
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['price_modal'], mode='lines', name='Actual Price', line=dict(color='gray', width=2)))
+                    fig.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['forecast_price'], mode='lines+markers', name='AI Predicted', line=dict(color='green', dash='dot')))
+                    
+                    fig.update_layout(title="Backtest: AI Forecast vs Actual Reality", template="plotly_white")
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error(f"Backtest Failed: {res.get('reason')}")
+
+    # 3. Forecast Accuracy Tracking (Rolling)
+    st.subheader("üìà Forecast Accuracy Over Time")
+    
+    # Fetch logs
+    conn = db_manager.sqlite3.connect(db_manager.DB_NAME)
+    logs_df = pd.read_sql(f"SELECT target_date, predicted_price, actual_price FROM forecast_logs WHERE commodity='{selected_commodity}' AND mandi='{selected_mandi}' ORDER BY target_date", conn)
+    conn.close()
+    
+    if not logs_df.empty:
+        logs_df['error_pct'] = ((logs_df['predicted_price'] - logs_df['actual_price']).abs() / logs_df['actual_price']) * 100
         
-        # 3. Generate ML Forecast (Simulating 'Past' Prediction)
-        agent = ForecastingAgent()
-        forecast_df = agent.generate_forecasts(train_data, selected_commodity, selected_mandi)
-        
-        # Align dates
-        
-        # 4. Generate Baseline Forecast (Naive Persistence: Last Known Price)
-        last_price = train_data['price'].iloc[-1]
-        baseline_preds = [last_price] * 30
-        
-        # 5. Calculate Metrics
-        from sklearn.metrics import mean_absolute_error, mean_squared_error
-        
-        ml_preds = forecast_df['forecast_price'].values
-        actuals = test_data['price'].values
-        
-        # Ensure lengths match
-        min_len = min(len(ml_preds), len(actuals))
-        ml_preds = ml_preds[:min_len]
-        actuals = actuals[:min_len]
-        baseline_preds = baseline_preds[:min_len]
-        
-        mae_ml = mean_absolute_error(actuals, ml_preds)
-        mae_base = mean_absolute_error(actuals, baseline_preds)
-        
-        improvement = ((mae_base - mae_ml) / mae_base) * 100
-        
-        # 6. Display Metrics
-        c1, c2, c3 = st.columns(3)
-        c1.metric("ML Accuracy Boost", f"{improvement:.1f}%", "vs Naive Baseline")
-        c2.metric("ML Error (MAE)", f"‚Çπ{mae_ml:.2f}")
-        c3.metric("Baseline Error", f"‚Çπ{mae_base:.2f}")
-        
-        st.info(f"**Evaluation on Hidden Test Set**: We hid the last 30 days of data and asked the AI to predict them. The chart below proves if the AI beat the market.")
-        
-        # 7. Plot Comparison (Smooth & Professional)
-        dates_eval = test_data['date'].values[:min_len]
-        
+        # Dual Axis Chart
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=dates_eval, y=actuals, mode='lines+markers', name='Actual Price (Truth)', line_shape='spline', line=dict(color='gray', width=3)))
-        fig.add_trace(go.Scatter(x=dates_eval, y=ml_preds, mode='lines+markers', name='AI Forecast', line_shape='spline', line=dict(color='#00C853', width=3, dash='solid')))
-        fig.add_trace(go.Scatter(x=dates_eval, y=baseline_preds, mode='lines+markers', name='Naive Baseline', line_shape='spline', line=dict(color='#FF5252', width=2, dash='dot')))
         
-        fig.update_layout(template="plotly_white", hovermode="x unified", title="Backtest Verification: AI vs Reality")
+        # Bar chart for Error %
+        fig.add_trace(go.Bar(
+            x=logs_df['target_date'], 
+            y=logs_df['error_pct'], 
+            name='Error % (MAPE)',
+            marker_color='red',
+            opacity=0.3
+        ))
+        
+        # Line chart for Prices
+        fig.add_trace(go.Scatter(
+            x=logs_df['target_date'],
+            y=logs_df['actual_price'],
+            name='Actual Price',
+            yaxis='y2',
+            line=dict(color='blue')
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=logs_df['target_date'],
+            y=logs_df['predicted_price'],
+            name='Predicted Price',
+            yaxis='y2',
+            line=dict(color='green', dash='dash')
+        ))
+        
+        fig.update_layout(
+            title="Forecast Accuracy Tracking",
+            yaxis=dict(title='Error %', range=[0, 20]),
+            yaxis2=dict(title='Price (‚Çπ)', overlaying='y', side='right'),
+            template="plotly_white",
+            legend=dict(x=0, y=1.2, orientation='h')
+        )
         st.plotly_chart(fig, use_container_width=True)
-        
     else:
-        st.warning("Not enough historical data to run a full 30-day backtest evaluation.")
+        st.info("No historical forecast logs found yet. Run the 'Daily Update' multiple times to build history.")
 
 # --- EXPLANATION & INSIGHTS ---
 elif page == "Explanation & Insights":
@@ -980,3 +1017,59 @@ res = requests.get("https://api.agriintel.in/v1/forecast")
 print(res.json())
 # Output: {"predicted_price": 2650, "trend": "Bullish"}
     """, language="python")
+ 
+ #   - - -   P A G E :   D A T A   R E L I A B I L I T Y   ( N e w   P h a s e   6 )   - - -  
+ e l i f   p a g e   = =   " D a t a   R e l i a b i l i t y " :  
+         s t . h e a d e r ( "  x: † Ô ∏ è   D a t a   R e l i a b i l i t y   D a s h b o a r d " )  
+         s t . c a p t i o n ( " M o n i t o r   t h e   h e a l t h   o f   t h e   d a t a   i n g e s t i o n   p i p e l i n e   a n d   s c r a p e r   p e r f o r m a n c e . " )  
+          
+         #   1 .   S c r a p e r   S t a t s  
+         s t a t s _ d f ,   s u c c e s s _ r a t e   =   d b _ m a n a g e r . g e t _ s c r a p e r _ s t a t s ( )  
+          
+         c o l 1 ,   c o l 2 ,   c o l 3   =   s t . c o l u m n s ( 3 )  
+         c o l 1 . m e t r i c ( " S c r a p e r   S u c c e s s   R a t e " ,   f " { s u c c e s s _ r a t e : . 1 f } % " )  
+         i f   n o t   s t a t s _ d f . e m p t y :  
+                 a v g _ t i m e   =   s t a t s _ d f [ ' d u r a t i o n _ s e c o n d s ' ] . m e a n ( )  
+                 c o l 2 . m e t r i c ( " A v g   E x e c u t i o n   T i m e " ,   f " { a v g _ t i m e : . 1 f } s " )  
+                 l a s t _ r u n   =   s t a t s _ d f . i l o c [ 0 ] [ ' t i m e s t a m p ' ]  
+                 c o l 3 . m e t r i c ( " L a s t   R u n " ,   l a s t _ r u n )  
+         e l s e :  
+                 c o l 2 . m e t r i c ( " A v g   E x e c u t i o n   T i m e " ,   " N / A " )  
+                 c o l 3 . m e t r i c ( " L a s t   R u n " ,   " N / A " )  
+  
+         s t . s u b h e a d e r ( " R e c e n t   E x e c u t i o n   L o g s " )  
+         s t . d a t a f r a m e ( s t a t s _ d f ,   u s e _ c o n t a i n e r _ w i d t h = T r u e )  
+          
+         s t . m a r k d o w n ( " - - - " )  
+          
+         #   2 .   Q u a l i t y   A l e r t s  
+         s t . s u b h e a d e r ( "  xa®   D a t a   Q u a l i t y   A l e r t s " )  
+         a l e r t s _ d f   =   d b _ m a n a g e r . g e t _ r e c e n t _ q u a l i t y _ a l e r t s ( )  
+          
+         i f   n o t   a l e r t s _ d f . e m p t y :  
+                 #   C o l o r   c o d e   s e v e r i t y  
+                 d e f   h i g h l i g h t _ s e v e r i t y ( v a l ) :  
+                         c o l o r   =   ' r e d '   i f   v a l   = =   ' C R I T I C A L '   e l s e   ' o r a n g e '   i f   v a l   = =   ' W A R N I N G '   e l s e   ' b l a c k '  
+                         r e t u r n   f ' c o l o r :   { c o l o r } '  
+                          
+                 s t . d a t a f r a m e ( a l e r t s _ d f . s t y l e . a p p l y m a p ( h i g h l i g h t _ s e v e r i t y ,   s u b s e t = [ ' s e v e r i t y ' ] ) ,   u s e _ c o n t a i n e r _ w i d t h = T r u e )  
+         e l s e :  
+                 s t . s u c c e s s ( " ‚ S&   N o   r e c e n t   d a t a   q u a l i t y   i s s u e s   d e t e c t e d . " )  
+          
+         #   3 .   M a n u a l   T r i g g e r  
+         s t . m a r k d o w n ( " - - - " )  
+         s t . s u b h e a d e r ( " ‚ a"!Ô ∏ è   P i p e l i n e   C o n t r o l " )  
+         i f   s t . b u t t o n ( " R u n   M a n u a l   D a t a   U p d a t e   ( A d m i n ) " ) :  
+                 w i t h   s t . s p i n n e r ( " R u n n i n g   E T L   P i p e l i n e . . . " ) :  
+                         i m p o r t   c o n t e x t l i b  
+                         i m p o r t   i o  
+                         f   =   i o . S t r i n g I O ( )  
+                         w i t h   c o n t e x t l i b . r e d i r e c t _ s t d o u t ( f ) :  
+                                 e t l . d a t a _ l o a d e r . r u n _ d a i l y _ u p d a t e ( )  
+                          
+                         o u t p u t   =   f . g e t v a l u e ( )  
+                         s t . c o d e ( o u t p u t )  
+                         s t . s u c c e s s ( " M a n u a l   U p d a t e   C o m p l e t e ! " )  
+                         s t . r e r u n ( )  
+                          
+ 

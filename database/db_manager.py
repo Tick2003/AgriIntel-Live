@@ -105,6 +105,81 @@ def init_db():
         )
     ''')
 
+    # Table: Forecast Logs (New Phase 5 - Performance Tracking)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS forecast_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            gen_date TEXT,
+            target_date TEXT,
+            commodity TEXT,
+            mandi TEXT,
+            predicted_price REAL,
+            actual_price REAL,
+            model_version TEXT DEFAULT 'v1.0'
+        )
+    ''')
+
+    # Table: Model Metrics (New Phase 5)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS model_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            commodity TEXT,
+            mandi TEXT,
+            mape REAL,
+            rmse REAL,
+            signal_accuracy REAL,
+            sample_size INTEGER
+        )
+    ''')
+
+    # Table: Raw Mandi Prices (Staging) - New Phase 6
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS raw_mandi_prices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id TEXT,
+            date TEXT,
+            commodity TEXT,
+            mandi TEXT,
+            price_min REAL,
+            price_max REAL,
+            price_modal REAL,
+            arrival REAL,
+            ingestion_timestamp TEXT,
+            status TEXT DEFAULT 'PENDING' 
+        )
+    ''')
+    # status: PENDING, VALIDATED, REJECTED
+
+    # Table: Data Quality Logs - New Phase 6
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS data_quality_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id TEXT,
+            date TEXT,
+            commodity TEXT,
+            mandi TEXT,
+            issue_type TEXT,
+            severity TEXT,
+            details TEXT,
+            raw_value TEXT
+        )
+    ''')
+
+    # Table: Scraper Execution Stats - New Phase 6
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS scraper_execution_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            status TEXT,
+            duration_seconds REAL,
+            records_fetched INTEGER,
+            records_validated INTEGER,
+            records_rejected INTEGER,
+            error_message TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print(f"Database {DB_NAME} initialized.")
@@ -149,11 +224,21 @@ def import_prices_from_csv():
 def save_prices(df):
     """Save a pandas DataFrame of prices to the DB."""
     conn = sqlite3.connect(DB_NAME)
-    # Ensure columns match
-    # Expected DF cols: ['date', 'commodity', 'mandi', 'price_min', 'price_max', 'price_modal', 'arrival']
-    df.to_sql('market_prices', conn, if_exists='append', index=False)
+    
+    # Filter for valid columns only
+    valid_cols = ['date', 'commodity', 'mandi', 'price_min', 'price_max', 'price_modal', 'arrival']
+    # Add optional unit if present, else it defaults in DB
+    if 'unit' in df.columns:
+        valid_cols.append('unit')
+        
+    # Only keep columns that are in df
+    cols_to_save = [c for c in valid_cols if c in df.columns]
+    
+    df_clean = df[cols_to_save].copy()
+    
+    df_clean.to_sql('market_prices', conn, if_exists='append', index=False)
     conn.close()
-    print(f"Saved {len(df)} price records.")
+    print(f"Saved {len(df_clean)} price records.")
 
 def get_latest_prices(commodity=None):
     """Retrieve prices from the DB."""
@@ -353,6 +438,158 @@ def export_prices_to_csv():
         
     df.to_csv("data/market_prices.csv", index=False)
     print("Exported prices to data/market_prices.csv")
+
+
+# --- PERFORMANCE TRACKING (Phase 5) ---
+def log_forecast(gen_date, commodity, mandi, forecast_df):
+    """
+    Logs generated forecasts to DB for future accuracy checking.
+    forecast_df must have ['date', 'forecast_price'] columns.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    try:
+        # Batch insert
+        data_to_insert = []
+        for _, row in forecast_df.iterrows():
+            target_date = row['date'].strftime("%Y-%m-%d") if isinstance(row['date'], pd.Timestamp) else row['date']
+            # Check if already logged for this gen_date + target_date
+            # We allow multiple forecasts for same target from different generation dates (rolling)
+            data_to_insert.append((
+                gen_date, target_date, commodity, mandi, row['forecast_price']
+            ))
+            
+        c.executemany('''
+            INSERT INTO forecast_logs (gen_date, target_date, commodity, mandi, predicted_price)
+            VALUES (?, ?, ?, ?, ?)
+        ''', data_to_insert)
+        
+        conn.commit()
+    except Exception as e:
+        print(f"Failed to log forecast: {e}")
+    finally:
+        conn.close()
+
+def log_model_metrics(date, commodity, mandi, mape, rmse, accuracy, sample_size):
+    """Logs calculated performance metrics."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('''
+            INSERT INTO model_metrics (date, commodity, mandi, mape, rmse, signal_accuracy, sample_size)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (date, commodity, mandi, mape, rmse, accuracy, sample_size))
+        conn.commit()
+    except Exception as e:
+        print(f"Failed to log metrics: {e}")
+    finally:
+        conn.close()
+
+def get_performance_history(commodity, mandi):
+    """Retrieves historical performance metrics."""
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql(f"SELECT * FROM model_metrics WHERE commodity='{commodity}' AND mandi='{mandi}' ORDER BY date", conn)
+    conn.close()
+    return df
+
+def get_forecast_vs_actuals(commodity, mandi):
+    """
+    Joins forecast logs with actual market prices to compare.
+    Returns DF with [target_date, predicted_price, actual_price, error, error_pct]
+    """
+    conn = sqlite3.connect(DB_NAME)
+    
+    # We want to compare the '1-day ahead' or '7-day ahead' forecasts.
+    # For simplicity in this view, we take the forecast generated 1 to 7 days prior to target.
+    # Here we just fetch all matched pairs.
+    
+    query = f'''
+        SELECT 
+            f.target_date, 
+            f.predicted_price, 
+            m.price_modal as actual_price,
+            f.gen_date
+        FROM forecast_logs f
+        JOIN market_prices m ON f.target_date = m.date AND f.commodity = m.commodity AND f.mandi = m.mandi
+        WHERE f.commodity = '{commodity}' AND f.mandi = '{mandi}'
+        ORDER BY f.target_date
+    '''
+    df = pd.read_sql(query, conn)
+    conn.close()
+    
+    if not df.empty:
+        df['error'] = df['predicted_price'] - df['actual_price']
+        df['error_pct'] = (df['error'].abs() / df['actual_price']) * 100
+        
+    return df
+
+# --- DATA RELIABILITY HELPERS (Phase 6) ---
+
+def save_raw_prices(df, batch_id):
+    """Saves incoming scraped data to the raw staging table."""
+    if df.empty:
+        return
+        
+    conn = sqlite3.connect(DB_NAME)
+    
+    # Add metadata columns
+    df['batch_id'] = batch_id
+    df['ingestion_timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    df['status'] = 'PENDING'
+    
+    df.to_sql('raw_mandi_prices', conn, if_exists='append', index=False)
+    conn.close()
+
+def log_quality_issues(issues_list):
+    """
+    Logs data quality issues. 
+    issues_list: List of dicts {batch_id, date, commodity, mandi, issue_type, severity, details, raw_value}
+    """
+    if not issues_list:
+        return
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.executemany('''
+        INSERT INTO data_quality_logs (batch_id, date, commodity, mandi, issue_type, severity, details, raw_value)
+        VALUES (:batch_id, :date, :commodity, :mandi, :issue_type, :severity, :details, :raw_value)
+    ''', issues_list)
+    conn.commit()
+    conn.close()
+
+def log_scraper_execution(status, duration, fetched, validated, rejected, error_msg=""):
+    """Logs the execution summary of the scraper run."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute('''
+        INSERT INTO scraper_execution_stats (timestamp, status, duration_seconds, records_fetched, records_validated, records_rejected, error_message)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (timestamp, status, duration, fetched, validated, rejected, error_msg))
+    conn.commit()
+    conn.close()
+
+def get_scraper_stats(limit=30):
+    """Fetch scraper stats for dashboard."""
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql(f"SELECT * FROM scraper_execution_stats ORDER BY timestamp DESC LIMIT {limit}", conn)
+    
+    # Calculate Success Rate
+    success_rate = 0
+    if not df.empty:
+        success_count = len(df[df['status'] == 'SUCCESS'])
+        success_rate = (success_count / len(df)) * 100
+        
+    conn.close()
+    return df, success_rate
+
+def get_recent_quality_alerts(limit=50):
+    """Fetch recent data quality alerts."""
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql(f"SELECT * FROM data_quality_logs ORDER BY date DESC LIMIT {limit}", conn)
+    conn.close()
+    return df
 
 if __name__ == "__main__":
     init_db()
