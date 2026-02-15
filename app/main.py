@@ -551,8 +551,51 @@ elif page == "News & Insights":
 elif page == "Model Performance":
     st.header("📊 Model Performance & Evaluation")
     
-    # 1. Fetch Data
-    data = get_live_data(selected_commodity, selected_mandi)
+    # 1. Real-World Tracking (New Phase 7)
+    st.subheader("📈 Real-World Accuracy Tracking")
+    
+    # Fetch Metrics History
+    try:
+        metrics_df = db_manager.get_performance_history(selected_commodity, selected_mandi)
+        
+        if not metrics_df.empty:
+            latest = metrics_df.iloc[-1]
+            
+            # Health Score Gauge
+            c1, c2, c3, c4 = st.columns(4)
+            
+            c1.metric("Model Health Score", f"{latest['health_score']:.1f}/100", 
+                     delta=f"{latest['health_score'] - metrics_df.iloc[-2]['health_score']:.1f}" if len(metrics_df) > 1 else None)
+            
+            c2.metric("Current MAPE", f"{latest['mape']:.1f}%", inverse_mode=True)
+            c3.metric("Current RMSE", f"₹{latest['rmse']:.1f}", inverse_mode=True)
+            c4.metric("Samples Tracked", f"{latest['sample_size']}")
+            
+            # Health Trend Chart
+            st.caption("Model Health Trend (Last 90 Days)")
+            st.line_chart(metrics_df.set_index('date')['health_score'])
+            
+            # Actual vs Predicted Chart (Historic)
+            st.subheader("🔍 Forecast vs Actuals")
+            track_df = db_manager.get_forecast_vs_actuals(selected_commodity, selected_mandi)
+            
+            if not track_df.empty:
+                fig_perf = go.Figure()
+                fig_perf.add_trace(go.Scatter(x=track_df['target_date'], y=track_df['actual_price'], name='Actual', line=dict(color='black', width=2)))
+                fig_perf.add_trace(go.Scatter(x=track_df['target_date'], y=track_df['predicted_price'], name='Predicted', line=dict(color='green', dash='dot')))
+                
+                # Error Bars (optional, or just difference)
+                fig_perf.update_layout(title="Prediction Accuracy Over Time", template="plotly_white")
+                st.plotly_chart(fig_perf, use_container_width=True)
+                
+        else:
+            st.info("No tracking data available yet. Metrics will appear after the next daily update.")
+            
+    except Exception as e:
+        st.error(f"Error loading metrics: {e}")
+
+    st.markdown("---")
+    st.subheader("🧪 Simulation: Backtest Verification")
     
     if len(data) > 60:
         # 2. Split Data (Hide last 30 days)
@@ -584,7 +627,10 @@ elif page == "Model Performance":
         mae_ml = mean_absolute_error(actuals, ml_preds)
         mae_base = mean_absolute_error(actuals, baseline_preds)
         
-        improvement = ((mae_base - mae_ml) / mae_base) * 100
+        if mae_base > 0:
+            improvement = ((mae_base - mae_ml) / mae_base) * 100
+        else:
+            improvement = 0
         
         # 6. Display Metrics
         c1, c2, c3 = st.columns(3)
@@ -983,9 +1029,60 @@ print(res.json())
 # Output: {"predicted_price": 2650, "trend": "Bullish"}
     """, language="python")
 
+
+# --- PAGE: BACKTEST SIMULATOR (Phase 8) ---
+elif page == "Backtest Simulator":
+    st.header("⏪ Time Travel & Backtesting")
+    st.caption("Test the AI's strategy against historical data (Simulation Mode).")
+    
+    from agents.backtesting_engine import BacktestEngine
+    
+    # Inputs
+    c1, c2, c3 = st.columns(3)
+    c1.info(f"**Commodity**: {selected_commodity}")
+    c2.info(f"**Market**: {selected_mandi}")
+    initial_cap = c3.number_input("Initial Capital (₹)", 10000, 10000000, 100000, step=10000)
+    
+    if st.button("Run Simulation 🏃‍♂️"):
+        be = BacktestEngine(initial_capital=initial_cap)
+        
+        with st.spinner("Replaying market history..."):
+            # Fetch last 365 days by default or max avail
+            equity_df, metrics, trades_df = be.run_backtest(selected_commodity, selected_mandi)
+            
+        if metrics and "error" not in metrics:
+            # Top Metrics
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Return", f"{metrics['Total Return']:.1f}%", 
+                      delta=f"{metrics['Total Return'] - metrics['Benchmark Return']:.1f}% vs Hold")
+            m2.metric("Final Equity", f"₹{metrics['Final Equity']:,.0f}")
+            m3.metric("Max Drawdown", f"{metrics['Max Drawdown']:.1f}%")
+            m4.metric("Sharpe Ratio", f"{metrics['Sharpe Ratio']:.2f}")
+            
+            # Equity Curve
+            st.subheader("Performance vs Buy & Hold")
+            
+            # Normalize for comparison
+            equity_df['rel_strategy'] = (equity_df['strategy_equity'] / equity_df['strategy_equity'].iloc[0]) * 100
+            equity_df['rel_benchmark'] = (equity_df['price'] / equity_df['price'].iloc[0]) * 100
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=equity_df['date'], y=equity_df['rel_strategy'], name='AI Strategy', line=dict(color='green', width=2)))
+            fig.add_trace(go.Scatter(x=equity_df['date'], y=equity_df['rel_benchmark'], name='Buy & Hold', line=dict(color='gray', dash='dot')))
+            fig.update_layout(title="Equity Curve (Rebased to 100)", template="plotly_white")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Trade Log
+            with st.expander("📜 Trade Log"):
+                st.dataframe(trades_df.style.format({"price": "{:.2f}", "value": "{:,.0f}"}))
+                
+        else:
+            st.error(f"Backtest Failed: {metrics.get('error') if metrics else 'Unknown Error'}")
+
 # --- PAGE: DATA RELIABILITY (New Phase 6) ---
 elif page == "Data Reliability":
     st.header("🛠️ Data Reliability Dashboard")
+# ... (rest of the file)
     st.caption("Monitor the health of the data ingestion pipeline and scraper performance.")
     
     # 1. Scraper Stats

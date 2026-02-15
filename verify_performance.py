@@ -1,3 +1,4 @@
+
 import pandas as pd
 import sqlite3
 import os
@@ -16,14 +17,17 @@ def test_performance_tracking():
     
     # 2. Mock Data Injection
     print("Injecting Mock Forecast Logs...")
-    com = "TestCrop"
-    man = "TestMandi"
+    com = "TestCropPerf"
+    man = "TestMandiPerf"
     gen_date = "2023-01-01"
     
     # Create Dummy Forecast DF
     dates = pd.date_range(start="2023-01-02", periods=5)
+    # Convert to string YYYY-MM-DD to ensure matching
+    date_strs = [d.strftime("%Y-%m-%d") for d in dates]
+    
     forecast_df = pd.DataFrame({
-        "date": dates,
+        "date": date_strs,
         "forecast_price": [100, 105, 110, 108, 112]
     })
     
@@ -35,7 +39,8 @@ def test_performance_tracking():
     # Clean previous test data
     conn.execute(f"DELETE FROM market_prices WHERE commodity='{com}'")
     conn.execute(f"DELETE FROM forecast_logs WHERE commodity='{com}'")
-    
+    conn.execute(f"DELETE FROM model_metrics WHERE commodity='{com}'")
+        
     # Re-Log Forecast (since we deleted)
     log_forecast(gen_date, com, man, forecast_df)
     
@@ -45,41 +50,67 @@ def test_performance_tracking():
         conn.execute("INSERT INTO market_prices (date, commodity, mandi, price_modal) VALUES (?, ?, ?, ?)", 
                      (d.strftime("%Y-%m-%d"), com, man, p))
     conn.commit()
+    
+    # DEBUG: Dump Tables
+    print("DEBUG: forecast_logs content:")
+    try:
+        print(pd.read_sql(f"SELECT * FROM forecast_logs WHERE commodity='{com}'", conn))
+    except Exception as e:
+        print(f"Error reading forecast_logs: {e}")
+        
+    print("DEBUG: market_prices content:")
+    try:
+        print(pd.read_sql(f"SELECT * FROM market_prices WHERE commodity='{com}'", conn))
+    except Exception as e:
+        print(f"Error reading market_prices: {e}")
+
     conn.close()
     
     # 3. Test Performance Monitor Calculation
     pm = PerformanceMonitor()
-    metrics = pm.calculate_metrics(com, man)
+    print("Running update_metrics...")
+    metrics = pm.update_metrics(com, man)
     
     print(f"Calculated Metrics: {metrics}")
     
-    if metrics['n'] == 5:
+    if metrics and metrics['n'] == 5:
         print("✅ Sample Size Correct")
     else:
-        print(f"❌ Sample Size Mismatch: Expected 5, got {metrics['n']}")
+        print(f"❌ Sample Size Mismatch: Expected 5, got {metrics.get('n') if metrics else 'None'}")
         
-    # Check MAPE logic
-    # Errors: |100-102|=2, |105-104|=1, |110-115|=5, |108-100|=8, |112-110|=2
-    # Pct: 2/102, 1/104, 5/115, 8/100, 2/110
-    # Approx: 0.019, 0.009, 0.043, 0.08, 0.018
-    # Mean: ~0.033 -> 3.3%
+    # Check MAE and Health Score
+    if metrics:
+        if 3.0 < metrics['mae'] < 4.0:
+            print(f"✅ MAE is correct ({metrics['mae']})")
+        else:
+            print(f"❌ MAE Value unexpected: {metrics['mae']}")
+
+        if metrics['health_score'] > 90:
+            print(f"✅ Health Score is reasonable ({metrics['health_score']})")
+        else:
+            print(f"❌ Health Score unexpected: {metrics['health_score']}")
+
+    # 4. Verify DB Storage
+    conn = sqlite3.connect("agri_intel.db")
+    c = conn.cursor()
+    c.execute(f"SELECT mae, health_score FROM model_metrics WHERE commodity='{com}' ORDER BY id DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
     
-    if 2.0 < metrics['mape'] < 5.0:
-        print(f"✅ MAPE is reasonable ({metrics['mape']}%)")
+    if row:
+        print(f"✅ DB Log Verified: MAE={row[0]}, Health={row[1]}")
     else:
-        print(f"❌ MAPE Value unexpected: {metrics['mape']}%")
-        
-    # 4. Test Backtest
-    # We need enough history for backtest. The mock above is small.
-    # We'll just check if the function 'runs' and returns insufficient data safely.
-    print("Testing Backtest (Safety Check)...")
-    res = pm.run_backtest(com, man) # Should likely fail due to insufficient history
-    print(f"Backtest Result: {res['status']}")
-    
-    if res['status'] == 'Failed':
-        print("✅ Backtest handled insufficient data correctly.")
-    else:
-        print("⚠️ Backtest ran unexpectedly (might have found other data).")
+        print("❌ DB Log Failed: No record found.")
+
+    # Cleanup
+    print("Cleaning up test data...")
+    conn = sqlite3.connect("agri_intel.db")
+    conn.execute(f"DELETE FROM market_prices WHERE commodity='{com}'")
+    conn.execute(f"DELETE FROM forecast_logs WHERE commodity='{com}'")
+    conn.execute(f"DELETE FROM model_metrics WHERE commodity='{com}'")
+    conn.commit()
+    conn.close()
+    print("Cleanup Complete.")
 
 if __name__ == "__main__":
     test_performance_tracking()

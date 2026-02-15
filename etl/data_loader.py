@@ -17,6 +17,7 @@ from agents.forecast_execution import ForecastingAgent
 from agents.risk_scoring import MarketRiskEngine
 from agents.decision_support import DecisionAgent
 from agents.shock_monitoring import AnomalyDetectionEngine
+from agents.performance_monitor import PerformanceMonitor
 import numpy as np
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
@@ -331,6 +332,7 @@ def run_daily_update(progress_callback=None):
             print("Running Data Reliability Checks...")
             from agents.data_reliability import DataReliabilityAgent
             dra = DataReliabilityAgent(db_manager=dbm)
+            pm = PerformanceMonitor()
             
             # 1. Save Raw
             dbm.save_raw_prices(prices_df, batch_id)
@@ -465,6 +467,13 @@ def run_daily_update(progress_callback=None):
                             signal=signal_data['signal'],
                             price_at_signal=current_price
                         )
+                        
+                        # E. Update Performance Metrics (Phase 7)
+                        try:
+                            pm.update_metrics(com, man)
+                        except Exception as e:
+                            print(f"Performance Update Failed: {e}")
+
                         processed_count += 1
                     except Exception as inner_e:
                         # Log individual failures but continue loop

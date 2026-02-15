@@ -128,10 +128,23 @@ def init_db():
             mandi TEXT,
             mape REAL,
             rmse REAL,
+            mae REAL,
+            health_score REAL,
             signal_accuracy REAL,
             sample_size INTEGER
         )
-    ''')
+    ''') 
+    
+    # Migration for Phase 7 (Performance Tracker)
+    try:
+        c.execute("SELECT mae FROM model_metrics LIMIT 1")
+    except sqlite3.OperationalError:
+        print("Migrating: Adding 'mae' and 'health_score' to model_metrics")
+        try:
+            c.execute("ALTER TABLE model_metrics ADD COLUMN mae REAL DEFAULT 0.0")
+            c.execute("ALTER TABLE model_metrics ADD COLUMN health_score REAL DEFAULT 0.0")
+        except Exception as e:
+            print(f"Migration warning: {e}")
 
     # Table: Raw Mandi Prices (Staging) - New Phase 6
     c.execute('''
@@ -471,15 +484,15 @@ def log_forecast(gen_date, commodity, mandi, forecast_df):
     finally:
         conn.close()
 
-def log_model_metrics(date, commodity, mandi, mape, rmse, accuracy, sample_size):
+def log_model_metrics(date, commodity, mandi, mape, rmse, mae, health_score, accuracy, sample_size):
     """Logs calculated performance metrics."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT INTO model_metrics (date, commodity, mandi, mape, rmse, signal_accuracy, sample_size)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (date, commodity, mandi, mape, rmse, accuracy, sample_size))
+            INSERT INTO model_metrics (date, commodity, mandi, mape, rmse, mae, health_score, signal_accuracy, sample_size)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (date, commodity, mandi, mape, rmse, mae, health_score, accuracy, sample_size))
         conn.commit()
     except Exception as e:
         print(f"Failed to log metrics: {e}")
@@ -584,7 +597,35 @@ def get_scraper_stats(limit=30):
     conn.close()
     return df, success_rate
 
-def get_recent_quality_alerts(limit=50):
+def get_price_history(commodity, mandi, start_date=None, end_date=None):
+    """Fetches historical prices for a specific market within a date range."""
+    conn = sqlite3.connect(DB_NAME)
+    
+    query = f"SELECT * FROM market_prices WHERE commodity='{commodity}' AND mandi='{mandi}'"
+    
+    if start_date:
+        query += f" AND date >= '{start_date}'"
+    if end_date:
+        query += f" AND date <= '{end_date}'"
+        
+    query += " ORDER BY date ASC"
+    
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+def get_historical_signals(commodity, mandi):
+    """Fetches logged decision signals."""
+    conn = sqlite3.connect(DB_NAME)
+    # dependent on log_signal implementation, assuming table 'decision_logs' or similar 
+    # Check data_loader.py: dbm.log_signal calls INSERT INTO trade_signals
+    query = f"SELECT * FROM trade_signals WHERE commodity='{commodity}' AND mandi='{mandi}' ORDER BY date ASC"
+    try:
+        df = pd.read_sql(query, conn)
+    except:
+        df = pd.DataFrame() # Table might not exist yet if no signals logged
+    conn.close()
+    return df
     """Fetch recent data quality alerts."""
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql(f"SELECT * FROM data_quality_logs ORDER BY date DESC LIMIT {limit}", conn)
