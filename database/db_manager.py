@@ -321,6 +321,18 @@ def get_mandi_coordinates():
         "Nasik": {"lat": 19.9975, "lon": 73.7898, "state": "Maharashtra"},
         "Shimla": {"lat": 31.1048, "lon": 77.1734, "state": "Himachal Pradesh"}
     }
+    
+def get_recent_quality_alerts(limit=10):
+    """Fetches recent data quality alerts."""
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        query = f"SELECT * FROM data_quality_logs ORDER BY id DESC LIMIT {limit}"
+        df = pd.read_sql(query, conn)
+        return df
+    except Exception:
+        return pd.DataFrame() # Return empty if table missing or error
+    finally:
+        conn.close()
 
 def log_system_event(level, source, message, metadata=""):
     """Logs a system event to the database."""
