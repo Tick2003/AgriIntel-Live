@@ -12,3 +12,6 @@ streamlit-oauth
 scipy
 Pillow
 # Force Cloud Rebuild
+fastapi
+uvicorn
+python-multipart

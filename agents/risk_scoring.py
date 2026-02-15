@@ -9,46 +9,67 @@ class MarketRiskEngine:
     def __init__(self):
         pass
 
-    def calculate_risk_score(self, shock_info: dict, forecast_std: float, market_volatility: float) -> dict:
+    def calculate_risk_score(self, shock_info: dict, forecast_std: float, market_volatility: float, 
+                           sentiment_score: float = 0, arrival_anomaly: float = 0, weather_risk: float = 0) -> dict:
         """
-        Combine signals into a risk score.
+        Decomposes risk into 4 components:
+        1. Volatility (Price instability)
+        2. Shock (Sudden anomalies)
+        3. Sentiment (Market mood)
+        4. External Factors (Arrivals + Weather)
+        
+        Returns Total Score (0-100) and Breakdown.
         """
-        score = 0
-        tags = []
-
-        # 1. Shock Influence
+        # 1. Volatility Risk (0-30 pts)
+        # 2% vol = Max Risk
+        vol_risk = min((market_volatility / 0.02) * 30, 30)
+        
+        # 2. Shock/Model Risk (0-30 pts)
+        shock_risk = 0
         if shock_info.get("is_shock"):
-            if shock_info["severity"] == "High":
-                score += 50
-                tags.append("Recent Severe Shock")
-            else:
-                score += 20
-                tags.append("Recent Shock")
+            shock_risk = 30 if shock_info["severity"] == "High" else 15
+        elif forecast_std > 500:
+             shock_risk += 10
+        shock_risk = min(shock_risk, 30)
+
+        # 3. Sentiment Risk (0-20 pts)
+        # Negative sentiment (Bearish) = Risk for farmers (Price drop)
+        # Positive sentiment (Bullish) = Stability? Or also deviation?
+        # Let's assume High Magnitude Sentiment = higher volatility risk.
+        sent_risk = abs(sentiment_score) * 20
         
-        # 2. Volatility Influence
-        if market_volatility > 0.02: # >2% daily volatility
-            score += 30
-            tags.append("High Market Volatility")
-        elif market_volatility > 0.01:
-            score += 10
-            
-        # 3. Forecast Uncertainty
-        if forecast_std > 500: # Arbitrary high std dev
-            score += 20
-            tags.append("High Forecast Uncertainty")
-            
-        # Cap score
-        score = min(score, 100)
+        # 4. External Risk (Arrivals + Weather) (0-20 pts)
+        # High arrival surge (>50%) = Price Crash Risk
+        arr_risk = min((max(arrival_anomaly, 0) / 0.5) * 10, 10)
+        # Weather (0-10)
+        w_risk = weather_risk * 10
+        ext_risk = arr_risk + w_risk
         
-        risk_level = "High" if score > 70 else "Medium" if score > 30 else "Low"
+        total_score = vol_risk + shock_risk + sent_risk + ext_risk
+        total_score = min(total_score, 100)
+        
+        risk_level = "Critical" if total_score > 75 else "High" if total_score > 50 else "Moderate" if total_score > 25 else "Stable"
 
         return {
-            "risk_score": int(score),
+            "risk_score": int(total_score),
             "risk_level": risk_level,
-            "volatility": market_volatility,
             "regime": self.determine_regime(market_volatility, shock_info.get('is_shock', False)),
-            "explanation_tags": tags
+            "breakdown": {
+                "Volatility": int(vol_risk),
+                "Market Shocks": int(shock_risk),
+                "News Sentiment": int(sent_risk),
+                "Supply/Weather": int(ext_risk)
+            },
+            "explanation_tags": self._get_tags(vol_risk, shock_risk, sent_risk, ext_risk)
         }
+
+    def _get_tags(self, v, s, n, e):
+        tags = []
+        if v > 20: tags.append("High Volatility")
+        if s > 15: tags.append("Market Shock Detected")
+        if n > 15: tags.append("Strong Sentiment Driver")
+        if e > 15: tags.append("Supply/Weather Stress")
+        return tags
 
     def determine_regime(self, volatility, is_shock, current_price_velocity=0):
         """

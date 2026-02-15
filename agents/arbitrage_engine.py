@@ -8,20 +8,34 @@ class ArbitrageAgent:
     Goal: Identify profitable trade routes between Mandis.
     """
     def __init__(self):
-        # Simulated transport cost matrix (or flat rate)
-        # In reality, this would be a distance matrix API
-        self.flat_transport_cost_per_km = 5 # INR per km (just a placeholder multiplier)
-        # Or simpler: Fixed cost per Quintal between known hubs
-        self.avg_transport_cost = 150 # INR per Quintal (approx for inter-state)
+        # Mock Distance Matrix (km)
+        self.distances = {
+            ('Azadpur', 'Pune'): 1400, ('Azadpur', 'Kolar'): 2100, ('Azadpur', 'Indore'): 800,
+            ('Pune', 'Kolar'): 900, ('Pune', 'Indore'): 600, ('Indore', 'Kolar'): 1300,
+            ('Agra', 'Azadpur'): 230, ('Agra', 'Indore'): 600, ('Cuttack', 'Azadpur'): 1700
+        }
+        self.default_dist = 500 # Fallback
 
-    def find_opportunities(self, current_commodity, current_mandi, all_data_df, shock_status_current):
+    def get_distance(self, m1, m2):
+        if m1 == m2: return 0
+        return self.distances.get((m1, m2)) or self.distances.get((m2, m1)) or self.default_dist
+
+    def find_opportunities(self, current_commodity, current_mandi, all_data_df, shock_status_current, 
+                         cost_config=None):
         """
-        Scans for price gaps > transport cost.
-        Includes Smart Filter: If shock_high in CURRENT mandi, avoid logic (or show warning).
+        Scans for price gaps > real transport cost.
+        cost_config: {fuel_rate: 15, toll: 500, labor: 200, spoilage: 0.05}
         """
+        # Default Config
+        cfg = cost_config or {}
+        fuel_rate = cfg.get('fuel_rate', 0.02) # INR/km/kg -> ~20 INR/km/ton
+        toll = cfg.get('toll', 200) # Fixed per trip (amortized)
+        labor = cfg.get('labor', 100) # Loading/Unloading per Quintal
+        spoilage = cfg.get('spoilage', 0.05) # 5% loss
+        
         # Smart Filter: Avoid noise if current market is already unstable
-        if shock_status_current.get('is_shock') and shock_status_current.get('severity') == 'High':
-            return pd.DataFrame() # Return empty, unstable
+        if shock_status_current.get('is_shock'):
+            return pd.DataFrame() 
             
         if all_data_df.empty:
             return pd.DataFrame()
@@ -35,52 +49,57 @@ class ArbitrageAgent:
             
         my_price = current_row['price'].iloc[-0]
         
-        # Get latest prices for ALL other mandis for same commodity
+        # Get latest prices for ALL other mandis
         latest_prices = all_data_df[all_data_df['commodity'] == current_commodity].sort_values('date').groupby('mandi').tail(1)
         
         opportunities = []
-        min_margin = 50 # Theta = 50Rs/Qt
+        min_margin = 50 
         
         for _, row in latest_prices.iterrows():
             target_mandi = row['mandi']
             target_price = row['price']
             
-            if target_mandi == current_mandi:
-                continue
-                
-            # Logic: Can I buy here and sell there?
-            # Profit = Sell Price - (Buy Price + Transport)
+            if target_mandi == current_mandi: continue
+
+            dist = self.get_distance(current_mandi, target_mandi)
             
-            # Case 1: Sell to Target (if I hold stock)
+            # Cost Model (Per Quintal)
+            # 1 ton truck = 10 Quintals. Fuel/km = 20Rs. Dist=500km -> 10000Rs. Per Q = 1000Rs.
+            # Simplified: Fuel Rate is per km per Quintal? No, usually per km for truck.
+            # Let's assume passed fuel_rate is INR per km PER QUINTAL (approx 2.0)
+            transport_cost = (dist * fuel_rate) + (toll / 10) + labor # Amortize toll
+            
+            # Spoilage Loss (Value lost)
+            loss_val = my_price * spoilage
+            
+            total_cost = transport_cost + loss_val
+            
+            # Net Profit
             gross_margin = target_price - my_price
-            net_profit = gross_margin - self.avg_transport_cost
+            net_profit = gross_margin - total_cost
             
+            # Sensitivity (Risk)
+            # What if Target Price drops 10%?
+            target_price_bear = target_price * 0.90
+            profit_bear = (target_price_bear - my_price) - total_cost
+            
+            confidence = "High" if profit_bear > 0 else "Medium" if net_profit > 200 else "Low"
+
             if net_profit > min_margin:
                 opportunities.append({
                     'Type': 'Sell to',
                     'Target Mandi': target_mandi,
-                    'Current Price': f"₹{my_price:.0f}",
-                    'Target Price': f"₹{target_price:.0f}",
-                    'Net Profit/Qt': net_profit,
-                    'Action': f"🚛 Move stock to {target_mandi}"
+                    'Distance (km)': dist,
+                    'Current Price': float(my_price),
+                    'Target Price': float(target_price),
+                    'Total Cost': round(total_cost, 0),
+                    'Net Profit/Qt': round(net_profit, 2),
+                    'Profit (Bear Case)': round(profit_bear, 2),
+                    'Confidence': confidence,
+                    'Action': f"🚛 > {target_mandi}"
                 })
-                
-            # Case 2: Buy from Target (if I am a trader)
-            # Profit = My Price - (Target Price + Transport)
-            buy_margin = my_price - target_price
-            buy_profit = buy_margin - self.avg_transport_cost
-            
-            if buy_profit > min_margin:
-                opportunities.append({
-                    'Type': 'Buy from',
-                    'Target Mandi': target_mandi,
-                    'Current Price': f"₹{my_price:.0f}",
-                    'Target Price': f"₹{target_price:.0f}",
-                    'Net Profit/Qt': buy_profit,
-                    'Action': f"🛒 Source from {target_mandi}"
-                })
-                
-        # Return sorted by profit
+
+        # Return sorted
         result_df = pd.DataFrame(opportunities)
         if not result_df.empty:
             result_df = result_df.sort_values('Net Profit/Qt', ascending=False)

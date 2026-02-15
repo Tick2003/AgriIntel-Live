@@ -57,18 +57,32 @@ with col_lang:
 st.title("🌾 AgriIntel / एग्री-इंटेल / ଆଗ୍ରି-ଇଣ୍ଟେଲ") 
 st.markdown("---")
 
+# --- INITIALIZE APP ---
+if 'db_initialized' not in st.session_state:
+    db_manager.init_db()
+    st.session_state['db_initialized'] = True
+
 # --- AUTHENTICATION GATEKEEPER ---
 auth_agent = AuthAgent()
 
 if not auth_agent.check_session():
     auth_agent.login_page()
-    st.stop() # Stop execution here if not logged in
+    st.stop() 
 
 # User is logged in
-user_email = auth_agent.get_user_email()
-auth_agent.logout_button() # Show logout in sidebar
-st.sidebar.success(f"👤 Logged in as: {user_email}")
-# ---------------------------------
+user_details = auth_agent.get_user_details()
+user_email = user_details.get('email')
+user_role = user_details.get('role', 'Viewer')
+org_id = user_details.get('org_id')
+
+# Get Org Name
+org_name = "Unknown Org"
+if org_id:
+    org = db_manager.get_org_details(org_id)
+    if org: org_name = org['name']
+
+st.sidebar.success(f"👤 {user_email}\n🏢 {org_name} ({user_role})")
+auth_agent.logout_button()
 
 # Sidebar
 st.sidebar.header("Configuration")
@@ -228,12 +242,19 @@ def run_forecasting_agent(data, commodity, mandi):
     return agent.generate_forecasts(data, commodity, mandi)
 
 @st.cache_data(ttl=3600)
-def run_shock_risk_agents(data, forecast_df):
+def run_shock_risk_agents(data, forecast_df, sentiment_score, arrival_anomaly, weather_risk):
     # shock_agent = AnomalyDetectionEngine() # Removed as agents dict is used
     # risk_agent = MarketRiskEngine() # Removed as agents dict is used
     
     shock_info = agents["shock"].detect_shocks(data, forecast_df)
-    risk_info = agents["risk"].calculate_risk_score(shock_info, forecast_df['forecast_price'].std(), data['price'].pct_change().std())
+    risk_info = agents["risk"].calculate_risk_score(
+        shock_info, 
+        forecast_df['forecast_price'].std(), 
+        data['price'].pct_change().std(),
+        sentiment_score,
+        arrival_anomaly,
+        weather_risk
+    )
     
     return shock_info, risk_info
 
@@ -265,9 +286,38 @@ last_date = data['date'].max().strftime('%Y-%m-%d')
 st.caption(f"Data Source: Agmarknet (Simulated) | Last Updated: {last_date}")
 
 # Run Agents (Cached)
+# Run Agents (Cached)
 health_status = agents["health"].check_daily_completeness(data) 
 forecast_df = run_forecasting_agent(data, selected_commodity, selected_mandi)
-shock_info, risk_info = run_shock_risk_agents(data, forecast_df) 
+
+# --- Calulate Risk Inputs (Phase 4) ---
+# 1. Sentiment Score
+news_df = get_news_feed()
+sentiment_score = 0
+if not news_df.empty:
+    # Simple aggregations: Positive=+1, Negative=-1
+    sent_map = {"Positive": 1, "Negative": -1, "Neutral": 0}
+    sentiment_score = news_df['sentiment'].map(sent_map).mean()
+    if pd.isna(sentiment_score): sentiment_score = 0
+
+# 2. Arrival Anomaly
+arrival_anomaly = 0
+if len(data) > 30:
+    recent_arrival = data['arrival'].iloc[-1]
+    avg_arrival = data['arrival'].iloc[-30:].mean()
+    if avg_arrival > 0:
+        arrival_anomaly = (recent_arrival - avg_arrival) / avg_arrival
+
+# 3. Weather Risk
+weather_risk = 0
+w_df = get_weather_data()
+if not w_df.empty:
+    w = w_df.iloc[-1]
+    # Simple mock logic: High Temp or High Rain = Risk
+    if w['temperature'] > 40 or w['rainfall'] > 50:
+        weather_risk = 1.0
+
+shock_info, risk_info = run_shock_risk_agents(data, forecast_df, sentiment_score, arrival_anomaly, weather_risk) 
 
 # Check Notifications (Real-time)
 agents["notify"].check_triggers(shock_info, risk_info, selected_commodity, selected_mandi)
@@ -301,13 +351,22 @@ except Exception as e:
 # -------------------------------
 
 # Navigation
-nav_options = [
+base_nav = [
     "Market Overview", "Price Forecast", "Risk & Shocks", 
-    "Compare Markets", "News & Insights", "Model Performance", 
-    "Quality Grading (CV)", "Logistics (Graph)", "Advanced Planning",
-    "B2B Marketplace", "Fintech Services", "Developer API (SaaS)",
-    "WhatsApp Bot (Demo)", "Explanation & Insights", "AI Consultant", "Data Reliability"
+    "Compare Markets", "News & Insights", "Explanation & Insights"
 ]
+advanced_nav = [
+    "Model Performance", "Quality Grading (CV)", "Logistics (Graph)", 
+    "Advanced Planning", "B2B Marketplace", "Fintech Services", 
+    "Developer API (SaaS)", "Institutional Dashboard", "WhatsApp Bot (Demo)", "AI Consultant", "Data Reliability"
+]
+
+if user_role in ['Admin', 'Analyst']:
+    nav_options = base_nav + advanced_nav
+else:
+    nav_options = base_nav
+    st.sidebar.info("🔒 Upgrade to Pro/Enterprise for Advanced Features")
+
 page = st.sidebar.radio("Navigate", nav_options)
 
 
@@ -476,6 +535,19 @@ elif page == "Risk & Shocks":
         st.plotly_chart(fig, use_container_width=True)
         st.info(f"Risk Level: **{risk_info['risk_level']}**")
         
+        # Risk Decomposition Pie Chart
+        st.subheader("Risk Drivers")
+        if 'breakdown' in risk_info:
+            bd = risk_info['breakdown']
+            fig_pie = px.pie(
+                names=list(bd.keys()), 
+                values=list(bd.values()), 
+                hole=0.4,
+                color_discrete_sequence=px.colors.sequential.RdBu
+            )
+            fig_pie.update_layout(showlegend=True, margin=dict(t=0, b=0, l=0, r=0))
+            st.plotly_chart(fig_pie, use_container_width=True)
+        
     with col2:
         st.subheader("Detected Shocks")
         if shock_info['is_shock']:
@@ -496,6 +568,20 @@ elif page == "Compare Markets":
     st.subheader("🚛 Regional Arbitrage Opportunities")
     st.caption(f"Finding profit opportunities for **{selected_commodity}** starting from **{selected_mandi}**")
     
+    with st.expander("🛠️ logistics Cost Configuration", expanded=False):
+        c1, c2, c3, c4 = st.columns(4)
+        in_fuel = c1.number_input("Fuel (₹/km/Qt)", value=0.02, format="%.3f")
+        in_toll = c2.number_input("Toll (₹/Trip)", value=200)
+        in_labor = c3.number_input("Labor (₹/Qt)", value=100)
+        in_spoil = c4.number_input("Spoilage (%)", value=0.05, format="%.2f")
+        
+        cost_cfg = {
+            "fuel_rate": in_fuel, 
+            "toll": in_toll, 
+            "labor": in_labor, 
+            "spoilage": in_spoil
+        }
+    
     with st.spinner("Scanning regional markets..."):
         # Fetch data for current commodity across ALL mandis
         # We limit to first 10 mandis for demo speed if list is long
@@ -505,7 +591,7 @@ elif page == "Compare Markets":
         
         if not snapshot_df.empty:
             try:
-                arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info)
+                arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info, cost_cfg)
             except TypeError:
                 # Handle Stale Cache: Old find_opportunities signature call failed
                 # Reload module and re-instantiate
@@ -516,12 +602,19 @@ elif page == "Compare Markets":
                 
                 # Re-run with new agent
                 temp_agent = ArbitrageAgent()
-                arb_df = temp_agent.find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info)
+                arb_df = temp_agent.find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info, cost_cfg)
             
             if not arb_df.empty:
                 # Highlight best
                 st.success(f"Found {len(arb_df)} opportunities (Margins > ₹50/Qt)!")
-                st.dataframe(arb_df.style.format({'Net Profit/Qt': '₹{:.2f}'}), use_container_width=True)
+                
+                # Format for display
+                disp_cols = ['Target Mandi', 'Distance (km)', 'Net Profit/Qt', 'Profit (Bear Case)', 'Confidence', 'Action']
+                st.dataframe(arb_df[disp_cols].style.format({
+                    'Net Profit/Qt': '₹{:.2f}',
+                    'Profit (Bear Case)': '₹{:.2f}',
+                    'Distance (km)': '{:.0f} km'
+                }), use_container_width=True)
             else:
                 if shock_info['is_shock']:
                     st.warning("⚠️ Market is currently undergoing a shock. Arbitrage scanning is disabled to prevent risky trades.")
@@ -590,6 +683,16 @@ elif page == "Model Performance":
             c2.metric("Current MAPE", f"{latest['mape']:.1f}%", inverse_mode=True)
             c3.metric("Current RMSE", f"₹{latest['rmse']:.1f}", inverse_mode=True)
             c4.metric("Samples Tracked", f"{latest['sample_size']}")
+            
+            # --- Drift Detection ---
+            if latest['health_score'] < 60:
+                 st.error(f"⚠️ MODEL DRIFT DETECTED: Health Score {latest['health_score']:.1f}/100 is critical. Retraining required.")
+            elif latest['mape'] > 20: 
+                 st.warning(f"⚠️ Accuracy Warning: MAPE {latest['mape']:.1f}% exceeds 20% threshold.")
+            elif len(metrics_df) > 7:
+                 avg_mape_7d = metrics_df.iloc[-8:-1]['mape'].mean()
+                 if latest['mape'] > 1.5 * avg_mape_7d:
+                      st.warning(f"⚠️ Drift Alert: Error spiked to {latest['mape']:.1f}% (vs 7-day avg {avg_mape_7d:.1f}%)")
             
             # Health Trend Chart
             st.caption("Model Health Trend (Last 90 Days)")
@@ -1093,11 +1196,56 @@ elif page == "Backtest Simulator":
             st.plotly_chart(fig, use_container_width=True)
             
             # Trade Log
+            with st.expander("🛠️ Debug Tools"):
+                st.json(st.session_state)
             with st.expander("📜 Trade Log"):
                 st.dataframe(trades_df.style.format({"price": "{:.2f}", "value": "{:,.0f}"}))
                 
         else:
             st.error(f"Backtest Failed: {metrics.get('error') if metrics else 'Unknown Error'}")
+
+# --- PAGE: INSTITUTIONAL DASHBOARD ---
+elif page == "Institutional Dashboard":
+    st.header("🇮🇳 Institutional Market Dashboard")
+    
+    # 1. State-wise Aggregation
+    state_df = db_manager.get_state_level_aggregation()
+    
+    if not state_df.empty:
+        # Top Metrics
+        c1, c2, c3 = st.columns(3)
+        c1.metric("National Avg Price", f"₹{state_df['Avg Price'].mean():.0f}")
+        c2.metric("Avg Market Volatility", f"{state_df['Volatility'].mean()*100:.1f}%")
+        c3.metric("Active States Monitored", len(state_df))
+        
+        # Map Visualization
+        st.subheader("📍 Real-Time Market Activity Map")
+        coords = db_manager.get_mandi_coordinates()
+        
+        # Prepare Data for Map
+        map_data = []
+        for mandi, val in coords.items():
+            map_data.append({"lat": val['lat'], "lon": val['lon'], "mandi": mandi, "state": val['state']})
+            
+        map_df = pd.DataFrame(map_data)
+        
+        # Advanced Map with Plotly
+        fig = px.scatter_mapbox(
+            map_df, lat="lat", lon="lon", hover_name="mandi", hover_data=["state"],
+            zoom=3.5, height=500, size_max=15
+        )
+        fig.update_layout(mapbox_style="open-street-map")
+        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+        st.plotly_chart(fig, use_container_width=True)
+
+        # State Table
+        st.subheader("📊 State-wise Performance")
+        st.dataframe(state_df.style.format({
+            "Avg Price": "₹{:.0f}",
+            "Volatility": "{:.1%}"
+        }), use_container_width=True)
+    else:
+        st.info("Insufficient data for national aggregation.")
 
 # --- PAGE: DATA RELIABILITY (New Phase 6) ---
 elif page == "Data Reliability":

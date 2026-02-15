@@ -2,12 +2,13 @@ import streamlit as st
 import os
 import asyncio
 from streamlit_oauth import OAuth2Component
+from database import db_manager
 
 class AuthAgent:
     """
     AGENT 8 — AUTHENTICATION AGENT
     Role: Gatekeeper
-    Goal: Manage user login/logout via Google OAuth or Mock Fallback.
+    Goal: Manage user login/logout via Google OAuth or DB Auth.
     """
     def __init__(self):
         self.auth_key = "user_auth"
@@ -27,11 +28,14 @@ class AuthAgent:
             return True
         return False
 
-    def get_user_email(self):
-        """Get logged in user email."""
+    def get_user_details(self):
+        """Get logged in user details."""
         if self.check_session():
-            return st.session_state[self.auth_key].get('email', 'guest@agriintel.in')
+            return st.session_state[self.auth_key]
         return None
+
+    def get_role(self):
+        return self.get_user_details().get('role', 'Viewer') if self.check_session() else None
 
     def login_page(self):
         """Render the login page."""
@@ -66,6 +70,7 @@ class AuthAgent:
             <div class="login-container">
                 <h1 class="login-title">🌾 AgriIntel</h1>
                 <p class="login-subtitle">Advanced AI Market Intelligence for Indian Agriculture</p>
+                <p><b>SaaS Enterprise Edition</b></p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -76,7 +81,7 @@ class AuthAgent:
             if self.client_id and self.client_secret:
                 self._render_google_btn()
             else:
-                self._render_mock_btn()
+                self._render_db_login()
 
     def _render_google_btn(self):
         """Real Google OAuth Button"""
@@ -97,33 +102,53 @@ class AuthAgent:
             extras_params={"prompt": "select_account"},
         )
         
-        if result:
-            # Decode token (simplified) or use result info
-            # Usually result contains 'token' and 'id_token'
-            # We assume success if we got a result dict back
-            st.session_state[self.auth_key] = {
-                'logged_in': True,
-                'email': result.get('token', {}).get('email', 'user@google.com'), # Depends on specific provider impl
-                'name': 'Google User'
-            }
-            st.rerun()
+        if result and result.get('token'):
+            email = result.get('token', {}).get('email')
+            # Check DB
+            user = db_manager.get_user_by_email(email)
+            
+            if user:
+                st.session_state[self.auth_key] = {
+                    'logged_in': True,
+                    'email': email,
+                    'role': user['role'],
+                    'org_id': user['org_id'],
+                    'name': email.split('@')[0]
+                }
+                st.rerun()
+            else:
+                 st.error("User not found in organization. Please contact admin.")
 
-    def _render_mock_btn(self):
-        """Fallback for when secrets are missing"""
-        st.warning("⚠️ Google Secrets not found. Using Guest Mode.")
+    def _render_db_login(self):
+        """Database Login (Fallback)"""
+        st.info("🔐 Secure Enterprise Login")
         
-        email = st.text_input("Enter Email (Simulation)", "farmer@agriintel.in")
-        
-        if st.button("🚀 Login as Guest", type="primary", use_container_width=True):
-            st.session_state[self.auth_key] = {
-                'logged_in': True,
-                'email': email,
-                'name': 'Guest User'
-            }
-            st.rerun()
+        with st.form("login_form"):
+            email = st.text_input("Work Email", "admin@agriintel.in")
+            password = st.text_input("Password", type="password", value="admin123")
+            submit = st.form_submit_button("Login")
+            
+            if submit:
+                user = db_manager.get_user_by_email(email)
+                if user and user['password_hash'] == password:
+                     st.session_state[self.auth_key] = {
+                        'logged_in': True,
+                        'email': user['email'],
+                        'role': user['role'],
+                        'org_id': user['org_id'],
+                        'name': user['email'].split('@')[0]
+                    }
+                     st.success("Authenticated.")
+                     st.rerun()
+                else:
+                    st.error("Invalid credentials.")
 
     def logout_button(self):
         """Render logout button in sidebar"""
+        user = self.get_user_details()
+        role = user.get('role', 'Viewer') if user else ''
+        st.sidebar.caption(f"Logged in as: {user.get('email')} ({role})")
+        
         if st.sidebar.button("🚪 Logout"):
             st.session_state[self.auth_key] = {'logged_in': False}
             st.rerun()

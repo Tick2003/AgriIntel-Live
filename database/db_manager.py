@@ -200,6 +200,47 @@ def init_db():
             error_message TEXT
         )
     ''')
+    
+    # --- WAREHOUSE OPTIMIZATION (Phase 6) ---
+    # Add Index for fast filtering on Commodity+Mandi+Date
+    c.execute("CREATE INDEX IF NOT EXISTS idx_market_prices_cmd ON market_prices (commodity, mandi, date)")
+    
+    # --- SAAS ARCHITECTURE (Phase 7) ---
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS organizations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            plan_type TEXT DEFAULT 'Free', -- Free, Pro, Enterprise
+            created_at TEXT
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            password_hash TEXT,
+            role TEXT DEFAULT 'Viewer', -- Admin, Analyst, Viewer
+            org_id INTEGER,
+            created_at TEXT,
+            FOREIGN KEY(org_id) REFERENCES organizations(id)
+        )
+    ''')
+    
+    # Default Org/User for Demo
+    try:
+        c.execute("SELECT count(*) FROM organizations")
+        if c.fetchone()[0] == 0:
+            c.execute("INSERT INTO organizations (name, plan_type, created_at) VALUES ('Demo Org', 'Enterprise', ?)", 
+                     (datetime.now().strftime("%Y-%m-%d"),))
+            org_id = c.lastrowid
+            # Default Admin: admin@agriintel.in / admin123 (hashed in real app, plain here for demo simplicity or use mock hash)
+            # In real app: use bcrypt. Here: "hashed_secret"
+            c.execute("INSERT INTO users (email, password_hash, role, org_id, created_at) VALUES ('admin@agriintel.in', 'admin123', 'Admin', ?, ?)",
+                     (org_id, datetime.now().strftime("%Y-%m-%d")))
+            print("Initialized Default SaaS Org & User.")
+    except Exception as e:
+        print(f"SaaS Init Error: {e}")
 
     conn.commit()
     conn.close()
@@ -207,6 +248,79 @@ def init_db():
     
     # Auto-Restore from CSV if DB is empty (Phase 5 - Git Sync)
     import_prices_from_csv()
+
+def optimize_db():
+    """Runs maintenance tasks to optimize DB size and query speed."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute("VACUUM")
+        conn.execute("ANALYZE")
+        conn.close()
+        print("Database optimized (VACUUM + ANALYZE completed).")
+    except Exception as e:
+        print(f"Optimization failed: {e}")
+
+def get_long_term_trends(commodity, mandi, days=365):
+    """Fetches long-term price history for warehouse analysis."""
+    conn = sqlite3.connect(DB_NAME)
+    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    query = f"SELECT date, price_modal FROM market_prices WHERE commodity='{commodity}' AND mandi='{mandi}' AND date >= '{start_date}' ORDER BY date"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+def get_state_level_aggregation():
+    """
+    Aggregates data by State (derived from Mandi location or Mock map).
+    Returns DF with State, Volatility, PriceChange.
+    Note: 'mandi' field currently doesn't have State. We will mock mapping for demo.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    # Get latest date
+    df = pd.read_sql("SELECT commodity, mandi, price_modal, date FROM market_prices", conn)
+    conn.close()
+    
+    if df.empty: return pd.DataFrame()
+    
+    # Mock State Mapping (Demo)
+    mandi_state_map = {
+        "Azadpur": "Delhi", "Pune": "Maharashtra", "Lasalgaon": "Maharashtra",
+        "Indore": "Madhya Pradesh", "Kolar": "Karnataka", "Agra": "Uttar Pradesh",
+        "Cuttack": "Odisha", "Nasik": "Maharashtra", "Shimla": "Himachal Pradesh"
+    }
+    
+    df['state'] = df['mandi'].map(mandi_state_map).fillna("Other")
+    
+    # Calculate Volatility per State (groupby)
+    # Volatility = Std Dev of price / Mean Price
+    state_stats = []
+    
+    for state, group in df.groupby('state'):
+        if len(group) > 5:
+            vol = group['price_modal'].std() / group['price_modal'].mean() if group['price_modal'].mean() > 0 else 0
+            avg_price = group['price_modal'].mean()
+            state_stats.append({
+                "State": state,
+                "Volatility": vol,
+                "Avg Price": avg_price,
+                "Market Count": group['mandi'].nunique()
+            })
+            
+    return pd.DataFrame(state_stats)
+
+def get_mandi_coordinates():
+    """Returns Mock Lat/Long for Demo Mandis."""
+    return {
+        "Azadpur": {"lat": 28.7041, "lon": 77.1025, "state": "Delhi"},
+        "Pune": {"lat": 18.5204, "lon": 73.8567, "state": "Maharashtra"},
+        "Lasalgaon": {"lat": 20.1466, "lon": 74.2255, "state": "Maharashtra"},
+        "Indore": {"lat": 22.7196, "lon": 75.8577, "state": "Madhya Pradesh"},
+        "Kolar": {"lat": 13.1363, "lon": 78.1292, "state": "Karnataka"},
+        "Agra": {"lat": 27.1767, "lon": 78.0081, "state": "Uttar Pradesh"},
+        "Cuttack": {"lat": 20.4625, "lon": 85.8828, "state": "Odisha"},
+        "Nasik": {"lat": 19.9975, "lon": 73.7898, "state": "Maharashtra"},
+        "Shimla": {"lat": 31.1048, "lon": 77.1734, "state": "Himachal Pradesh"}
+    }
 
 def log_system_event(level, source, message, metadata=""):
     """Logs a system event to the database."""
@@ -642,3 +756,33 @@ def get_historical_signals(commodity, mandi):
 
 if __name__ == "__main__":
     init_db()
+
+def get_user_by_email(email):
+    """Retrieve user details for Auth."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute("SELECT id, email, password_hash, role, org_id FROM users WHERE email=?", (email,))
+        row = c.fetchone()
+        if row:
+             return {"id": row[0], "email": row[1], "password_hash": row[2], "role": row[3], "org_id": row[4]}
+        return None
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+def get_org_details(org_id):
+    """Retrieve Organization details."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute("SELECT name, plan_type FROM organizations WHERE id=?", (org_id,))
+        row = c.fetchone()
+        if row:
+             return {"name": row[0], "plan_type": row[1]}
+        return None
+    except Exception:
+        return None
+    finally:
+        conn.close()
