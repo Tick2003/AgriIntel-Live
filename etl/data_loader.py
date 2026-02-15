@@ -21,11 +21,14 @@ from agents.performance_monitor import PerformanceMonitor
 import numpy as np
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
-def fetch_agri_news(query="Agri Market India"):
+def fetch_agri_news(query="Agriculture News India"):
     """
     Fetches news from Google News RSS feed.
     """
-    rss_url = f"https://news.google.com/rss/search?q={query.replace(' ', '+')}&hl=en-IN&gl=IN&ceid=IN:en"
+    # Use 'when:1d' to force fresh news if possible, but Google RSS params are tricky.
+    # 'ceid=IN:en' is good. 
+    # Let's try a broader query to ensure volume.
+    rss_url = f"https://news.google.com/rss/search?q={query.replace(' ', '+')}+when:7d&hl=en-IN&gl=IN&ceid=IN:en"
     feed = feedparser.parse(rss_url)
     
     # Load Sentiment Agent
