@@ -36,6 +36,14 @@ def init_db():
             sentiment TEXT
         )
     ''')
+    
+    # Cleanup Old Date Formats (Wed, Fri etc.) to fix sorting
+    try:
+        c.execute("DELETE FROM news_alerts WHERE substr(date, 1, 1) NOT IN ('0','1','2','3','4','5','6','7','8','9')")
+        if c.rowcount > 0:
+            print(f"Cleaned up {c.rowcount} news items with old date format.")
+    except Exception:
+        pass
 
     # Table: Weather Logs
     c.execute('''

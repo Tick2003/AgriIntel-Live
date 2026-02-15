@@ -47,8 +47,18 @@ def fetch_agri_news(query="Agriculture News India"):
             analysis = sa.analyze(entry.title)
             sentiment = analysis['label']
             
+        # Parse Date to ISO for correct sorting
+        try:
+            if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                 dt = datetime(*entry.published_parsed[:6])
+                 date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                 date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         news_items.append({
-            "date": entry.published,
+            "date": date_str,
             "title": entry.title,
             "source": entry.source.title,
             "url": entry.link,
