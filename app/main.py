@@ -29,6 +29,7 @@ from agents.chatbot_engine import ChatbotEngine
 from agents.optimization_engine import OptimizationEngine
 from agents.business_engine import B2BMatcher, FintechEngine
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
+import database.db_manager as db_manager
 import importlib 
 import agents.decision_support
 import agents.risk_scoring
