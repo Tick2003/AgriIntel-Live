@@ -72,6 +72,25 @@ st.sidebar.success(f"👤 Logged in as: {user_email}")
 # Sidebar
 st.sidebar.header("Configuration")
 
+# Debug / Manual Update
+if st.sidebar.button("🔄 Force Data Update"):
+    with st.spinner("Forcing data update..."):
+        import etl.data_loader
+        importlib.reload(etl.data_loader)
+        importlib.reload(db_manager)
+        etl.data_loader.run_daily_update()
+        db_manager.set_last_update()
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.success("Update Complete!")
+        st.rerun()
+
+last_db_update = db_manager.get_last_update()
+if last_db_update:
+    st.sidebar.caption(f"DB Last Updated: {last_db_update}")
+else:
+    st.sidebar.caption("DB Update Status: Unknown")
+
 # Dynamic options from DB
 db_commodities, db_mandis = get_db_options()
 

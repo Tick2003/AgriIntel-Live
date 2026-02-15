@@ -489,23 +489,24 @@ def run_daily_update(progress_callback=None):
         print(f"Intelligence Swarm Critical Failure: {e}")
         dbm.log_system_event("CRITICAL", "ETL", f"Swarm Failed: {e}")
 
-    # 5. Update Metadata
-    if progress_callback:
-        progress_callback(0.98, "Finalizing Update...")
-    dbm.set_last_update()
-    
-    # 6. Export for Git Tracking
-    try:
-        dbm.export_prices_to_csv()
-    except Exception as e:
-        print(f"Export Failed: {e}")
-    
-    if progress_callback:
-        progress_callback(1.0, "Update Complete!")
+    finally:
+        # 5. Update Metadata (Ensure this runs even if Intelligence fails)
+        if progress_callback:
+            progress_callback(0.98, "Finalizing Update...")
+        dbm.set_last_update()
         
-    duration = time.time() - start_time
-    dbm.log_system_event("INFO", "ETL", "Daily Update Completed", f"Duration: {duration:.2f}s")
-    print(f"Update Complete in {duration:.2f}s.")
+        # 6. Export for Git Tracking
+        try:
+            dbm.export_prices_to_csv()
+        except Exception as e:
+            print(f"Export Failed: {e}")
+        
+        if progress_callback:
+            progress_callback(1.0, "Update Complete!")
+            
+        duration = time.time() - start_time
+        dbm.log_system_event("INFO", "ETL", "Daily Update Completed", f"Duration: {duration:.2f}s")
+        print(f"Update Complete in {duration:.2f}s.")
 
 if __name__ == "__main__":
     run_daily_update()
