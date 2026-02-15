@@ -134,7 +134,9 @@ if should_update:
             
         # Hot-fix: Force reload module to prevent Stale Module Error on Streamlit Cloud
         import importlib
+        import database.db_manager as db_manager
         import etl.data_loader
+        importlib.reload(db_manager)
         importlib.reload(etl.data_loader)
         
         etl.data_loader.run_daily_update(progress_callback=update_progress)

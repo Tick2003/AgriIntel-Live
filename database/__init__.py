@@ -8,5 +8,13 @@ from .db_manager import (
     get_weather_logs,
     get_last_update,
     set_last_update,
-    get_unique_items
+    get_unique_items,
+    save_raw_prices,
+    log_quality_issues,
+    log_scraper_execution,
+    log_signal,
+    get_signal_stats,
+    log_forecast,
+    log_model_metrics,
+    get_performance_history
 )
