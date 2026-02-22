@@ -58,7 +58,7 @@
     \vspace*{1cm}
     
     \Huge
-    \textbf{AgriIntel.in: Advanced Agricultural Market Intelligence System}
+    \textbf{AgriIntel.in.in: Advanced Agricultural Market Intelligence System}
     
     \vspace{0.5cm}
     \LARGE
@@ -90,7 +90,7 @@
 % --- FRONT MATTER ---
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
-Agriculture in India is fraught with price volatility and information asymmetry. \textbf{AgriIntel} is an advanced market intelligence system designed to bridge this gap using rigorous Data Science.
+Agriculture in India is fraught with price volatility and information asymmetry. \textbf{AgriIntel.in} is an advanced market intelligence system designed to bridge this gap using rigorous Data Science.
 
 This project implements a multi-agent AI system featuring:
 1. \textbf{XGBoost Forecasting} with Auto-Tuning and Technical Indicators (RSI, MACD).
@@ -123,7 +123,7 @@ Existing systems (AGMARKNET) lack:
 \end{enumerate}
 
 \section{Objectives}
-The primary objective of AgriIntel is to develop a live dashboard providing:
+The primary objective of AgriIntel.in is to develop a live dashboard providing:
 \begin{itemize}
     \item \textbf{Deep Learning Forecasts}: 30-day ahead price predictions using Auto-Tuned XGBoost.
     \item \textbf{Market Regime Clustering}: ML-driven classification of "Stable" vs "Crisis" markets.
@@ -195,7 +195,7 @@ We use \textbf{VADER (Valence Aware Dictionary and sEntiment Reasoner)} to analy
 \chapter{System Design \& Architecture}
 
 \section{High-Level Architecture}
-AgriIntel follows a layered architecture pattern:
+AgriIntel.in follows a layered architecture pattern:
 \begin{itemize}
     \item \textbf{Presentation Layer}: Streamlit UI.
     \item \textbf{Controller Layer}: \texttt{main.py} orchestrating logic.
@@ -282,7 +282,7 @@ The application successfully renders a responsive dashboard. Users can toggle be
 We evaluated the model using a "Naive Persistence" baseline (predicting tomorrow's price = today's price).
 \begin{itemize}
     \item \textbf{Baseline Error (MAE)}: ₹150.00
-    \item \textbf{AgriIntel ML (MAE)}: ₹32.40
+    \item \textbf{AgriIntel.in ML (MAE)}: ₹32.40
 \end{itemize}
 The Auto-Tuned XGBoost model with Technical Indicators demonstrates an \textbf{78.4\% Accuracy Boost} over the baseline. The inclusion of Weather data (Rainfall) improved directional accuracy by 15\% during monsoon simulation.
 
@@ -296,7 +296,7 @@ The system correctly identified induced shocks (simulated spikes) and flagged th
 \chapter{Conclusion \& Future Scope}
 
 \section{Conclusion}
-AgriIntel is a robust proof-of-concept for a modern agricultural intelligence system. By combining traditional time-series econometrics with machine learning and agentic architecture, it provides a holistic view of the market. The system is modular, easily extensible, and user-friendly.
+AgriIntel.in is a robust proof-of-concept for a modern agricultural intelligence system. By combining traditional time-series econometrics with machine learning and agentic architecture, it provides a holistic view of the market. The system is modular, easily extensible, and user-friendly.
 
 \section{Future Scope}
 \begin{itemize}
@@ -340,7 +340,7 @@ from agents.explanation_report import AIExplanationAgent
 from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
 
 # Page Config
-st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
+st.set_page_config(page_title="AgriIntel.in", layout="wide", page_icon="🌾")
 st.markdown(load_css(), unsafe_allow_html=True)
 
 # Title
@@ -582,7 +582,7 @@ elif page == "Explanation & Insights":
 
 \subsection{app/utils.py}
 \begin{lstlisting}[language=Python]
-# AgriIntel Utils
+# AgriIntel.in Utils
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
