@@ -65,7 +65,7 @@ def inject_terminal_css():
                 border-right: 1px solid {BORDER_COLOR} !important;
             }}
 
-            /* --- 2. EXPANDER & NOTIFICATION FIX (CRITICAL) --- */
+            /* --- 2. EXPANDER, NOTIFICATION & CODE BLOCKS (CRITICAL) --- */
             /* Force Expander Background & Header */
             div[data-testid="stExpander"] {{
                 background-color: #1A1D21 !important;
@@ -77,13 +77,17 @@ def inject_terminal_css():
             div[data-testid="stExpander"] summary {{
                 background-color: #1A1D21 !important;
                 color: {TEXT_PRIMARY} !important;
+                font-weight: 600 !important;
             }}
             
-            div[data-testid="stExpander"] summary:hover {{
-                color: {ACCENT_BLUE} !important;
+            /* Target st.code blocks (The white boxes in screenshot) */
+            [data-testid="stCodeBlock"], [data-testid="stCodeBlock"] pre, [data-testid="stCodeBlock"] code {{
+                background-color: #0E1117 !important;
+                color: {TEXT_PRIMARY} !important;
+                border: 1px solid {BORDER_COLOR} !important;
             }}
             
-            /* Target the white boxes inside the Notification Log */
+            /* Target the white boxes inside the Notification Log Alert style */
             [data-testid="stNotification"], .stAlert {{
                 background-color: #0E1117 !important;
                 color: {TEXT_PRIMARY} !important;
