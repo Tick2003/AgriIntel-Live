@@ -418,10 +418,10 @@ def import_prices_from_csv():
             print(f"Restored {len(df)} records.")
             
         # 3. Finalize Update Metadata
-        c.execute("SELECT MAX(date) FROM market_prices")
-        new_max = c.fetchone()[0]
-        if new_max:
-            c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (new_max,))
+        # c.execute("SELECT MAX(date) FROM market_prices")
+        # new_max = c.fetchone()[0]
+        # if new_max:
+        #     c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (new_max,))
             
     except Exception as e:
         print(f"CSV Sync failed: {e}")

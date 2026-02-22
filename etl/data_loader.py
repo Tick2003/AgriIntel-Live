@@ -406,6 +406,12 @@ def run_daily_update(progress_callback=None):
     if progress_callback:
         progress_callback(0.25, "Starting Intelligence Swarm...")
     
+    # Initialize agents for the swarm
+    forecaster = ForecastingAgent()
+    shock_agent = AnomalyDetectionEngine()
+    risk_engine = MarketRiskEngine()
+    decision_agent = DecisionAgent()
+    
     processed_count = 0
     try:
         # Get unique Commodity-Mandi pairs from DB
