@@ -41,25 +41,51 @@ class AuthAgent:
         """Render the login page."""
         st.markdown("""
         <style>
+        .stApp {
+            background-color: #111315 !important;
+        }
         .login-container {
             text-align: center;
             padding: 50px;
-            background-color: #f0f8ff;
+            background-color: #1A1D21;
             border-radius: 10px;
             max-width: 600px;
             margin: 0 auto;
-            border: 1px solid #dcdcdc;
+            border: 1px solid #2A2F36;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         }
         .login-title {
-            font-family: 'Helvetica Neue', sans-serif;
-            color: #2E7D32;
-            font-size: 3em;
+            font-family: 'Inter', sans-serif;
+            color: #FFFFFF !important;
+            font-size: 26px;
+            font-weight: 600;
             margin-bottom: 10px;
         }
         .login-subtitle {
-            font-size: 1.2em;
-            color: #555;
+            font-size: 1.1em;
+            color: #C5CBD3 !important;
+            opacity: 1 !important;
             margin-bottom: 30px;
+        }
+        /* Form Input Force Contrast */
+        div[data-baseweb="input"] input {
+            background-color: #1F2329 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #2A2F36 !important;
+        }
+        div[data-baseweb="input"] input::placeholder {
+            color: #9CA3AF !important;
+        }
+        /* Button Style */
+        button[kind="primaryFormSubmit"] {
+            background-color: #3B82F6 !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            width: 100%;
+        }
+        button[kind="primaryFormSubmit"]:hover {
+            background-color: #2563EB !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -68,9 +94,9 @@ class AuthAgent:
         with col2:
             st.markdown("""
             <div class="login-container">
-                <h1 class="login-title">🌾 AgriIntel.in</h1>
+                <h1 class="login-title">📉 AgriIntel.in</h1>
                 <p class="login-subtitle">Advanced AI Market Intelligence for Indian Agriculture</p>
-                <p><b>SaaS Enterprise Edition</b></p>
+                <p style="color: #C5CBD3; font-size: 0.9em;">Institutional Enterprise Edition</p>
             </div>
             """, unsafe_allow_html=True)
             
