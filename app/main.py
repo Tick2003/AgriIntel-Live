@@ -41,10 +41,12 @@ import importlib
 import agents.decision_support
 import agents.risk_scoring
 import agents.auth_manager
+import app.terminal_theme
 # Force Reload to prevent Stale Module errors on Cloud
 importlib.reload(agents.decision_support)
 importlib.reload(agents.risk_scoring)
 importlib.reload(agents.auth_manager)
+importlib.reload(app.terminal_theme)
 from agents.decision_support import DecisionAgent
 from agents.auth_manager import AuthAgent 
 
