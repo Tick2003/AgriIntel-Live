@@ -94,7 +94,7 @@ class IntelligenceAgent:
         curr_price = context_data.get('current_price', 0)
         
         # PERSONA HEADER
-        analyst_intro = "🤖 **AgriIntel Analyst**: "
+        analyst_intro = "🤖 **AgriIntel.in Analyst**: "
         
         # --- INTENT 1: TRADING ADVICE ---
         if any(w in q for w in ['sell', 'buy', 'hold', 'advice', 'strategy', 'do']):

@@ -69,10 +69,10 @@ class VoiceIntelligenceAgent:
 
     def _get_greeting(self, lang, region):
         greetings = {
-            "en": "Welcome to AgriIntel. How can I help you today?",
-            "hi": "AgriIntel में आपका स्वागत है। मैं आपकी क्या मदद कर सकता हूँ?",
-            "mr": "AgriIntel मध्ये आपले स्वागत आहे. मी तुम्हाला कशी मदत करू शकतो?",
-            "or": "AgriIntel କୁ ସ୍ୱାଗତ । ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?"
+            "en": "Welcome to AgriIntel.in. How can I help you today?",
+            "hi": "AgriIntel.in में आपका स्वागत है। मैं आपकी क्या मदद कर सकता हूँ?",
+            "mr": "AgriIntel.in मध्ये आपले स्वागत आहे. मी तुम्हाला कशी मदत करू शकतो?",
+            "or": "AgriIntel.in କୁ ସ୍ୱାଗତ । ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?"
         }
         return greetings.get(lang, greetings["en"])
 

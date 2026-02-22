@@ -14,7 +14,7 @@ from agents.arbitrage_engine import ArbitrageAgent
 from agents.risk_scoring import MarketRiskEngine
 
 app = FastAPI(
-    title="AgriIntel API",
+    title="AgriIntel.in API",
     description="Advanced AI Market Intelligence for Indian Agriculture",
     version="1.0.0"
 )
@@ -31,7 +31,7 @@ async def verify_api_key(x_api_key: str = Header(...)):
 
 @app.get("/")
 def home():
-    return {"message": "Welcome to AgriIntel API", "docs": "/docs"}
+    return {"message": "Welcome to AgriIntel.in API", "docs": "/docs"}
 
 @app.get("/health")
 def health_check():

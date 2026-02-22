@@ -1,6 +1,6 @@
 @echo off
 echo ==========================================
-echo      AgriIntel GitHub Sync Script
+echo      AgriIntel.in GitHub Sync Script
 echo ==========================================
 
 :: 1. Add all changes

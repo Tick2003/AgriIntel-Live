@@ -68,7 +68,7 @@ class AuthAgent:
         with col2:
             st.markdown("""
             <div class="login-container">
-                <h1 class="login-title">🌾 AgriIntel</h1>
+                <h1 class="login-title">🌾 AgriIntel.in</h1>
                 <p class="login-subtitle">Advanced AI Market Intelligence for Indian Agriculture</p>
                 <p><b>SaaS Enterprise Edition</b></p>
             </div>

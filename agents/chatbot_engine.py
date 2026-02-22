@@ -5,7 +5,7 @@ import random
 class ChatbotEngine:
     """
     Handles 'WhatsApp-style' and Voice queries.
-    Focus: Intent Detection & Entity Extraction for AgriIntel APIs.
+    Focus: Intent Detection & Entity Extraction for AgriIntel.in APIs.
     """
     def __init__(self, db_manager):
         self.db = db_manager

@@ -1,13 +1,13 @@
-# AgriIntel: Technical Architecture & System Documentation
+# AgriIntel.in: Technical Architecture & System Documentation
 
 ## 📖 System Overview
-AgriIntel is a **Modular Multi-Agent System (MMAS)** designed for national agricultural market intelligence. The platform integrates real-time data ingestion, machine learning forecasting, and a conversational voice interface to serve a diverse stakeholder base.
+**AgriIntel.in** is a **Modular Multi-Agent System (MMAS)** designed for national agricultural market intelligence. The platform integrates real-time data ingestion, machine learning forecasting, and a conversational voice interface to serve a diverse stakeholder base.
 
 ---
 
 ## 🏗️ Core Architecture (MMAS)
 
-AgriIntel operates as a decentralized swarm of agents, each responsible for a specific domain of the agricultural lifecycle.
+**AgriIntel.in** operates as a decentralized swarm of agents, each responsible for a specific domain of the agricultural lifecycle.
 
 ```mermaid
 graph TD
@@ -104,7 +104,7 @@ graph TD
 ## 📈 Data & Logic Flow
 1.  **Ingestion**: `data_loader.py` fetches Market, Weather, and News data.
 2.  **Processing**: Agents calculate Forecasts, Risks, and Recommendations.
-3.  **Interface**: Rendering on Streamlit or Voice API response via JSON.
+3.  **Interface**: Rendering on **AgriIntel.in** Streamlit or Voice API response via JSON.
 4.  **Feedback**: `PerformanceMonitor` compares yesterday's forecast with today's actual price.
 
 ---

@@ -11,7 +11,7 @@ Use this section to tell people about which versions of your project are current
 
 ## Reporting a Vulnerability
 
-We take the security of AgriIntel seriously. If you discover a security vulnerability, please send an e-mail to security@agriintel-demo.com. All security vulnerabilities will be promptly addressed.
+We take the security of AgriIntel.in seriously. If you discover a security vulnerability, please send an e-mail to security@agriintel-demo.com. All security vulnerabilities will be promptly addressed.
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 

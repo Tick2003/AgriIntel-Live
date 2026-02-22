@@ -41,7 +41,7 @@ from agents.decision_support import DecisionAgent
 from agents.risk_scoring import MarketRiskEngine
 
 # Page Config
-st.set_page_config(page_title="AgriIntel", layout="wide", page_icon="🌾")
+st.set_page_config(page_title="AgriIntel.in", layout="wide", page_icon="🌾")
 st.markdown(load_css(), unsafe_allow_html=True)
 
 # --- LANGUAGE SELECTOR ---
@@ -55,7 +55,7 @@ with col_lang:
 # Re-ordering main.py slightly to init agents earlier is complex.
 # We will use the 'agents' dict later. For now, let's just proceed and using dynamic text.
 
-st.title("🌾 AgriIntel / एग्री-इंटेल / ଆଗ୍ରି-ଇଣ୍ଟେଲ") 
+st.title("🌾 AgriIntel.in / एग्री-इंटेल / ଆଗ୍ରି-ଇଣ୍ଟେଲ") 
 st.markdown("---")
 
 # --- INITIALIZE APP ---
@@ -1127,7 +1127,7 @@ elif page == "Fintech Services":
 
 # --- PAGE: DEVELOPER API ---
 elif page == "Developer API (SaaS)":
-    st.header("🔌 AgriIntel for Developers")
+    st.header("🔌 AgriIntel.in for Developers")
     st.write("Power your own apps with our market intelligence API.")
     
     st.markdown("### Pricing Plans")

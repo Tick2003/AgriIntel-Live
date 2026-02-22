@@ -1,6 +1,6 @@
-# 🌾 AgriIntel: National AI Agricultural Voice Infrastructure & Intelligence Suite
+# 🌾 AgriIntel.in: National AI Agricultural Voice Infrastructure & Intelligence Suite
 
-**AgriIntel** is an end-to-end **Conversational Voice AI & Multi-Agent Market Intelligence Platform** designed to revolutionize the agricultural ecosystem in India. It transforms complex market analytics into actionable, regional-language insights accessible via web, API, and telephony.
+**AgriIntel.in** is an end-to-end **Conversational Voice AI & Multi-Agent Market Intelligence Platform** designed to revolutionize the agricultural ecosystem in India. It transforms complex market analytics into actionable, regional-language insights accessible via web, API, and telephony.
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://agriintel-live.streamlit.app/)
 
@@ -54,7 +54,7 @@
 ---
 
 ## 🔄 Self-Healing Automation
-AgriIntel features a fully autonomous data pipeline powered by **GitHub Actions**:
+**AgriIntel.in** features a fully autonomous data pipeline powered by **GitHub Actions**:
 *   **Daily Sync**: Automatically fetches simulated Agmarknet prices, news feeds, and real-time weather.
 *   **Model Accuracy Tracking**: Continuously calculates **MAPE** and **RMSE** for every recommendation.
 *   **Drift Monitoring**: Alerts when model performance degrades below the 20% accuracy threshold.
