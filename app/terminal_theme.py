@@ -47,12 +47,13 @@ terminal_template.layout = go.Layout(
     legend=dict(font=dict(size=10, color="#A0A6AD"), bgcolor="rgba(0,0,0,0)")
 )
 pio.templates["agriintel_terminal"] = terminal_template
+pio.templates.default = "agriintel_terminal"
 
 def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
-            /* --- INSTITUTIONAL UI RECOVERY BUILD 108 --- */
+            /* --- INSTITUTIONAL UI RECOVERY BUILD 110 --- */
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap');
 
             /* --- 1. CORE DARK ARCHITECTURE --- */
@@ -95,6 +96,16 @@ def inject_terminal_css():
             }}
             
             [data-testid="stNotification"] * {{
+                color: {TEXT_PRIMARY} !important;
+            }}
+
+            /* Force DataFrame & Table Dark Mode */
+            [data-testid="stDataFrame"], [data-testid="stTable"], .stDataFrame, .stTable, div[role="grid"] {{
+                background-color: #0E1117 !important;
+                border: 1px solid {BORDER_COLOR} !important;
+            }}
+            
+            [data-testid="stDataFrame"] *, [data-testid="stTable"] * {{
                 color: {TEXT_PRIMARY} !important;
             }}
 
