@@ -51,7 +51,7 @@ from agents.decision_support import DecisionAgent
 from agents.auth_manager import AuthAgent 
 
 # Page Config
-st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉")
+st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 inject_terminal_css()
 
 # Load Lang Manager
@@ -90,6 +90,7 @@ if org_id:
     org = db_manager.get_org_details(org_id)
     if org: org_name = org['name']
 
+st.sidebar.title("📉 Terminal Config")
 st.sidebar.success(f"👤 {user_email}\n🏢 {org_name} ({user_role})")
 auth_agent.logout_button()
 
@@ -147,8 +148,16 @@ should_update = False
 if not last_update_str:
     should_update = True
 else:
-    last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
-    if (datetime.now() - last_update).total_seconds() > 6 * 3600:
+    # Robust parsing of last_update_str
+    last_update = None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            last_update = datetime.strptime(last_update_str, fmt)
+            break
+        except ValueError:
+            continue
+            
+    if not last_update or (datetime.now() - last_update).total_seconds() > 6 * 3600:
         should_update = True
     
     # Check for Sparse Data (e.g. only 1 row) -> Force Update to Seed History

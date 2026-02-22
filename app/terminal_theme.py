@@ -149,7 +149,22 @@ def inject_terminal_css():
                 font-weight: 600 !important;
             }}
             
-            #MainMenu, footer, header {{visibility: hidden !important;}}
+            /* Surgical UI Visibility */
+            #MainMenu, footer {{ display: none !important; }}
+            [data-testid="stHeader"] {{ 
+                background: transparent !important; 
+                visibility: visible !important;
+                z-index: 1000001 !important;
+            }}
+            
+            /* High-Specificity Sidebar Toggle */
+            button[data-testid="stSidebarCollapseButton"], 
+            button[data-testid="stSidebarCollapseButton"] * {{
+                visibility: visible !important;
+                color: {ACCENT_BLUE} !important;
+                display: flex !important;
+                z-index: 1000002 !important;
+            }}
             
             iframe {{
                 background-color: {BG_COLOR} !important;
