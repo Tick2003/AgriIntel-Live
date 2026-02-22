@@ -39,64 +39,67 @@ class AuthAgent:
 
     def login_page(self):
         """Render the login page."""
-        st.markdown("""
+        st.markdown(f"""
         <style>
-        .stApp {
+        /* Force Root Dark */
+        .stApp, [data-testid="stAppViewContainer"] {{
             background-color: #111315 !important;
-        }
-        .login-container {
-            text-align: center;
-            padding: 50px;
-            background-color: #1A1D21;
-            border-radius: 10px;
-            max-width: 600px;
-            margin: 0 auto;
-            border: 1px solid #2A2F36;
-            color: #FFFFFF;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        }
-        .login-title {
-            font-family: 'Inter', sans-serif;
+            color: #E6E6E6 !important;
+        }}
+        
+        /* Extreme Specificity for Hero Card */
+        div.login-container, .stMarkdown div.login-container {{
+            text-align: center !important;
+            padding: 50px !important;
+            background-color: #1A1D21 !important;
+            border: 1px solid #2A2F36 !important;
+            border-radius: 12px !important;
+            max-width: 650px !important;
+            margin: 40px auto !important;
             color: #FFFFFF !important;
-            font-size: 26px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        .login-subtitle {
-            font-size: 1.1em;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+        }}
+        
+        .login-title, h1.login-title {{
+            font-family: 'Inter', sans-serif !important;
+            color: #FFFFFF !important;
+            font-size: 28px !important;
+            font-weight: 700 !important;
+            margin-bottom: 12px !important;
+        }}
+        
+        .login-subtitle, p.login-subtitle {{
+            font-size: 1.15em !important;
             color: #C5CBD3 !important;
             opacity: 1 !important;
-            margin-bottom: 30px;
-        }
-        /* Form Input Force Contrast */
-        div[data-baseweb="input"] input {
+            margin-bottom: 30px !important;
+        }}
+
+        /* Inputs Contrast Force */
+        input[type="text"], input[type="password"] {{
             background-color: #1F2329 !important;
             color: #FFFFFF !important;
             border: 1px solid #2A2F36 !important;
-        }
-        div[data-baseweb="input"] input::placeholder {
-            color: #9CA3AF !important;
-        }
-        /* Button Style */
-        button[kind="primaryFormSubmit"] {
+        }}
+        
+        /* Button Contrast Force */
+        [data-testid="stForm"] button {{
             background-color: #3B82F6 !important;
             color: #FFFFFF !important;
+            font-weight: 600 !important;
             border: none !important;
-            width: 100%;
-        }
-        button[kind="primaryFormSubmit"]:hover {
-            background-color: #2563EB !important;
-        }
+        }}
         </style>
         """, unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns([1, 2, 1])
+        col1, col2, col3 = st.columns([1, 4, 1])
         with col2:
             st.markdown("""
             <div class="login-container">
-                <h1 class="login-title">📉 AgriIntel.in</h1>
-                <p class="login-subtitle">Advanced AI Market Intelligence for Indian Agriculture</p>
-                <p style="color: #C5CBD3; font-size: 0.9em;">Institutional Enterprise Edition</p>
+                <h1 class="login-title">📉 AgriIntel Tactical Stack</h1>
+                <p class="login-subtitle">Advanced Institutional Intelligence: National Unified Gateway</p>
+                <div style="color: #3B82F6; font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">STRATEGIC ACCESS ONLY</div>
+                <p style="color: #888; font-size: 0.85em;">v1.2 Terminal | Enterprise Infrastructure</p>
             </div>
             """, unsafe_allow_html=True)
             
