@@ -52,102 +52,79 @@ def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
+            /* --- EMERGENCY UI RECOVERY BUILD 107 --- */
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap');
 
-            /* --- TOTAL VISIBILITY ENFORCEMENT --- */
-            * {{
-                color: {TEXT_PRIMARY} !important;
-                -webkit-font-smoothing: antialiased;
-            }}
-            
-            .stApp {{
+            /* --- 1. FORCE INSTITUTIONAL DARK BACKGROUNDS --- */
+            .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
                 background-color: {BG_COLOR} !important;
-                font-family: 'Inter', 'Manrope', sans-serif;
             }}
             
-            /* Metric Labels (The light grey ones in screenshot) */
-            [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {{
-                color: #A0A6AD !important;
+            [data-testid="stSidebar"], [data-testid="stSidebar"] > div {{
+                background-color: {PANEL_COLOR} !important;
+                border-right: 1px solid {BORDER_COLOR} !important;
+            }}
+
+            /* --- 2. TARGETED TEXT VISIBILITY (NO WILDCARDS) --- */
+            h1, h2, h3, p, span, label, li, .stMarkdown, .main-title, .section-header {{
+                color: {TEXT_PRIMARY} !important;
+                font-family: 'Inter', sans-serif;
+            }}
+            
+            /* Metric Labels & Secondary Text */
+            [data-testid="stMetricLabel"], .stCaption, caption, .metadata-text {{
+                color: {TEXT_SECONDARY} !important;
                 font-size: 13px !important;
                 font-weight: 500 !important;
                 text-transform: uppercase !important;
             }}
-            
-            /* Sidebar Label & Metadata Visibility */
-            section[data-testid="stSidebar"] label, 
-            section[data-testid="stSidebar"] .stCaption,
-            section[data-testid="stSidebar"] p,
-            section[data-testid="stSidebar"] span {{
-                color: {TEXT_PRIMARY} !important;
-                font-weight: 500 !important;
-            }}
 
-            /* Selectbox/Dropdown Labels */
+            /* --- 3. WIDGET & INPUT VISIBILITY --- */
+            /* Selectbox / Dropdown labels */
             [data-testid="stWidgetLabel"] p, label p, label {{
                 color: {TEXT_PRIMARY} !important;
                 font-size: 14px !important;
+                font-weight: 500 !important;
             }}
             
-            /* Sidebar Success/Info Background Fix */
-            [data-testid="stSidebar"] [data-testid="stNotification"] {{
-                background-color: rgba(25, 28, 33, 0.8) !important;
-                border: 1px solid {BORDER_COLOR} !important;
-            }}
-
-            /* Button Styling (Total Overhaul) */
-            button, .stButton > button {{
-                background-color: #1A1D21 !important;
+            /* Input fields */
+            div[data-baseweb="input"] input, div[data-baseweb="select"] > div {{
+                background-color: #0E1117 !important;
                 color: {TEXT_PRIMARY} !important;
                 border: 1px solid {BORDER_COLOR} !important;
-                border-radius: 4px !important;
-                font-weight: 600 !important;
-                transition: all 0.2s ease !important;
-            }}
-            button:hover {{
-                border-color: {ACCENT_BLUE} !important;
-                background-color: #1F2329 !important;
             }}
             
-            /* Metric Values */
+            /* --- 4. BUTTON & CARD REINFORCEMENT --- */
+            .stButton > button {{
+                background-color: {PANEL_COLOR} !important;
+                color: {TEXT_PRIMARY} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                font-weight: 600 !important;
+            }}
+            .stButton > button:hover {{
+                border-color: {ACCENT_BLUE} !important;
+                color: {ACCENT_BLUE} !important;
+            }}
+            
+            .terminal-panel, [data-testid="stExpander"] {{
+                background-color: {PANEL_COLOR} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                border-radius: 4px !important;
+            }}
+
+            /* --- 5. CHART & UTILITY --- */
             [data-testid="stMetricValue"] {{
                 color: {TEXT_PRIMARY} !important;
                 font-size: 32px !important;
                 font-weight: 600 !important;
             }}
             
-            /* Card & Panel Styling */
-            .terminal-panel {{
-                background-color: {PANEL_COLOR} !important;
-                border: 1px solid {BORDER_COLOR} !important;
-                padding: 24px !important;
-                border-radius: 4px !important;
-            }}
-
-            /* Typography Hierarchy */
-            h1, h2, h3, .main-title, .section-header {{
-                color: {TEXT_PRIMARY} !important;
-                font-weight: 600 !important;
-            }}
+            #MainMenu, footer, header {{visibility: hidden !important;}}
             
-            /* Data Source / Captions Visibility */
-            .stCaption, caption, .metadata-text {{
-                color: #A0A6AD !important;
-                font-size: 13px !important;
-            }}
-            
-            /* Chart Background Force (If iframe) */
-            .user-select-none {{
+            /* Force Plotly Background if iframe */
+            iframe {{
                 background-color: {BG_COLOR} !important;
             }}
-            
-            /* Expander Fix (Personalization) */
-            [data-testid="stExpander"] {{
-                background-color: #1A1D21 !important;
-                border: 1px solid {BORDER_COLOR} !important;
-            }}
-
-            /* Hide Streamlit components */
-            #MainMenu, footer, header {{visibility: hidden !important;}}
         </style>
     """, unsafe_allow_html=True)
 
