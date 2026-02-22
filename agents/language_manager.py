@@ -3,7 +3,8 @@ class LanguageManager:
         self.languages = {
             "English": "en",
             "Hindi": "hi",
-            "Odia": "or"
+            "Odia": "or",
+            "Marathi": "mr"
         }
         
         # Dictionary of UI terms

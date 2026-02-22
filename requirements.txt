@@ -15,3 +15,7 @@ Pillow
 fastapi
 uvicorn
 python-multipart
+redis
+SpeechRecognition
+gTTS
+phonenumbers

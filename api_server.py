@@ -92,5 +92,28 @@ def get_arbitrage(commodity: str, mandi: str):
         
     return {"opportunities": opps_df.to_dict(orient='records')}
 
+from agents.voice_intelligence import VoiceIntelligenceAgent
+
+voice_agent = VoiceIntelligenceAgent()
+
+class VoiceStartRequest(BaseModel):
+    phone_number: str
+
+class VoiceInteractionRequest(BaseModel):
+    session_id: str
+    text_input: str
+
+@app.post("/v1/voice/start", dependencies=[Depends(verify_api_key)])
+def voice_start(req: VoiceStartRequest):
+    """Start a voice session."""
+    session_id, greeting, lang = voice_agent.handle_call_start(req.phone_number)
+    return {"session_id": session_id, "greeting": greeting, "language": lang}
+
+@app.post("/v1/voice/interact", dependencies=[Depends(verify_api_key)])
+def voice_interact(req: VoiceInteractionRequest):
+    """Process a voice interaction turn."""
+    response_text, lang = voice_agent.handle_interaction(req.session_id, text_input=req.text_input)
+    return {"response_text": response_text, "language": lang}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

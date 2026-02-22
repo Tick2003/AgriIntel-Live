@@ -227,6 +227,24 @@ def init_db():
         )
     ''')
     
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS voice_call_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            call_sid TEXT,
+            phone_number TEXT,
+            timestamp TEXT,
+            language TEXT,
+            region TEXT,
+            transcript TEXT,
+            intent TEXT,
+            entities TEXT,
+            api_used TEXT,
+            response_text TEXT,
+            confidence_score REAL,
+            duration_seconds REAL
+        )
+    ''')
+
     # Default Org/User for Demo
     try:
         c.execute("SELECT count(*) FROM organizations")
