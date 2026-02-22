@@ -129,7 +129,7 @@ class IntelligenceAgent:
         if 'rain' in q or 'flood' in q:
             sim = self.run_scenario(curr_price, 'heavy_rain')
             return f"""
-            {analyst_intro} **Simulation Result: Heavy Rain Event** 🌧️
+            {analyst_intro} **Scenario Analysis: Heavy Rain Event** 🌧️
             
             Historical data suggests heavy rainfall disrupts supply chains immediately.
             *   **projected Impact**: {sim['change_pct']}
@@ -141,7 +141,7 @@ class IntelligenceAgent:
         if 'policy' in q or 'ban' in q or 'export' in q:
             sim = self.run_scenario(curr_price, 'export_ban')
             return f"""
-            {analyst_intro} **Simulation Result: Export Ban** 🚫
+            {analyst_intro} **Scenario Analysis: Export Ban** 🚫
             
             An export ban typically creates an immediate local oversupply.
             *   **Projected Impact**: {sim['change_pct']}

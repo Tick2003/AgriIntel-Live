@@ -168,7 +168,7 @@ We use \textbf{VADER (Valence Aware Dictionary and sEntiment Reasoner)} to analy
 
 \section{Functional Requirements}
 \begin{enumerate}
-    \item **Data Ingestion Module**: Must fetch/simulate daily price and arrival data.
+    \item **Data Ingestion Module**: Must fetch/operationalize daily price and arrival data.
     \item **Forecasting Module**: Must predict prices for the next 30 days.
     \item **Risk Module**: Must calculate a 0-100 risk score.
     \item **UI Module**: Must display interactive charts and tables.
@@ -524,7 +524,7 @@ elif page == "Model Performance":
         train_data = data.iloc[:-30]
         test_data = data.iloc[-30:]
         
-        # 3. Generate ML Forecast (Simulating 'Past' Prediction)
+        # 3. Generate ML Forecast (Pilot Mode 'Past' Prediction)
         agent = ForecastingAgent()
         forecast_df = agent.generate_forecasts(train_data, selected_commodity, selected_mandi)
         

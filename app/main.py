@@ -1155,7 +1155,7 @@ print(res.json())
 
 
 # --- PAGE: BACKTEST AUDIT (Phase 8) ---
-elif page == "Backtest Simulator":
+elif page == "Backtest Audit":
     st.header("⏪ Time Travel & Backtesting")
     st.caption("Test the AI's strategy against historical data (Historical Performance Mode).")
     
