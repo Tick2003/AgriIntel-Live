@@ -52,10 +52,10 @@ def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
-            /* --- EMERGENCY UI RECOVERY BUILD 107 --- */
+            /* --- INSTITUTIONAL UI RECOVERY BUILD 108 --- */
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap');
 
-            /* --- 1. FORCE INSTITUTIONAL DARK BACKGROUNDS --- */
+            /* --- 1. CORE DARK ARCHITECTURE --- */
             .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
                 background-color: {BG_COLOR} !important;
             }}
@@ -65,13 +65,41 @@ def inject_terminal_css():
                 border-right: 1px solid {BORDER_COLOR} !important;
             }}
 
-            /* --- 2. TARGETED TEXT VISIBILITY (NO WILDCARDS) --- */
+            /* --- 2. EXPANDER & NOTIFICATION FIX (CRITICAL) --- */
+            /* Force Expander Background & Header */
+            div[data-testid="stExpander"] {{
+                background-color: #1A1D21 !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                border-radius: 4px !important;
+                margin-bottom: 10px !important;
+            }}
+            
+            div[data-testid="stExpander"] summary {{
+                background-color: #1A1D21 !important;
+                color: {TEXT_PRIMARY} !important;
+            }}
+            
+            div[data-testid="stExpander"] summary:hover {{
+                color: {ACCENT_BLUE} !important;
+            }}
+            
+            /* Target the white boxes inside the Notification Log */
+            [data-testid="stNotification"], .stAlert {{
+                background-color: #0E1117 !important;
+                color: {TEXT_PRIMARY} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+            }}
+            
+            [data-testid="stNotification"] * {{
+                color: {TEXT_PRIMARY} !important;
+            }}
+
+            /* --- 3. TARGETED TEXT VISIBILITY --- */
             h1, h2, h3, p, span, label, li, .stMarkdown, .main-title, .section-header {{
                 color: {TEXT_PRIMARY} !important;
                 font-family: 'Inter', sans-serif;
             }}
             
-            /* Metric Labels & Secondary Text */
             [data-testid="stMetricLabel"], .stCaption, caption, .metadata-text {{
                 color: {TEXT_SECONDARY} !important;
                 font-size: 13px !important;
@@ -79,40 +107,27 @@ def inject_terminal_css():
                 text-transform: uppercase !important;
             }}
 
-            /* --- 3. WIDGET & INPUT VISIBILITY --- */
-            /* Selectbox / Dropdown labels */
+            /* --- 4. WIDGET & INPUT VISIBILITY --- */
             [data-testid="stWidgetLabel"] p, label p, label {{
                 color: {TEXT_PRIMARY} !important;
                 font-size: 14px !important;
                 font-weight: 500 !important;
             }}
             
-            /* Input fields */
             div[data-baseweb="input"] input, div[data-baseweb="select"] > div {{
                 background-color: #0E1117 !important;
                 color: {TEXT_PRIMARY} !important;
                 border: 1px solid {BORDER_COLOR} !important;
             }}
             
-            /* --- 4. BUTTON & CARD REINFORCEMENT --- */
+            /* --- 5. BUTTON & UTILITY --- */
             .stButton > button {{
                 background-color: {PANEL_COLOR} !important;
                 color: {TEXT_PRIMARY} !important;
                 border: 1px solid {BORDER_COLOR} !important;
                 font-weight: 600 !important;
             }}
-            .stButton > button:hover {{
-                border-color: {ACCENT_BLUE} !important;
-                color: {ACCENT_BLUE} !important;
-            }}
             
-            .terminal-panel, [data-testid="stExpander"] {{
-                background-color: {PANEL_COLOR} !important;
-                border: 1px solid {BORDER_COLOR} !important;
-                border-radius: 4px !important;
-            }}
-
-            /* --- 5. CHART & UTILITY --- */
             [data-testid="stMetricValue"] {{
                 color: {TEXT_PRIMARY} !important;
                 font-size: 32px !important;
@@ -121,7 +136,6 @@ def inject_terminal_css():
             
             #MainMenu, footer, header {{visibility: hidden !important;}}
             
-            /* Force Plotly Background if iframe */
             iframe {{
                 background-color: {BG_COLOR} !important;
             }}
