@@ -23,4 +23,4 @@ We take the security of AgriIntel.in seriously. If you discover a security vulne
 4.  **Fix**: We will release a patch.
 5.  **Announce**: We will publish a security advisory.
 
-Thank you for improving the security of AgriIntel!
+Thank you for improving the security of AgriIntel.in!
