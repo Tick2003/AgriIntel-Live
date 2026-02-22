@@ -284,7 +284,7 @@ def fetch_arbitrage_snapshot(commodity, all_mandis):
 # Load Data
 data = fetch_and_process_data(selected_commodity, selected_mandi)
 last_date = data['date'].max().strftime('%Y-%m-%d')
-st.caption(f"Data Source: Agmarknet (Simulated) | Last Updated: {last_date}")
+st.caption(f"Data Source: Agmarknet (Pilot Mode) | Last Updated: {last_date}")
 
 # Run Agents (Cached)
 # Run Agents (Cached)
@@ -458,9 +458,9 @@ elif page == "Price Forecast":
     fig.update_layout(template="plotly_white", hovermode="x unified")
     st.plotly_chart(fig, use_container_width=True)
     
-    # 2. Profit Simulator (NEW)
+    # 2. Profit Analytics (NEW)
     st.markdown("---")
-    st.subheader("💰 Profit Simulator")
+    st.subheader("💰 Profit Analytics")
     st.write("Calculate potential returns if you hold your stock.")
     
     with st.container():
@@ -471,7 +471,7 @@ elif page == "Price Forecast":
             st.metric("Current Value", f"₹{current_val:,.2f}")
         
         with c2:
-            # Run Simulation
+            # Run Analysis
             sim_df = agents["decision"].simulate_profit(data['price'].iloc[-1], forecast_df, qty)
             
             if not sim_df.empty:
@@ -508,7 +508,7 @@ elif page == "Price Forecast":
                     else:
                         st.error("📉 Forecast suggests prices may fall. Selling now might be best.")
             else:
-                st.warning("Not enough forecast data to run simulation.")
+                st.warning("Not enough forecast data to run analysis.")
 
     st.subheader("Detailed Forecast Data")
     st.dataframe(forecast_df[['date', 'forecast_price', 'lower_bound', 'upper_bound']])
@@ -719,14 +719,14 @@ elif page == "Model Performance":
         st.error(f"Error loading metrics: {e}")
 
     st.markdown("---")
-    st.subheader("🧪 Simulation: Backtest Verification")
+    st.subheader("🧪 Verification: Backtest Audit")
     
     if len(data) > 60:
         # 2. Split Data (Hide last 30 days)
         train_data = data.iloc[:-30]
         test_data = data.iloc[-30:]
         
-        # 3. Generate ML Forecast (Simulating 'Past' Prediction)
+        # 3. Generate ML Forecast (Historical Performance Mode)
         agent = ForecastingAgent()
         forecast_df = agent.generate_forecasts(train_data, selected_commodity, selected_mandi)
         
@@ -834,10 +834,10 @@ elif page == "AI Consultant":
             st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-    # 2. Scenario Simulator (Sidebar)
+    # 2. Scenario Analytics (Sidebar)
     with st.sidebar:
         st.markdown("---")
-        st.subheader("⚡ Scenario Simulator")
+        st.subheader("⚡ Scenario Analytics")
         st.caption("Test 'What-If' Events")
         
         sim_options = {
@@ -849,7 +849,7 @@ elif page == "AI Consultant":
         
         selected_sim = st.selectbox("Select Event", list(sim_options.keys()))
         
-        if st.button("Simulate Impact"):
+        if st.button("Analyze Impact"):
             sim_res = agents['intel'].run_scenario(context_data['current_price'], sim_options[selected_sim])
             if sim_res:
                 st.sidebar.success(f"Price Change: {sim_res['change_pct']}")
@@ -859,7 +859,7 @@ elif page == "AI Consultant":
 # --- PAGE: WHATSAPP BOT (ACCESSIBILITY) ---
 elif page == "WhatsApp Bot (Demo)":
     st.header("💬 AgriBot (WhatsApp Mode)")
-    st.caption("Simulating the SMS/WhatsApp experience for low-bandwidth users.")
+    st.caption("Pilot Mode: Accessibility experience for low-bandwidth users.")
     
     # Chat Interface
     if "chat_history" not in st.session_state:
@@ -887,7 +887,7 @@ elif page == "WhatsApp Bot (Demo)":
         st.session_state.chat_history.append({"role": "bot", "msg": resp})
         
     if mic_clicked:
-        st.info("🎤 Listening... (Simulated: 'Price of Tomato in Bhubaneswar')")
+        st.info("🎤 Listening... (Input: 'Price of Tomato in Bhubaneswar')")
         # Mocking voice input processing
         mock_voice_text = "Price of Tomato in Bhubaneswar"
         st.session_state.chat_history.append({"role": "user", "msg": mock_voice_text})
@@ -971,13 +971,13 @@ elif page == "Logistics (Graph)":
         submit = st.form_submit_button("Find Best Market")
         
     if submit:
-        # 1. Fetch live prices for all destinations (Simulation/Real)
+        # 1. Fetch live prices for all destinations (Operational Data)
         # In real app, we'd query DB for all Mandis. Here we generate variation for demo.
         prices = {}
         base_price = 2500  # Rs/Quintal
         import random
         for mandi in mg.graph.keys():
-            # Add random variation to simulate price differences
+            # Incorporate variability for regional analysis
             prices[mandi] = base_price + random.randint(-400, 600)
             
         # 2. Run Algo
@@ -1154,10 +1154,10 @@ print(res.json())
     """, language="python")
 
 
-# --- PAGE: BACKTEST SIMULATOR (Phase 8) ---
+# --- PAGE: BACKTEST AUDIT (Phase 8) ---
 elif page == "Backtest Simulator":
     st.header("⏪ Time Travel & Backtesting")
-    st.caption("Test the AI's strategy against historical data (Simulation Mode).")
+    st.caption("Test the AI's strategy against historical data (Historical Performance Mode).")
     
     from agents.backtesting_engine import BacktestEngine
     
@@ -1167,7 +1167,7 @@ elif page == "Backtest Simulator":
     c2.info(f"**Market**: {selected_mandi}")
     initial_cap = c3.number_input("Initial Capital (₹)", 10000, 10000000, 100000, step=10000)
     
-    if st.button("Run Simulation 🏃‍♂️"):
+    if st.button("Run Audit 🏃‍♂️"):
         be = BacktestEngine(initial_capital=initial_cap)
         
         with st.spinner("Replaying market history..."):

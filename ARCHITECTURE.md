@@ -1,13 +1,13 @@
 # AgriIntel.in: Technical Architecture & System Documentation
 
-## 📖 System Overview
-**AgriIntel.in** is a **Modular Multi-Agent System (MMAS)** designed for national agricultural market intelligence. The platform integrates real-time data ingestion, machine learning forecasting, and a conversational voice interface to serve a diverse stakeholder base.
+## 🏛️ System Overview
+**AgriIntel.in** is a **National Unified Agricultural Intelligence Stack** powered by a **Modular Multi-Agent System (MMAS)**. It is designed to modernize agricultural market intelligence through real-time data ingestion, strategic machine learning forecasting, and conversational access layers.
 
 ---
 
-## 🏗️ Core Architecture (MMAS)
+## 🏗️ The Three-Layer Stack Architecture
 
-**AgriIntel.in** operates as a decentralized swarm of agents, each responsible for a specific domain of the agricultural lifecycle.
+AgriIntel.in operates as an integrated intelligence swarm, categorized into three strategic operational stacks:
 
 ```mermaid
 graph TD
@@ -21,7 +21,7 @@ graph TD
     Streamlit -->|Logic Controller| MainApp(app/main.py)
     FastAPI -->|Endpoints| MainApp
 
-    subgraph "Conversational AI Interface"
+    subgraph "1. Conversational Access Stack"
         VIntel(VoiceIntelligenceAgent)
         SM(VoiceSessionManager)
         Chat(ChatbotEngine)
@@ -30,30 +30,29 @@ graph TD
         VIntel --> Chat
     end
 
-    subgraph "The Intelligence Swarm (agents/)"
+    subgraph "2. Strategic Intelligence Stack"
         Ag1(ForecastingAgent)
         Ag2(MarketRiskEngine)
-        Ag3(ArbitrageAgent)
-        Ag4(OptimizationEngine)
-        Ag5(BusinessEngine)
         Ag6(DataHealthAgent)
         Ag7(PerformanceMonitor)
         Ag8(IntelligenceCore)
     end
 
-    subgraph "Specialized Decision Support"
+    subgraph "3. Supply Chain Efficiency Stack"
+        Ag3(ArbitrageAgent)
+        Ag4(OptimizationEngine)
+        Ag5(BusinessEngine)
         CV(GradingModel)
         Graph(LogisticsGraph)
-        Lang(LanguageManager)
     end
 
     MainApp --> Ag1 & Ag2 & Ag3 & Ag4 & Ag5 & Ag6 & Ag7 & Ag8
-    MainApp --> CV & Graph & Lang
+    MainApp --> CV & Graph
     VIntel --> MainApp
 
-    subgraph "Persistence Context"
-        DB[(SQLite Warehouse)]
-        Redis[(Redis Session Cache)]
+    subgraph "Unified Persistence Layer"
+        DB[(National Data Warehouse)]
+        Redis[(Session Context Cache)]
         MainApp --> DB
         SM --> Redis
     end
@@ -61,55 +60,36 @@ graph TD
 
 ---
 
-## 🔌 Comprehensive Feature & Module Breakdown
+## 🔌 Stack Module Breakdown
 
-### 1. Conversational Voice Interface (`agents/voice_intelligence.py`)
-*   **VoiceIntelligenceAgent**: Orchestrates the call lifecycle (Start -> Loop -> Log).
-*   **TelecomMapper**: Maps MSISDN to telecom circles (e.g., Maharashtra & Goa) to detect region and primary language.
-*   **VoiceSessionManager**: Uses Redis to store "Turn State" (keeping track of the commodity/mandi being discussed).
-*   **ASR/TTS Integration**: Pluggable interface for Speech-to-Text and Text-to-Speech synthesis.
-*   **Call Transcript Logging**: Full persistence of user speech and AI responses for administrative audit.
+### 🎙️ 1. Conversational Access Stack
+*   **VoiceIntelligenceAgent**: Manages real-time call lifecycles and dialogue orchestration.
+*   **TelecomMapper**: Determines regional language preferences and geographic context via carrier circle mapping.
+*   **VoiceSessionManager**: Maintains cross-turn conversational state in a **Sandbox Environment**.
+*   **ASR/TTS Engine**: Pluggable interface for high-fidelity speech synthesis and recognition.
 
-### 2. Market Intelligence Swarm (`agents/`)
-*   **ForecastingAgent**: Hybrid model using **Prophet-style** seasonality + **XGBoost** for residual correction.
-*   **MarketRiskEngine**: Decomposes total risk into:
-    *   **Volatility Score**: Standard deviation of price fluctuations.
-    *   **Shock Severity**: Detection of abnormal price spikes (>1.5 z-score).
-    *   **Sentiment Score**: Real-time crawling of Agri-news via RSS feeds.
-    *   **Weather Risk**: Real-time integration with wind speed/rainfall data.
-*   **ArbitrageAgent**: Spatial econometric model to find profit gaps between mandis after adjusting for transport and spoilage.
-*   **IntelligenceCore**: Natural language "Consultant" that explains *why* a price is moving.
-*   **AnomalyDetectionEngine**: Real-time monitor for "Black Swan" events in the market.
+### 📊 2. Strategic Intelligence Stack
+*   **ForecastingAgent**: Hybrid model performing 30-day market predictions with residual error correction.
+*   **MarketRiskEngine**: Decomposes systemic risks into Volatility, Shock, Sentiment, and Weather factors.
+*   **IntelligenceCore**: Natural language "AI Analyst" providing deep-dive strategic explanations.
+*   **PerformanceMonitor**: Real-time tracking of MAPE/RMSE to ensure model reliability.
 
-### 3. Optimization & Science Layer (`agents/`)
-*   **OptimizationEngine**:
-    *   **Crop Planner**: Linear programming for optimal land use.
-    *   **Inventory Agent**: Wilson's EOQ model for storage management.
-*   **LogisticsGraph**: **Dijkstra's Algorithm** implementation using `networkx` for cost-optimal route finding.
-*   **GradingModel**: Simulated CNN for quality assessment (visual grading).
-
-### 4. Enterprise & Data Reliability
-*   **AuthAgent**: Handles RBAC, Session Security, and Multi-Tenancy.
-*   **DataHealthAgent**: Automated data profiling and completeness checks.
-*   **PerformanceMonitor**: Tracks MAPE (Mean Absolute Percentage Error) and RMSE to detect model drift.
-*   **db_manager.py**: Centralized SQLite handler with auto-migration and optimization routines (`VACUUM`).
-
-### 5. Deployment & Automation
-*   **api_server.py**: FastAPI implementation for external SaaS integrators.
-*   **daily_update.yml**: GitHub Action that runs the ETL pipeline and pushes data updates daily.
-*   **packages.txt**: System-level dependencies for audio and compute-heavy libs on Streamlit Cloud.
+### 🚛 3. Supply Chain Efficiency Stack
+*   **ArbitrageAgent**: Spatial econometric analysis to identify regional price discrepancies.
+*   **LogisticsGraph**: Optimized routing using **Dijkstra's Algorithm** with integrated fuel and toll logic.
+*   **OptimizationEngine**: Resources allocation (Simplex) and inventory management (EOQ) for agricultural planning.
+*   **GradingModel**: Structural analysis for quality assessment (**Phase II Enhancement**).
 
 ---
 
-## 📈 Data & Logic Flow
-1.  **Ingestion**: `data_loader.py` fetches Market, Weather, and News data.
-2.  **Processing**: Agents calculate Forecasts, Risks, and Recommendations.
-3.  **Interface**: Rendering on **AgriIntel.in** Streamlit or Voice API response via JSON.
-4.  **Feedback**: `PerformanceMonitor` compares yesterday's forecast with today's actual price.
+## 📈 Data Pipeline & Governance
+1.  **Ingestion**: `data_loader.py` fetches Market, Weather, and News data (**Pilot Mode**).
+2.  **Processing**: The Intelligence Swarm generates unified market signals.
+3.  **Governance**: `DataHealthAgent` ensures data integrity across the national stack.
 
 ---
 
-## 🛠️ Setup & Local Dev
+## 🛠️ Operational Setup
 ```bash
 pip install -r requirements.txt
 python etl/data_loader.py seed

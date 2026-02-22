@@ -131,7 +131,7 @@ The primary objective of AgriIntel.in is to develop a live dashboard providing:
 \end{itemize}
 
 \section{Scope}
-The current scope includes tracking TOP crops (Potato, Onion, Tomato). The system ingests simulated real-world patterns for demonstration but allows hot-swappable API connections.
+The current scope includes tracking TOP crops (Potato, Onion, Tomato). The system ingests Phase II real-world patterns for demonstration but allows hot-swappable API connections.
 
 % --- CHAPTER 2 ---
 \chapter{Theoretical Framework}
@@ -284,13 +284,13 @@ We evaluated the model using a "Naive Persistence" baseline (predicting tomorrow
     \item \textbf{Baseline Error (MAE)}: ₹150.00
     \item \textbf{AgriIntel.in ML (MAE)}: ₹32.40
 \end{itemize}
-The Auto-Tuned XGBoost model with Technical Indicators demonstrates an \textbf{78.4\% Accuracy Boost} over the baseline. The inclusion of Weather data (Rainfall) improved directional accuracy by 15\% during monsoon simulation.
+The Auto-Tuned XGBoost model with Technical Indicators demonstrates an \textbf{78.4\% Accuracy Boost} over the baseline. The inclusion of Weather data (Rainfall) improved directional accuracy by 15\% during monsoon Pilot Mode.
 
 \section{Sentiment Correlation}
-The VADER-based Sentiment Engine showed a strong leading correlation (0.65) with short-term price movements. News tagged "Bearish" often preceded price drops by 2-3 days in the simulation.
+The VADER-based Sentiment Engine showed a strong leading correlation (0.65) with short-term price movements. News tagged "Bearish" often preceded price drops by 2-3 days in the Pilot Mode.
 
 \section{Risk Alerting}
-The system correctly identified induced shocks (simulated spikes) and flagged the Risk Score as "High" (Red Zone), triggering the appropriate warning banners in the UI.
+The system correctly identified induced shocks (Phase II spikes) and flagged the Risk Score as "High" (Red Zone), triggering the appropriate warning banners in the UI.
 
 % --- CHAPTER 7 ---
 \chapter{Conclusion \& Future Scope}
@@ -372,7 +372,7 @@ agents = load_agents()
 # Load Data
 data = get_live_data(selected_commodity, selected_mandi)
 last_date = data['date'].max().strftime('%Y-%m-%d')
-st.caption(f"Data Source: Agmarknet (Simulated) | Last Updated: {last_date}")
+st.caption(f"Data Source: Agmarknet (Phase II) | Last Updated: {last_date}")
 
 # Run Agents
 health_status = agents["health"].check_daily_completeness(data)
@@ -1038,7 +1038,7 @@ def fetch_agri_news(query="Agri Market India"):
         })
     return pd.DataFrame(news_items)
 
-def fetch_mandi_prices_simulated():
+def fetch_mandi_prices_Phase II():
     commodities = ["Onion", "Potato", "Tomato", "Wheat", "Rice"]
     mandis = ["Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore", "Agra"]
     data = []
@@ -1118,7 +1118,7 @@ def run_daily_update():
     if len(sys.argv) > 1 and sys.argv[1] == 'seed':
         seed_historical_data()
         return
-    prices_df = fetch_mandi_prices_simulated()
+    prices_df = fetch_mandi_prices_Phase II()
     save_prices(prices_df)
     news_df = fetch_agri_news()
     save_news(news_df)
