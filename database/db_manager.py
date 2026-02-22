@@ -25,6 +25,17 @@ def init_db():
         )
     ''')
     
+    # --- MIGRATIONS ---
+    # Check if 'unit' exists in market_prices (Update)
+    try:
+        c.execute("SELECT unit FROM market_prices LIMIT 1")
+    except sqlite3.OperationalError:
+        print("Migrating: Adding 'unit' column to market_prices")
+        try:
+            c.execute("ALTER TABLE market_prices ADD COLUMN unit TEXT DEFAULT 'Rs/Quintal'")
+        except Exception as e:
+            print(f"Migration warning: {e}")
+
     # Table: News/Alerts
     c.execute('''
         CREATE TABLE IF NOT EXISTS news_alerts (
@@ -366,25 +377,57 @@ def log_system_event(level, source, message, metadata=""):
         print(f"Logging Failed: {e}")
 
 def import_prices_from_csv():
-    """Restores prices from CSV if DB table is empty."""
+    """Restores prices from CSV and performs incremental sync if new data exists."""
     import os
     if not os.path.exists("data/market_prices.csv"):
+        print("Warning: data/market_prices.csv not found.")
         return
 
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT count(*) FROM market_prices")
-    count = c.fetchone()[0]
     
-    if count == 0:
-        print("Restoring data from data/market_prices.csv...")
-        try:
-            df = pd.read_csv("data/market_prices.csv")
+    try:
+        # 1. Get current Max Date in DB
+        c.execute("SELECT MAX(date) FROM market_prices")
+        max_date_db = c.fetchone()[0]
+        
+        # 2. Load CSV
+        df = pd.read_csv("data/market_prices.csv")
+        
+        if max_date_db:
+            # Incremental Sync
+            df['date_dt'] = pd.to_datetime(df['date'], errors='coerce')
+            max_date_db_dt = pd.to_datetime(max_date_db, errors='coerce')
+            
+            new_records = df[df['date_dt'] > max_date_db_dt].copy()
+            new_records = new_records.drop(columns=['date_dt'])
+            
+            if not new_records.empty:
+                print(f"Syncing {len(new_records)} new records from CSV (Newer than {max_date_db})...")
+                # Filter valid columns for market_prices table
+                valid_cols = ['date', 'commodity', 'mandi', 'price_min', 'price_max', 'price_modal', 'arrival', 'unit']
+                cols_to_save = [c for c in valid_cols if c in new_records.columns]
+                new_records[cols_to_save].to_sql('market_prices', conn, if_exists='append', index=False)
+                print("Incremental sync successful.")
+            else:
+                print(f"DB is already up to date (Max Date: {max_date_db}).")
+        else:
+            # Full Restore (Empty DB)
+            print("DB empty. Performing full restoration from CSV...")
             df.to_sql('market_prices', conn, if_exists='append', index=False)
             print(f"Restored {len(df)} records.")
-        except Exception as e:
-            print(f"Restore failed: {e}")
-    conn.close()
+            
+        # 3. Finalize Update Metadata
+        c.execute("SELECT MAX(date) FROM market_prices")
+        new_max = c.fetchone()[0]
+        if new_max:
+            c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (new_max,))
+            
+    except Exception as e:
+        print(f"CSV Sync failed: {e}")
+    finally:
+        conn.commit()
+        conn.close()
 
 def save_prices(df):
     """Save a pandas DataFrame of prices to the DB."""
