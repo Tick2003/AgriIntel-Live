@@ -48,7 +48,7 @@ class AuthAgent:
         }}
         
         /* Extreme Specificity for Hero Card */
-        div.login-container, .stMarkdown div.login-container {{
+        div.tactical-login-card, .stMarkdown div.tactical-login-card {{
             text-align: center !important;
             padding: 50px !important;
             background-color: #1A1D21 !important;
@@ -95,11 +95,11 @@ class AuthAgent:
         col1, col2, col3 = st.columns([1, 4, 1])
         with col2:
             st.markdown("""
-            <div class="login-container">
-                <h1 class="login-title">📉 AgriIntel Tactical Stack</h1>
-                <p class="login-subtitle">Advanced Institutional Intelligence: National Unified Gateway</p>
-                <div style="color: #3B82F6; font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">STRATEGIC ACCESS ONLY</div>
-                <p style="color: #888; font-size: 0.85em;">v1.2 Terminal | Enterprise Infrastructure</p>
+            <div class="tactical-login-card">
+                <h1 class="login-title">📉 AgriIntel Terminal v1.2</h1>
+                <p class="login-subtitle">National Unified Agricultural Intelligence Stack: Strategic Gateway</p>
+                <div style="color: #3B82F6; font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">INSTITUTIONAL ACCESS : AUTHORIZED PERSONNEL ONLY</div>
+                <p style="color: #888; font-size: 0.85em;">Tactical Intelligence Infrastructure | Build 782-X</p>
             </div>
             """, unsafe_allow_html=True)
             

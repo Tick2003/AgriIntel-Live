@@ -40,10 +40,13 @@ from app.terminal_theme import (
 import importlib 
 import agents.decision_support
 import agents.risk_scoring
-# Force Reload
+import agents.auth_manager
+# Force Reload to prevent Stale Module errors on Cloud
 importlib.reload(agents.decision_support)
 importlib.reload(agents.risk_scoring)
+importlib.reload(agents.auth_manager)
 from agents.decision_support import DecisionAgent
+from agents.auth_manager import AuthAgent 
 
 # Page Config
 st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉")

@@ -41,24 +41,23 @@ def get_db_options():
 
 def load_css():
     """
-    Returns custom CSS for the dashboard.
+    Returns custom CSS for the dashboard (Institutional Dark).
     """
     return """
     <style>
         .stApp {
-            background-color: #FFFFFF; /* Force White Background */
+            background-color: #111315 !important;
+            color: #E6E6E6 !important;
         }
         .metric-card {
-            background-color: #F8F9FA; /* Light Grey Card */
-            color: #000000; /* Force Black Text */
+            background-color: #1A1D21 !important;
+            color: #FFFFFF !important;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 1px solid #ddd;
+            border-radius: 4px;
+            border: 1px solid #2A2F36;
         }
-        /* Fix Titles just in case */
-        h1, h2, h3, p, div {
-            color: #262730;
+        h1, h2, h3, p, span, div {
+            color: #E6E6E6 !important;
         }
     </style>
     """
