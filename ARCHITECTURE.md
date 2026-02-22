@@ -1,135 +1,117 @@
-# AgriIntel 3.0: National AI Agricultural Voice Infrastructure
+# AgriIntel: Technical Architecture & System Documentation
 
-## 📖 Introduction
-AgriIntel is a state-of-the-art **Multi-Agent Conversational AI Platform** designed to democratize agricultural market intelligence in India. It bridges the gap between complex machine learning models and end-users (farmers, traders, enterprises) through a **Speech-First interface** supporting multiple Indian regional languages.
+## 📖 System Overview
+AgriIntel is a **Modular Multi-Agent System (MMAS)** designed for national agricultural market intelligence. The platform integrates real-time data ingestion, machine learning forecasting, and a conversational voice interface to serve a diverse stakeholder base.
 
 ---
 
-## 🏗️ Technical Architecture Overview
+## 🏗️ Core Architecture (MMAS)
 
-AgriIntel follows a **Modular Multi-Agent Architecture (MMAA)**, where specialized AI agents collaborate to fulfill user requests across telephony and web interfaces.
+AgriIntel operates as a decentralized swarm of agents, each responsible for a specific domain of the agricultural lifecycle.
 
 ```mermaid
 graph TD
     %% Entry Points
-    User((Farmer)) -->|Voice Call| TelGate(Telephony Gateway)
-    Admin((Agri-Admin)) -->|Web Portal| Streamlit(Streamlit Dashboard)
-    Dev((Enterprise)) -->|REST API| FastAPI(FastAPI Server)
+    Farmer((Farmer)) -->|Voice Call| TelGate(Telephony Gateway)
+    Admin((Agri-Admin)) -->|Web Interface| Streamlit(Streamlit App)
+    Dev((Dev/Org)) -->|SaaS API| FastAPI(FastAPI Server)
 
-    %% Communication Layer
+    %% Core Orchestration
     TelGate -->|Webhook| VoiceAPI["Voice API (api_server.py)"]
-    Streamlit -->|Internal API| CoreApp(app/main.py)
-    FastAPI -->|SaaS Endpoints| CoreApp
+    Streamlit -->|Logic Controller| MainApp(app/main.py)
+    FastAPI -->|Endpoints| MainApp
 
-    subgraph "Conversational Intelligence Layer"
-        VoiceAPI -->|Session Context| SM(VoiceSessionManager)
-        VoiceAPI -->|Speech-to-Intent| VIntel(VoiceIntelligenceAgent)
-        VIntel -->|NLU/Entity| Chatbot(ChatbotEngine)
-        VIntel -->|Caller Mapping| TMap(TelecomMapper)
+    subgraph "Conversational AI Interface"
+        VIntel(VoiceIntelligenceAgent)
+        SM(VoiceSessionManager)
+        Chat(ChatbotEngine)
+        VoiceAPI --> VIntel
+        VIntel --> SM
+        VIntel --> Chat
     end
 
-    subgraph "Intelligence Swarm (Multi-Agent System)"
-        CoreApp -->|Orchestrate| Swarm{Intelligence Swarm}
-        Swarm -->|Predict| Forecast(ForecastingAgent)
-        Swarm -->|Risk| Risk(MarketRiskEngine)
-        Swarm -->|Detect| Shock(AnomalyDetectionEngine)
-        Swarm -->|Consult| IntelCore(IntelligenceCore)
-        Swarm -->|Translate| Lang(LanguageManager)
-        Swarm -->|Optimize| Opt(OptimizationEngine)
-        Swarm -->|Transact| Biz(BusinessEngine)
+    subgraph "The Intelligence Swarm (agents/)"
+        Ag1(ForecastingAgent)
+        Ag2(MarketRiskEngine)
+        Ag3(ArbitrageAgent)
+        Ag4(OptimizationEngine)
+        Ag5(BusinessEngine)
+        Ag6(DataHealthAgent)
+        Ag7(PerformanceMonitor)
+        Ag8(IntelligenceCore)
     end
 
-    subgraph "Specialized Computation"
-        Forecast -->|Trend| Prophet[Additive Regression]
-        Forecast -->|Residuals| XGB[XGBoost]
-        Opt -->|Resources| Linear[Simplex Algorithm]
-        Risk -->|Sentiment| NLP[Sentiment Analysis]
+    subgraph "Specialized Decision Support"
+        CV(GradingModel)
+        Graph(LogisticsGraph)
+        Lang(LanguageManager)
     end
 
-    subgraph "Persistence & State"
+    MainApp --> Ag1 & Ag2 & Ag3 & Ag4 & Ag5 & Ag6 & Ag7 & Ag8
+    MainApp --> CV & Graph & Lang
+    VIntel --> MainApp
+
+    subgraph "Persistence Context"
         DB[(SQLite Warehouse)]
         Redis[(Redis Session Cache)]
-        CoreApp -->|CRUD| DB
-        SM -->|TTL Context| Redis
+        MainApp --> DB
+        SM --> Redis
     end
 ```
 
 ---
 
-## 🔌 1. The Conversational AI Stack
+## 🔌 Comprehensive Feature & Module Breakdown
 
-The Voice-First infrastructure is designed for low-latency, multi-turn interactions over standard telephony.
+### 1. Conversational Voice Interface (`agents/voice_intelligence.py`)
+*   **VoiceIntelligenceAgent**: Orchestrates the call lifecycle (Start -> Loop -> Log).
+*   **TelecomMapper**: Maps MSISDN to telecom circles (e.g., Maharashtra & Goa) to detect region and primary language.
+*   **VoiceSessionManager**: Uses Redis to store "Turn State" (keeping track of the commodity/mandi being discussed).
+*   **ASR/TTS Integration**: Pluggable interface for Speech-to-Text and Text-to-Speech synthesis.
+*   **Call Transcript Logging**: Full persistence of user speech and AI responses for administrative audit.
 
-### 🎙️ Interaction Lifecycle
-1.  **Ingress**: A call triggers `VoiceIntelligenceAgent.handle_call_start()`.
-2.  **Detection**: `TelecomMapper` identifies the caller's state/circle and sets the default language (Hindi/Marathi/Odia).
-3.  **STT & NLU**: Speech is converted to text; `ChatbotEngine` extracts **Intent** (e.g., `price_query`) and **Entities** (e.g., `commodity: Onion`, `mandi: Nasik`).
-4.  **Context Maintenance**: `VoiceSessionManager` stores the user's current crop and mandi in Redis, enabling follow-up questions like *"What about next week?"* without repeating the crop name.
-5.  **Synthesis**: The `LanguageManager` generates a regional-language response, which is converted to audio via TTS.
+### 2. Market Intelligence Swarm (`agents/`)
+*   **ForecastingAgent**: Hybrid model using **Prophet-style** seasonality + **XGBoost** for residual correction.
+*   **MarketRiskEngine**: Decomposes total risk into:
+    *   **Volatility Score**: Standard deviation of price fluctuations.
+    *   **Shock Severity**: Detection of abnormal price spikes (>1.5 z-score).
+    *   **Sentiment Score**: Real-time crawling of Agri-news via RSS feeds.
+    *   **Weather Risk**: Real-time integration with wind speed/rainfall data.
+*   **ArbitrageAgent**: Spatial econometric model to find profit gaps between mandis after adjusting for transport and spoilage.
+*   **IntelligenceCore**: Natural language "Consultant" that explains *why* a price is moving.
+*   **AnomalyDetectionEngine**: Real-time monitor for "Black Swan" events in the market.
 
----
+### 3. Optimization & Science Layer (`agents/`)
+*   **OptimizationEngine**:
+    *   **Crop Planner**: Linear programming for optimal land use.
+    *   **Inventory Agent**: Wilson's EOQ model for storage management.
+*   **LogisticsGraph**: **Dijkstra's Algorithm** implementation using `networkx` for cost-optimal route finding.
+*   **GradingModel**: Simulated CNN for quality assessment (visual grading).
 
-## 🧠 2. The Intelligence Swarm (Agent Deep-Dive)
+### 4. Enterprise & Data Reliability
+*   **AuthAgent**: Handles RBAC, Session Security, and Multi-Tenancy.
+*   **DataHealthAgent**: Automated data profiling and completeness checks.
+*   **PerformanceMonitor**: Tracks MAPE (Mean Absolute Percentage Error) and RMSE to detect model drift.
+*   **db_manager.py**: Centralized SQLite handler with auto-migration and optimization routines (`VACUUM`).
 
-AgriIntel's "Brain" consists of over 20 specialized agents.
-
-| Agent | Technology | Primary Responsibility |
-| :--- | :--- | :--- |
-| **ForecastingAgent** | Hybrid XGBoost + Additive | 30-day price prediction with 95% confidence intervals. |
-| **MarketRiskEngine** | Multi-Factor Scoring | Aggregates Volatility, Shock, Sentiment, and Weather risks. |
-| **ArbitrageAgent** | Spatial Profit Logic | Finds price gaps across mandis considering logistics costs. |
-| **OptimizationEngine** | Linear Programming | Optimizes land allocation (Simplex) and inventory (EOQ). |
-| **DataHealthAgent** | Statistical Profiling | Monitors data completeness and distribution shifts. |
-| **PerformanceMonitor** | Drift Analysis | Tracks Real-world Accuracy vs. Predictions; triggers retraining. |
-| **GradingModel** | Computer Vision (CNN) | Visual quality assessment from crop images. |
-
----
-
-## 🛠️ 3. Mathematical Foundations
-
-### 📈 Price Forecasting
-We use a **Residual-Corrected Trend Model**:
--   **Stage 1**: An additive model captures seasonal patterns and long-term trends.
--   **Stage 2**: **XGBoost** (Extreme Gradient Boosting) is trained on the residuals (errors) of Stage 1, incorporating exogenous variables like humidity, wind speed, and news sentiment.
-
-### 🚛 Logistics Optimization (Dijkstra's & Graph Theory)
-`utils/graph_algo.py` constructs a directed graph of Mandis. Edge weights represent `(Distance * FuelRate) + Tolls`. The agent finds the shortest path while maximizing `Market_Price(Destination) - Logistics_Cost`.
-
-### 🌾 Crop Planning (LPP)
-The `OptimizationEngine` solves the following:
-`Maximize Z = Σ (Expected_Profit_i * Area_i)` 
-`Subject to: Σ Area_i <= Total_Land, Σ Cost_i * Area_i <= Budget`
+### 5. Deployment & Automation
+*   **api_server.py**: FastAPI implementation for external SaaS integrators.
+*   **daily_update.yml**: GitHub Action that runs the ETL pipeline and pushes data updates daily.
+*   **packages.txt**: System-level dependencies for audio and compute-heavy libs on Streamlit Cloud.
 
 ---
 
-## 📦 4. Data & Automation Pipeline
-
-### 🔄 Self-Healing ETL
-Powered by **GitHub Actions**, the pipeline runs daily:
-1.  **Ingestion**: Scrapes/Simulates Agmarknet data.
-2.  **Enrichment**: Fetches OpenWeatherMap API and Google News RSS.
-3.  **Validation**: `DataHealthAgent` checks for nulls or impossible spikes.
-4.  **Persistence**: Updates `agri_intel.db` and pushes CSV checkpoints back to GitHub.
-
-### 🛡️ Multi-Tenancy & RBAC
--   **Schema Isolation**: All transactions are tagged with `organization_id`.
--   **RBAC**:
-    -   `Admin`: Can force data updates and manage users.
-    -   `Analyst`: Can view advanced Performance and Model Drift panels.
-    -   `Viewer`: General dashboard access.
+## 📈 Data & Logic Flow
+1.  **Ingestion**: `data_loader.py` fetches Market, Weather, and News data.
+2.  **Processing**: Agents calculate Forecasts, Risks, and Recommendations.
+3.  **Interface**: Rendering on Streamlit or Voice API response via JSON.
+4.  **Feedback**: `PerformanceMonitor` compares yesterday's forecast with today's actual price.
 
 ---
 
-## 🚀 5. Getting Started
-
-### Installation
+## 🛠️ Setup & Local Dev
 ```bash
 pip install -r requirements.txt
-# (Optional) Install system audio libs for voice AI
-# sudo apt-get install ffmpeg libasound2-dev
+python etl/data_loader.py seed
+streamlit run app/main.py
 ```
-
-### Execution
--   **Dashboard**: `streamlit run app/main.py`
--   **API**: `uvicorn api_server:app --reload`
--   **Verification**: `python tests/test_voice_flow.py`

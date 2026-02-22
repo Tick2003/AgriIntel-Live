@@ -1,95 +1,70 @@
-# 🌾 AgriIntel 2.0 - The Full Stack Agricultural Intelligence Suite
+# 🌾 AgriIntel: National AI Agricultural Voice Infrastructure & Intelligence Suite
 
-**AgriIntel 2.0** is a comprehensive **Multi-Tenant SaaS Ecosystem** designed to empower Indian farmers, traders, and enterprises with actionable insights. From **Forecasting Prices** to **Connecting Buyers**, it covers the entire agricultural lifecycle.
+**AgriIntel** is an end-to-end **Conversational Voice AI & Multi-Agent Market Intelligence Platform** designed to revolutionize the agricultural ecosystem in India. It transforms complex market analytics into actionable, regional-language insights accessible via web, API, and telephony.
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://agriintel-live.streamlit.app/)
 
-> 📘 **[Architecture Documentation](ARCHITECTURE.md)** | 🛠️ **[Installation Guide](#-how-to-run-locally)**
+---
+
+## 🚀 Core Pillars & Exhaustive Feature List
+
+### 🎙️ 1. Conversational Voice AI & Accessibility
+*   **Telephony-Ready Infrastructure**: Real-time voice interaction layer for standard phone calls (simulated gateway).
+*   **Multi-Turn Dialogue Management**: Maintain conversational context (crop, location) across a single session.
+*   **Regional Language Support**: Fully supported voice and text interactions in **Hindi**, **Marathi**, **Odia**, and **English**.
+*   **Telecom Mapping**: Automatic detection of caller region and initial language preference using Indian telecom circle logic.
+*   **WhatsApp Bot Simulation**: Low-bandwidth "Chat Mode" for SMS/WhatsApp-style queries.
+*   **Vernacular UI**: Multilingual dashboard interface for seamless adoption by rural users.
+
+### 📊 2. Market Intelligence & Forecasting
+*   **Hybrid Price Forecasting**: Combines additive trend decomposition with **XGBoost** residuals for high-accuracy 30-day predictions.
+*   **Dynamic Confidence Intervals**: Visual upper and lower bounds for price forecasts based on statistical uncertainty.
+*   **Risk & Shock Decomposition**: Quantifies risk into four distinct drivers: **Volatility**, **Abnormal Shocks**, **News Sentiment**, and **Weather Impact**.
+*   **Arbitrage Engine**: Real-time identification of profitable regional trade opportunities.
+*   **Logistics Cost Modeling**: Realistic profit calculation considering **Fuel Rates**, **Tolls**, **Labor**, and **Spoilage percentages**.
+*   **AI Smart Consultant**: Interactive agent for running "What-If" scenarios (e.g., *"How will a 20% rainfall spike affect Potato prices?"*).
+*   **Decision Signal Banner**: Real-time "Buy/Hold/Sell" recommendations with calculated Reliability Badges and accuracy scores.
+
+### 🏢 3. Enterprise SaaS & Institutional Tools
+*   **Multi-Tenant Architecture**: Secure, isolated environments for different organizations.
+*   **Role-Based Access Control (RBAC)**: Specialized permissions for **Admin**, **Analyst**, and **Viewer** roles.
+*   **Institutional Dashboard**: National-level heatmap and state-wise market aggregation for government/corporate governance.
+*   **Comprehensive REST API**: Developer-friendly endpoints for price, risk, arbitrage, and voice interaction integration.
+*   **Data Reliability Dashboard**: Monitoring of ETL success rates, execution times, and pipeline health.
+*   **Quality Alerts**: Automated identification of data anomalies or collection failures.
+
+### 📸 4. Quality, Logistics & Optimization
+*   **Computer Vision Grading**: Visual quality assessment simulation (Grade A/B/C) using image-based structural analysis.
+*   **Smart Logistics (Graph Theory)**: Uses **Dijkstra’s Algorithm** to find the most profitable route across a network of mandis.
+*   **Crop Rotation Planning**: Uses **Linear Programming (Simplex)** to maximize farm profit under land and budget constraints.
+*   **Inventory Optimization**: Calculates **Economic Order Quantity (EOQ)** for warehouse and supply chain efficiency.
+
+### 💰 5. Fintech & B2B Services
+*   **Agri-Credit Scoring**: AI-driven creditworthiness assessment based on historical yield stability and price consistency.
+*   **B2B Marketplace**: Intelligent matchmaking service connecting Farmers directly with Millers, Exporters, and bulk Buyers.
 
 ---
 
-## 🚀 Key Modules (The 4 Pillars)
-
-### 📊 1. Market Intelligence (The "Brain")
-*   **Price Forecasting**: Hybrid ML models (XGBoost + Trend Decomposition) predict prices 30 days ahead with dynamic confidence intervals.
-*   **Risk & Shocks**: Decomposes risk into **Volatility**, **Shock**, **Sentiment**, and **Weather** components.
-*   **Arbitrage Engine**: Real-time identification of profitable trade routes with realistic cost modeling (**Fuel**, **Tolls**, **Spoilage**).
-*   **Model Drift Detection**: Automated monitoring of AI model health with alerts for accuracy degradation.
-*   **Smart Consultant**: Interactive AI agent that runs "What-If" scenarios (e.g., *"Effect of Heavy Rain on Onion prices"*).
-
-### 🏢 2. Enterprise SaaS (The "Backbone")
-*   **Multi-Tenancy**: Secure **Organization-based** access control (RBAC) with Admin, Analyst, and Viewer roles.
-*   **API Infrastructure**: RESTful API (`/v1/price`, `/v1/risk`) for external integration, powered by **FastAPI**.
-*   **Institutional Dashboard**: National-level heatmap and state-wise volatility analysis for government/corporate users.
-*   **SaaS API**: Developer portal for enterprises to access AgriIntel's data streams via API keys.
-
-### 📸 3. Quality & Logistics (The "Eyes & Legs")
-*   **Computer Vision Grading**: Visual simulation of crop grading (A/B/C) using structural analysis.
-*   **Smart Logistics**: Uses **Dijkstra’s Algorithm** (Graph Theory) to find the "Best Profit Route" balancing Market Price vs. Transport Costs.
-
-### 🌏 4. Accessibility & Business (The "Voice & Wallet")
-*   **Vernacular UI**: Fully translated interface in **Hindi** and **Odia** for rural adoption.
-*   **WhatsApp Bot Simulation**: A low-bandwidth "Chat Mode" that mimics SMS/WhatsApp queries with **Voice-to-Text** support.
-*   **B2B Marketplace**: "Tinder for Crops" — Matches Farmers with Millers and Exporters based on location and commodity.
-*   **Fintech Hub**: Generates an **Agri-Credit Score** (300-900) based on historical yield stability, enabling instant loan eligibility checks.
+## 🛠️ Tech Stack & Science
+*   **ML Engine**: XGBoost, Scikit-Learn, Prophet.
+*   **Math Backend**: Scipy (Optimization), NetworkX (Graph Analytics).
+*   **Core Logic**: Python 3.9+, FastAPI, Redis (Session Cache), SQLite (Warehouse).
+*   **Interface**: Streamlit, Plotly, Mermaid.js.
 
 ---
 
-## 🛠️ Tech Stack
-*   **Core**: Python 3.9+
-*   **Frontend**: Streamlit
-*   **Backend API**: FastAPI, Uvicorn
-*   **ML & Math**: XGBoost, Scikit-Learn, Scipy (Linear Programming), NetworkX (Graph Algo), PyTorch/TensorFlow (CV Structure).
-*   **Data**: SQLite (Optimized with VACUUM), OpenWeatherMap API, Simulated Agmarknet Feed, Pandas.
-*   **DevOps**: GitHub Actions (CI/CD), Streamlit Cloud.
+## 🔄 Self-Healing Automation
+AgriIntel features a fully autonomous data pipeline powered by **GitHub Actions**:
+*   **Daily Sync**: Automatically fetches simulated Agmarknet prices, news feeds, and real-time weather.
+*   **Model Accuracy Tracking**: Continuously calculates **MAPE** and **RMSE** for every recommendation.
+*   **Drift Monitoring**: Alerts when model performance degrades below the 20% accuracy threshold.
 
 ---
 
-## 🔄 Automated Data Pipeline
-The system features a **Self-Healing Data Pipeline** powered by **GitHub Actions**.
-*   **Schedule**: Runs automatically every day at 00:00 UTC.
-*   **Trigger**: Also runs on every `git push` to `main` for immediate feedback.
-*   **Process**:
-    1.  Fetches latest Simulated Market Prices.
-    2.  Scrapes News via Google RSS.
-    3.  Fetches Real Weather from OpenWeatherMap.
-    4.  **Commits & Pushes** data back to the repo (`data/market_prices.csv`) for persistence.
+## 📦 Getting Started
+1.  **Repo**: `git clone https://github.com/Tick2003/AgriIntel-Live.git`
+2.  **Setup**: `pip install -r requirements.txt`
+3.  **Core App**: `streamlit run app/main.py`
+4.  **API**: `uvicorn api_server:app --reload`
 
----
-
-## 📦 How to Run Locally
-
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/Tick2003/AgriIntel-Live.git
-    cd AgriIntel-Live
-    ```
-
-2.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Seed the Database** (Important for first run):
-    ```bash
-    python etl/data_loader.py seed
-    ```
-
-4.  **Run the App (Dashboard)**:
-    ```bash
-    streamlit run app/main.py
-    ```
-
-5.  **Run the API Server (Optional)**:
-    ```bash
-    uvicorn api_server:app --reload
-    ```
-    *API Docs available at `http://localhost:8000/docs`*
-
----
-
-## ☁️ Live Demo
-AgriIntel is deployed on **Streamlit Cloud**. To update the live version, simply push to the `main` branch.
-
----
-*Built with ❤️ for Indian Agriculture*
+*Empowering Indian Agriculture through Voice & Intelligence*
