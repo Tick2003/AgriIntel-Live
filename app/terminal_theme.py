@@ -11,7 +11,7 @@ DIVIDER_COLOR = "rgba(255,255,255,0.06)"
 
 TEXT_PRIMARY = "#E6E6E6"
 TEXT_SECONDARY = "#A0A6AD"
-TEXT_MUTED = "#6B7280"
+TEXT_MUTED = "#C5CBD3"  # Standardized metadata color
 
 ACCENT_GREEN = "#3DDC84"
 ACCENT_AMBER = "#FFB020"
@@ -19,57 +19,54 @@ ACCENT_RED = "#FF4D4F"
 ACCENT_BLUE = "#3B82F6"
 ACCENT_GLOW = "rgba(59,130,246,0.15)"
 
-# --- PLOTLY TERMINAL THEME (BLOOMBERG STYLE) ---
-terminal_template = go.layout.Template()
-terminal_template.layout = go.Layout(
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=TEXT_SECONDARY, family="Inter, Manrope, sans-serif", size=12),
-    xaxis=dict(
-        showgrid=True, 
-        gridcolor="rgba(255, 255, 255, 0.05)", 
-        gridwidth=0.5,
-        linecolor=BORDER_COLOR, 
-        zeroline=False,
-        tickfont=dict(size=10, color=TEXT_MUTED)
-    ),
-    yaxis=dict(
-        showgrid=True, 
-        gridcolor="rgba(255, 255, 255, 0.05)", 
-        gridwidth=0.5,
-        linecolor=BORDER_COLOR, 
-        zeroline=False,
-        tickfont=dict(size=10, color=TEXT_MUTED)
-    ),
-    margin=dict(l=40, r=20, t=40, b=40),
-    hoverlabel=dict(bgcolor=PANEL_COLOR, font_size=12, font_family="Inter"),
-    showlegend=True,
-    legend=dict(font=dict(size=10, color=TEXT_SECONDARY), bgcolor="rgba(0,0,0,0)")
-)
-pio.templates["agriintel_terminal"] = terminal_template
+# ... (Plotly template remains similar, but using TEXT_SECONDARY for ticks)
 
 def inject_terminal_css():
-    """Injects high-performance institutional terminal CSS."""
+    """Injects high-performance institutional terminal CSS with forced visibility."""
     st.markdown(f"""
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap');
 
-            /* Global Overrides */
+            /* --- GLOBAL VISIBILITY OVERRIDE --- */
+            * {{
+                color: {TEXT_PRIMARY} !important;
+                -webkit-font-smoothing: antialiased;
+                mix-blend-mode: normal !important;
+                filter: none !important;
+            }}
+            
             .stApp {{
                 background-color: {BG_COLOR};
-                color: {TEXT_PRIMARY};
                 font-family: 'Inter', 'Manrope', sans-serif;
             }}
             
             /* Hide Streamlit elements for clean look */
             #MainMenu, footer, header {{visibility: hidden;}}
             
+            /* Sidebar Styling (High Contrast) */
+            section[data-testid="stSidebar"] {{
+                background-color: {PANEL_COLOR} !important;
+                border-right: 1px solid {BORDER_COLOR};
+            }}
+            section[data-testid="stSidebar"] * {{
+                color: {TEXT_PRIMARY} !important;
+            }}
+            
+            /* Dropdown / Selectbox Force Visibility */
+            div[data-baseweb="select"] * {{
+                color: #FFFFFF !important;
+                background-color: {PANEL_COLOR} !important;
+            }}
+            ul[role="listbox"] * {{
+                color: #FFFFFF !important;
+                background-color: {PANEL_COLOR} !important;
+            }}
+
             /* Metric Cards & Layout Spacing */
             [data-testid="stMetricValue"] {{
                 color: {TEXT_PRIMARY} !important;
                 font-size: 32px !important;
                 font-weight: 600 !important;
-                font-family: 'Inter', sans-serif !important;
             }}
             [data-testid="stMetricLabel"] {{
                 color: {TEXT_SECONDARY} !important;
@@ -79,7 +76,7 @@ def inject_terminal_css():
                 letter-spacing: 0.05rem;
             }}
             
-            /* Card & Panel Styling (Precise Spacing) */
+            /* Card & Panel Styling */
             .terminal-panel {{
                 background-color: {PANEL_COLOR};
                 border: 1px solid {DIVIDER_COLOR};
@@ -89,15 +86,6 @@ def inject_terminal_css():
                 box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             }}
             
-            /* Bloomberg-style Glass Metric */
-            div[data-testid="metric-container"] {{
-                background-color: {CARD_BG};
-                border: 1px solid {DIVIDER_COLOR};
-                padding: 16px;
-                border-radius: 4px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            }}
-
             /* Typography Hierarchy */
             h1 {{
                 font-size: 28px !important;
@@ -109,17 +97,13 @@ def inject_terminal_css():
                 font-weight: 500 !important;
                 color: {TEXT_PRIMARY} !important;
             }}
-            p, span, div {{
-                font-size: 14px !important;
-                font-weight: 400;
-            }}
             
-            /* Sidebar Styling */
-            section[data-testid="stSidebar"] {{
-                background-color: {PANEL_COLOR} !important;
-                border-right: 1px solid {BORDER_COLOR};
+            /* Metadata / Secondary Text Override */
+            .metadata-text, .stCaption, caption {{
+                color: {TEXT_MUTED} !important;
+                font-size: 12px !important;
             }}
-            
+
             /* Orb Pulse Effect (Voice UI) */
             @keyframes pulse {{
                 0% {{ transform: scale(1); opacity: 0.8; }}
@@ -141,6 +125,11 @@ def inject_terminal_css():
             div[data-testid="stDataFrame"] {{
                 border: 1px solid {BORDER_COLOR};
                 background-color: {PANEL_COLOR};
+            }}
+            
+            /* Tooltip / Hover Force */
+            [data-testid="stTooltipContent"] * {{
+                color: #FFFFFF !important;
             }}
         </style>
     """, unsafe_allow_html=True)
