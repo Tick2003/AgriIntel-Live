@@ -16,11 +16,11 @@ from agents.forecast_execution import ForecastingAgent
 from agents.shock_monitoring import AnomalyDetectionEngine
 from agents.risk_scoring import MarketRiskEngine
 from agents.explanation_report import AIExplanationAgent
-from agents.arbitrage_engine import ArbitrageAgent # Restored
+from agents.arbitrage_engine import ArbitrageAgent
 from agents.intelligence_core import IntelligenceAgent
 from agents.user_profile import UserProfileAgent
 from agents.notification_service import NotificationService
-from agents.auth_manager import AuthAgent # New
+from agents.auth_manager import AuthAgent
 
 # New Modules
 from cv.grading_model import GradingModel
@@ -35,35 +35,31 @@ from app.voice_admin import show_voice_admin
 from app.terminal_theme import (
     inject_terminal_css, BG_COLOR, PANEL_COLOR, BORDER_COLOR, 
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_GREEN, ACCENT_AMBER, 
-    ACCENT_RED, ACCENT_BLUE, get_status_color
+    ACCENT_RED, ACCENT_BLUE, TEXT_MUTED, DIVIDER_COLOR, get_status_color
 )
 import importlib 
 import agents.decision_support
 import agents.risk_scoring
-# Force Reload to prevent Stale Module errors on Cloud
+# Force Reload
 importlib.reload(agents.decision_support)
 importlib.reload(agents.risk_scoring)
 from agents.decision_support import DecisionAgent
-from agents.risk_scoring import MarketRiskEngine
 
 # Page Config
 st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉")
 inject_terminal_css()
 
-# --- LANGUAGE SELECTOR ---
-col_lang, _ = st.sidebar.columns([10, 1]) # Place at top of sidebar
-with col_lang:
-    selected_lang = st.selectbox("🌐 Language / भाषा / ଭାଷା", ["English", "Hindi", "Odia"])
+# Load Lang Manager
+lang_manager = LanguageManager()
 
-# Load Lang Manager (Temp Access before full init just to translate title if needed, 
-# but usually we init agents later. Let's do a quick inline init for title or wait).
-# Better to init agents first. 
-# Re-ordering main.py slightly to init agents earlier is complex.
-# We will use the 'agents' dict later. For now, let's just proceed and using dynamic text.
+# --- TOP NAVIGATION (SIMULATED NAVBAR) ---
+st.markdown(f"""
+    <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.2 Terminal</span></div>
+        <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
+    </div>
+""", unsafe_allow_html=True)
 
-# Terminal Header
-st.title("AgriIntel.in | Tactical Intelligence Terminal")
-st.markdown(f"<p style='color:#A0A6AD; margin-top:-20px;'>Operational Market Intelligence • National Unified Stack • {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>", unsafe_allow_html=True)
 
 # --- INITIALIZE APP ---
 if 'db_initialized' not in st.session_state:
@@ -359,100 +355,117 @@ except Exception as e:
 # -------------------------------
 
 # Navigation
-nav_options = [
-    "AgriIntel (Dashboard)", "Forecast", "Risk", 
-    "Arbitrage", "Voice", "News", "Consultant"
-]
+nav_options = ["Dashboard", "Forecast", "Risk", "Arbitrage", "Voice", "News", "Consultant"]
 
 if user_role in ['Admin', 'Analyst']:
-    # Keep advanced features at the bottom
     nav_options += ["Quality Grading (CV)", "Logistics (Graph)", "Data Reliability"]
 
 page = st.sidebar.radio("Command Center", nav_options)
 
 
 # --- PAGE 1: DASHBOARD ---
-if page == "AgriIntel (Dashboard)":
-    st.header(f"Market Overview: {selected_commodity} in {selected_mandi}")
+if page == "Dashboard":
+    st.markdown(f"<h1>{selected_commodity} | {selected_mandi}</h1>", unsafe_allow_html=True)
     
-    # Weather Widget
-    weather_df = get_weather_data()
-    if not weather_df.empty:
-        w = weather_df.iloc[-1] 
-        st.info(f"⛈️ **Weather Alert**: {w['condition']} | Temp: {w['temperature']}°C | Rainfall: {w['rainfall']}mm")
-    
-    # --- STRATEGY SIGNAL ---
-    sig_color = decision_signal['color']
-    sig_text = decision_signal.get('signal_text', decision_signal['signal']) 
-    sig_reason = decision_signal['reason']
-    st.markdown(f"""
-        <div style="border-left: 4px solid {get_status_color(risk_info['risk_level'])}; padding-left: 15px; margin-bottom: 25px;">
-            <p style="color: {TEXT_SECONDARY}; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 0;">Operational Strategy</p>
-            <h2 style="margin: 0; color: {TEXT_PRIMARY};">{sig_text} | <span style="color: {get_status_color(risk_info['risk_level'])};">{risk_info['risk_level']} Risk</span></h2>
-            <p style="color: {TEXT_SECONDARY}; margin-top: 5px;">{sig_reason}</p>
-        </div>
-    """, unsafe_allow_html=True)
-    # ------------------------------
-
+    # 4-Metric Top Row
     col1, col2, col3, col4 = st.columns(4)
     if not data.empty:
         current_price = data['price'].iloc[-1]
-        
-        if len(data) >= 2:
-            prev_price = data['price'].iloc[-2]
-            delta = current_price - prev_price
-        else:
-            delta = 0.0
-
+        prev_price = data['price'].iloc[-2] if len(data) >= 2 else current_price
+        delta = current_price - prev_price
         col1.metric("Current Price", f"₹{current_price:,.0f}", f"{delta:+.2f}")
-        
-    # Forecast Metric (30d)
+    
     if not forecast_df.empty:
         f_price = forecast_df['forecast_price'].iloc[-1]
         f_delta = f_price - current_price
         col2.metric("30-Day Forecast", f"₹{f_price:,.0f}", f"{f_delta:+.2f}")
     
     col3.metric("Risk Score", f"{risk_info['risk_score']}/100", f"{risk_info['risk_level']}")
+    col4.metric("Market Regime", risk_info['regime'])
     
-    # Regime
-    regime = risk_info['regime']
-    col4.metric("Market Regime", regime)
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Tactical Monitoring: Price Action")
+    # Main Forecast Chart (Full Width)
+    with st.container():
+        st.subheader("Tactical Intelligence: Price Projection")
+        fig = go.Figure()
+        
+        # Historical Trace
+        fig.add_trace(go.Scatter(
+            x=data['date'].iloc[-60:], y=data['price'].iloc[-60:], 
+            mode='lines', name='Actual Price', 
+            line=dict(color=TEXT_PRIMARY, width=1.5)
+        ))
+        
+        # Forecast Trace
+        if not forecast_df.empty:
+            fig.add_trace(go.Scatter(
+                x=forecast_df['date'], y=forecast_df['forecast_price'], 
+                mode='lines', name='AI Projection', 
+                line=dict(color=ACCENT_BLUE, width=2, dash='dot')
+            ))
+            # Confidence Band
+            fig.add_trace(go.Scatter(
+                x=pd.concat([forecast_df['date'], forecast_df['date'][::-1]]),
+                y=pd.concat([forecast_df['upper_bound'], forecast_df['lower_bound'][::-1]]),
+                fill='toself', fillcolor='rgba(59, 130, 246, 0.1)',
+                line=dict(color='rgba(255,255,255,0)'), name='Confidence'
+            ))
+            
+        fig.update_layout(template="agriintel_terminal", height=450, showlegend=True)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
     
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=data['date'], y=data['price'], 
-        mode='lines', name='Price', 
-        line=dict(color='#E6E6E6', width=1.5)
-    ))
-    fig.update_layout(template="agriintel_terminal", hovermode="x unified", height=350)
-    st.plotly_chart(fig, use_container_width=True)
+    # Bottom Row: Two Columns (Risk vs Arbitrage)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Risk Decomposition")
+        if 'breakdown' in risk_info:
+            bd = risk_info['breakdown']
+            fig_pie = px.pie(
+                names=list(bd.keys()), values=list(bd.values()), 
+                hole=0.6, color_discrete_sequence=[ACCENT_BLUE, ACCENT_AMBER, "#4B5563"]
+            )
+            fig_pie.update_layout(template="agriintel_terminal", height=250, margin=dict(t=0, b=0, l=0, r=0))
+            st.plotly_chart(fig_pie, use_container_width=True)
+    
+    with c2:
+        st.subheader("Regional Arbitrage Scan")
+        if hasattr(db_manager, 'get_state_level_aggregation'):
+            state_df = db_manager.get_state_level_aggregation()
+            if not state_df.empty:
+                st.dataframe(state_df.head(5), use_container_width=True)
 
 # --- PAGE 2: FORECAST ---
 elif page == "Forecast":
-    st.header("Strategic Forecasting: 30-Day Projection")
+    st.markdown("<h1>Strategic Forecasting: 30-Day Projection</h1>", unsafe_allow_html=True)
     
-    # 1. Plot
+    # 1. Main Forecast Plot
     fig = go.Figure()
-    # Historical
+    
+    # Historical Trace
     fig.add_trace(go.Scatter(
         x=data['date'].iloc[-30:], y=data['price'].iloc[-30:], 
         mode='lines', name='Historical', 
-        line=dict(color='#666666', width=1)
+        line=dict(color=TEXT_MUTED, width=1.5)
     ))
-    fig.add_trace(go.Scatter(x=forecast_df['date'], y=forecast_df['forecast_price'], mode='lines', name='Forecast', line_shape='spline', line=dict(dash='dash', color='#00C853', width=2)))
+    
+    # AI Forecast Trace
+    fig.add_trace(go.Scatter(
+        x=forecast_df['date'], y=forecast_df['forecast_price'], 
+        mode='lines', name='AI Forecast', 
+        line=dict(color=ACCENT_BLUE, width=2, dash='dot')
+    ))
+    
+    # Confidence Interval
     fig.add_trace(go.Scatter(
         x=pd.concat([forecast_df['date'], forecast_df['date'][::-1]]),
         y=pd.concat([forecast_df['upper_bound'], forecast_df['lower_bound'][::-1]]),
-        fill='toself',
-        fillcolor='rgba(0, 200, 83, 0.15)', # Matches forecast green
-        line=dict(color='rgba(255,255,255,0)'),
-        name='Confidence Interval'
+        fill='toself', fillcolor='rgba(59, 130, 246, 0.08)',
+        line=dict(color='rgba(255,255,255,0)'), name='Confidence band'
     ))
-    fig.update_layout(template="agriintel_terminal", hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
+    
+    fig.update_layout(template="agriintel_terminal", height=400, showlegend=True)
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
     
     # 2. Profit Analytics (NEW)
     st.markdown("---")
@@ -511,10 +524,9 @@ elif page == "Forecast":
 
 # --- PAGE 3: RISK ---
 elif page == "Risk":
-    st.header("Risk Assessment & Shock Monitoring")
+    st.markdown("<h1>Risk Assessment & Shock Monitoring</h1>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("Market Risk Decomposition")
         score = risk_info['risk_score']
@@ -523,15 +535,16 @@ elif page == "Risk":
             value = score,
             number = {'font': {'color': TEXT_PRIMARY, 'size': 36}},
             gauge = {
-                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': BORDER_COLOR},
-                'bar': {'color': "#3B82F6", 'thickness': 0.2},
+                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': DIVIDER_COLOR},
+                'bar': {'color': ACCENT_BLUE, 'thickness': 0.25},
                 'bgcolor': "rgba(0,0,0,0)",
-                'borderwidth': 0,
+                'borderwidth': 2,
+                'bordercolor': "rgba(59,130,246,0.4)",
                 'steps': [
-                    {'range': [0, 30], 'color': "#064E3B"},
-                    {'range': [30, 70], 'color': "#78350F"},
-                    {'range': [70, 100], 'color': "#7F1D1D"}],
-                'threshold': {'line': {'color': TEXT_PRIMARY, 'width': 2}, 'thickness': 0.75, 'value': score}}))
+                    {'range': [0, 30], 'color': "rgba(61, 220, 132, 0.2)"},
+                    {'range': [30, 70], 'color': "rgba(255, 176, 32, 0.2)"},
+                    {'range': [70, 100], 'color': "rgba(255, 77, 79, 0.2)"}]
+            }))
         fig.update_layout(template="agriintel_terminal", height=300)
         st.plotly_chart(fig, use_container_width=True)
         st.info(f"Risk Level: **{risk_info['risk_level']}**")
@@ -563,64 +576,43 @@ elif page == "Risk":
 
 # --- PAGE 4: ARBITRAGE ---
 elif page == "Arbitrage":
-    st.header("📊 Compare Markets & Arbitrage")
+    st.markdown("<h1>Compare Markets & Arbitrage Analysis</h1>", unsafe_allow_html=True)
     
-    # 1. Arbitrage Analysis (NEW)
-    st.subheader("🚛 Regional Arbitrage Opportunities")
-    st.caption(f"Finding profit opportunities for **{selected_commodity}** starting from **{selected_mandi}**")
+    # Performance Optimized Regional Scan
+    st.markdown("<div class='terminal-panel'>", unsafe_allow_html=True)
+    st.subheader(f"Strategy Scan: {selected_commodity} Regional Corridor")
+    st.caption(f"Base Origin: {selected_mandi} | Scan Depth: Cluster A")
     
-    with st.expander("🛠️ logistics Cost Configuration", expanded=False):
-        c1, c2, c3, c4 = st.columns(4)
-        in_fuel = c1.number_input("Fuel (₹/km/Qt)", value=0.02, format="%.3f")
-        in_toll = c2.number_input("Toll (₹/Trip)", value=200)
-        in_labor = c3.number_input("Labor (₹/Qt)", value=100)
-        in_spoil = c4.number_input("Spoilage (%)", value=0.05, format="%.2f")
-        
-        cost_cfg = {
-            "fuel_rate": in_fuel, 
-            "toll": in_toll, 
-            "labor": in_labor, 
-            "spoilage": in_spoil
-        }
-    
-    with st.spinner("Scanning regional markets..."):
-        # Fetch data for current commodity across ALL mandis
-        # We limit to first 10 mandis for demo speed if list is long
-        scan_mandis = db_mandis[:10] if len(db_mandis) > 10 else db_mandis
-        
+    with st.spinner("Executing tactical scan..."):
+        # Fetch snapshot for scan
+        scan_mandis = db_mandis[:12] if len(db_mandis) > 12 else db_mandis
         snapshot_df = fetch_arbitrage_snapshot(selected_commodity, scan_mandis)
         
         if not snapshot_df.empty:
-            try:
-                arb_df = agents['arbitrage'].find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info, cost_cfg)
-            except TypeError:
-                # Handle Stale Cache: Old find_opportunities signature call failed
-                # Reload module and re-instantiate
-                import importlib
-                import agents.arbitrage_engine
-                importlib.reload(agents.arbitrage_engine)
-                from agents.arbitrage_engine import ArbitrageAgent
-                
-                # Re-run with new agent
-                temp_agent = ArbitrageAgent()
-                arb_df = temp_agent.find_opportunities(selected_commodity, selected_mandi, snapshot_df, shock_info, cost_cfg)
+            arb_res = agents['arbitrage'].find_opportunities(
+                selected_commodity, selected_mandi, snapshot_df, shock_info, {}
+            )
             
-            if not arb_df.empty:
-                st.success(f"Execution Ready: {len(arb_df)} Arbitrage Opportunities Detected")
-                # Format for display
-                disp_cols = ['Target Mandi', 'Distance (km)', 'Net Profit/Qt', 'Profit (Bear Case)', 'Confidence']
-                st.dataframe(arb_df[disp_cols].style.format({
-                    'Net Profit/Qt': '₹{:.2f}',
-                    'Profit (Bear Case)': '₹{:.2f}',
-                    'Distance (km)': '{:.0f} km'
-                }), use_container_width=True)
+            if not arb_res.empty:
+                # Column selection for terminal view
+                disp_cols = ['Target Mandi', 'Potential Profit', 'Spread', 'Distance (km)']
+                
+                # Institutional Styling
+                st.dataframe(
+                    arb_res[disp_cols].style.format({
+                        "Potential Profit": "₹{:.0f}",
+                        "Spread": "₹{:.2f}"
+                    }).map(
+                        lambda x: f"color: {ACCENT_GREEN}; font-weight: 600" if isinstance(x, (float, int)) and x > 500 else "",
+                        subset=["Potential Profit"]
+                    ), 
+                    use_container_width=True
+                )
             else:
-                if shock_info['is_shock']:
-                    st.warning("⚠️ Market is currently undergoing a shock. Arbitrage scanning is disabled to prevent risky trades.")
-                else:
-                    st.info("No significant price gaps found (> ₹50 + transport) for this commodity.")
+                st.info("No arbitrage signals above the risk-adjusted threshold detected.")
         else:
-            st.warning("Insufficient regional data for arbitrage.")
+            st.warning("Cluster data temporarily unavailable for this corridor.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("⚔️ Head-to-Head Comparison")
@@ -636,17 +628,24 @@ elif page == "Arbitrage":
         m2 = st.selectbox("Mandi 2", db_mandis, key="m2", index=1 if len(db_mandis) > 1 else 0)
         data2 = get_live_data(c2, m2)
     
-    st.subheader("Price Comparison")
-    
+    st.subheader("Price Comparison Matrix")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data1['date'], y=data1['price'], mode='lines+markers', name=f"{c1} ({m1})", line_shape='spline'))
-    fig.add_trace(go.Scatter(x=data2['date'], y=data2['price'], mode='lines+markers', name=f"{c2} ({m2})", line_shape='spline'))
-    fig.update_layout(template="agriintel_terminal", hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
+    fig.add_trace(go.Scatter(
+        x=data1['date'], y=data1['price'], 
+        mode='lines', name=f"{c1}", 
+        line=dict(color=TEXT_PRIMARY, width=1.5)
+    ))
+    fig.add_trace(go.Scatter(
+        x=data2['date'], y=data2['price'], 
+        mode='lines', name=f"{c2}", 
+        line=dict(color=ACCENT_BLUE, width=1.5, dash='dot')
+    ))
+    fig.update_layout(template="agriintel_terminal", hovermode="x unified", transition_duration=0)
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 # --- PAGE: NEWS (Intelligence Feed) ---
 elif page == "News":
-    st.header("Intelligence Feed: Global Agri-Sentiment")
+    st.markdown("<h1>Intelligence Feed: Global Agri-Sentiment</h1>", unsafe_allow_html=True)
     
     news_df = get_news_feed() 
     if not news_df.empty:
@@ -664,7 +663,7 @@ elif page == "News":
 
 # --- MODEL PERFORMANCE ---
 elif page == "Model Performance":
-    st.header("📊 Model Performance & Evaluation")
+    st.markdown("<h1>Model Performance & Evaluation</h1>", unsafe_allow_html=True)
     
     # 1. Real-World Tracking (New Phase 7)
     st.subheader("📈 Real-World Accuracy Tracking")
@@ -706,12 +705,16 @@ elif page == "Model Performance":
             
             if not track_df.empty:
                 fig_perf = go.Figure()
-                fig_perf.add_trace(go.Scatter(x=track_df['target_date'], y=track_df['actual_price'], name='Actual', line=dict(color='black', width=2)))
-                fig_perf.add_trace(go.Scatter(x=track_df['target_date'], y=track_df['predicted_price'], name='Predicted', line=dict(color='green', dash='dot')))
-                
-                # Error Bars (optional, or just difference)
-                fig_perf.update_layout(title="Prediction Accuracy Over Time", template="agriintel_terminal")
-                st.plotly_chart(fig_perf, use_container_width=True)
+                fig_perf.add_trace(go.Scatter(
+                    x=track_df['target_date'], y=track_df['actual_price'], 
+                    name='Truth', line=dict(color=TEXT_PRIMARY, width=1.5)
+                ))
+                fig_perf.add_trace(go.Scatter(
+                    x=track_df['target_date'], y=track_df['predicted_price'], 
+                    name='Projection', line=dict(color=ACCENT_BLUE, width=1.5, dash='dot')
+                ))
+                fig_perf.update_layout(template="agriintel_terminal", transition_duration=0)
+                st.plotly_chart(fig_perf, use_container_width=True, config={'displayModeBar': False})
                 
         else:
             st.info("No tracking data available yet. Metrics will appear after the next daily update.")
@@ -765,23 +768,30 @@ elif page == "Model Performance":
         
         st.info(f"**Evaluation on Hidden Test Set**: We hid the last 30 days of data and asked the AI to predict them. The chart below proves if the AI beat the market.")
         
-        # 7. Plot Comparison (Smooth & Professional)
+        # 7. Plot Comparison (Smooth & Institutional)
         dates_eval = test_data['date'].values[:min_len]
         
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=dates_eval, y=actuals, mode='lines+markers', name='Actual Price (Truth)', line_shape='spline', line=dict(color='gray', width=3)))
-        fig.add_trace(go.Scatter(x=dates_eval, y=ml_preds, mode='lines+markers', name='AI Forecast', line_shape='spline', line=dict(color='#00C853', width=3, dash='solid')))
-        fig.add_trace(go.Scatter(x=dates_eval, y=baseline_preds, mode='lines+markers', name='Naive Baseline', line_shape='spline', line=dict(color='#FF5252', width=2, dash='dot')))
+        fig.add_trace(go.Scatter(
+            x=dates_eval, y=actuals, 
+            mode='lines', name='Truth', 
+            line=dict(color=TEXT_MUTED, width=1.5)
+        ))
+        fig.add_trace(go.Scatter(
+            x=dates_eval, y=ml_preds, 
+            mode='lines', name='AI Model', 
+            line=dict(color=ACCENT_BLUE, width=2)
+        ))
         
-        fig.update_layout(template="agriintel_terminal", hovermode="x unified", title="Backtest Verification: AI vs Reality")
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(template="agriintel_terminal", hovermode="x unified", transition_duration=0)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         
     else:
         st.warning("Not enough historical data to run a full 30-day backtest evaluation.")
 
 # --- PAGE: CONSULTANT (Analytical Intelligence) ---
 elif page == "Consultant":
-    st.header("Analytical Intelligence: Strategic Consultant")
+    st.markdown("<h1>Analytical Intelligence: Strategic Consultant</h1>", unsafe_allow_html=True)
     st.markdown(f"""
         <div class='terminal-panel'>
             <h3 style='color:{ACCENT_BLUE};'>Market Intelligence Report</h3>
@@ -822,7 +832,7 @@ elif page == "Consultant":
 
 # --- PAGE: QUALITY GRADING (CV) ---
 elif page == "Quality Grading (CV)":
-    st.header("Structural Quality Analytics (Phase II)")
+    st.markdown("<h1>Structural Quality Analytics</h1>", unsafe_allow_html=True)
     st.write("Upload visual data for institutional grading (Grade A/B/C).")
     
     grader = GradingModel()
@@ -862,7 +872,7 @@ elif page == "Quality Grading (CV)":
                     
 # --- PAGE: LOGISTICS (GRAPH ALGO) ---
 elif page == "Logistics (Graph)":
-    st.header("Network Supply Optimization")
+    st.markdown("<h1>Network Supply Optimization</h1>", unsafe_allow_html=True)
     st.write("Find the most profitable market to sell at, accounting for transport costs.")
     
     mg = get_demo_graph()
@@ -910,8 +920,8 @@ elif page == "Logistics (Graph)":
 
 # --- PAGE: VOICE (PREMIUM) ---
 elif page == "Voice":
-    st.header("Strategic Voice Gateway")
-    st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'>Strategic Voice Gateway</h1>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True)
     
     # Pulse Orb Container
     cols = st.columns([1, 2, 1])
@@ -919,25 +929,31 @@ elif page == "Voice":
         st.markdown("<div class='voice-orb'></div>", unsafe_allow_html=True)
         
         # State Indicators
-        if "listening" not in st.session_state: st.session_state.listening = False
+        if "voice_state" not in st.session_state: st.session_state.voice_state = "Idle"
+        
+        state_colors = {"Idle": TEXT_MUTED, "Listening": ACCENT_GREEN, "Processing": ACCENT_BLUE, "Responding": ACCENT_AMBER}
+        current_state = st.session_state.voice_state
+        
+        st.markdown(f"<p style='text-align:center; color:{state_colors.get(current_state)}; font-weight:500; font-size:18px;'>{current_state}...</p>", unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns([1, 1, 1])
         if c2.button("🎤 ACTIVATE", use_container_width=True):
-            st.session_state.listening = not st.session_state.listening
+            if st.session_state.voice_state == "Idle":
+                st.session_state.voice_state = "Listening"
+            else:
+                st.session_state.voice_state = "Idle"
+            st.rerun()
             
-        if st.session_state.listening:
-            st.markdown("<p style='text-align:center; color:#3DDC84; font-weight:bold;'>LISTENING...</p>", unsafe_allow_html=True)
-            # Mock transcript
-            st.info("**Transcript**: 'AgriIntel, what is the arbitrage opportunity for Tomato today?'")
+        if st.session_state.voice_state == "Listening":
+            st.info("**Live Transcript**: 'AgriIntel, what is the arbitrage opportunity for Tomato today?'")
     
     st.markdown("<br><br>", unsafe_allow_html=True)
-    st.subheader("Operational Logs: Tactical Dialogue")
+    st.subheader("Tactical Dialogue: Operational Logs")
     
-    # Display simplified transcript log
+    # Clean Transcript Log
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     
     for chat in reversed(st.session_state.chat_history):
-        color = "#E6E6E6" if chat['role'] == 'user' else "#3B82F6"
         role_label = "USER" if chat['role'] == 'user' else "AGRIINTEL"
         st.markdown(f"**{role_label}**: `{chat['msg']}`")
 
