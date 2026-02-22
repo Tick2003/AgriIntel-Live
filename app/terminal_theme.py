@@ -19,118 +19,135 @@ ACCENT_RED = "#FF4D4F"
 ACCENT_BLUE = "#3B82F6"
 ACCENT_GLOW = "rgba(59,130,246,0.15)"
 
-# ... (Plotly template remains similar, but using TEXT_SECONDARY for ticks)
+# --- PLOTLY TERMINAL THEME (BLOOMBERG STYLE) ---
+terminal_template = go.layout.Template()
+terminal_template.layout = go.Layout(
+    plot_bgcolor="#111315", # Explicitly forced
+    paper_bgcolor="#111315",
+    font=dict(color="#E6E6E6", family="Inter, Manrope, sans-serif", size=12),
+    xaxis=dict(
+        showgrid=True, 
+        gridcolor="rgba(255, 255, 255, 0.05)", 
+        gridwidth=0.5,
+        linecolor=BORDER_COLOR, 
+        zeroline=False,
+        tickfont=dict(size=10, color="#A0A6AD")
+    ),
+    yaxis=dict(
+        showgrid=True, 
+        gridcolor="rgba(255, 255, 255, 0.05)", 
+        gridwidth=0.5,
+        linecolor=BORDER_COLOR, 
+        zeroline=False,
+        tickfont=dict(size=10, color="#A0A6AD")
+    ),
+    margin=dict(l=40, r=20, t=40, b=40),
+    hoverlabel=dict(bgcolor=PANEL_COLOR, font_size=12, font_family="Inter"),
+    showlegend=True,
+    legend=dict(font=dict(size=10, color="#A0A6AD"), bgcolor="rgba(0,0,0,0)")
+)
+pio.templates["agriintel_terminal"] = terminal_template
 
 def inject_terminal_css():
-    """Injects high-performance institutional terminal CSS with forced visibility."""
+    """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap');
 
-            /* --- GLOBAL VISIBILITY OVERRIDE --- */
+            /* --- TOTAL VISIBILITY ENFORCEMENT --- */
             * {{
                 color: {TEXT_PRIMARY} !important;
                 -webkit-font-smoothing: antialiased;
-                mix-blend-mode: normal !important;
-                filter: none !important;
             }}
             
             .stApp {{
-                background-color: {BG_COLOR};
+                background-color: {BG_COLOR} !important;
                 font-family: 'Inter', 'Manrope', sans-serif;
             }}
             
-            /* Hide Streamlit elements for clean look */
-            #MainMenu, footer, header {{visibility: hidden;}}
-            
-            /* Sidebar Styling (High Contrast) */
-            section[data-testid="stSidebar"] {{
-                background-color: {PANEL_COLOR} !important;
-                border-right: 1px solid {BORDER_COLOR};
+            /* Metric Labels (The light grey ones in screenshot) */
+            [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {{
+                color: #A0A6AD !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                text-transform: uppercase !important;
             }}
-            section[data-testid="stSidebar"] * {{
+            
+            /* Sidebar Label & Metadata Visibility */
+            section[data-testid="stSidebar"] label, 
+            section[data-testid="stSidebar"] .stCaption,
+            section[data-testid="stSidebar"] p,
+            section[data-testid="stSidebar"] span {{
                 color: {TEXT_PRIMARY} !important;
-            }}
-            
-            /* Dropdown / Selectbox Force Visibility */
-            div[data-baseweb="select"] * {{
-                color: #FFFFFF !important;
-                background-color: {PANEL_COLOR} !important;
-            }}
-            ul[role="listbox"] * {{
-                color: #FFFFFF !important;
-                background-color: {PANEL_COLOR} !important;
+                font-weight: 500 !important;
             }}
 
-            /* Metric Cards & Layout Spacing */
+            /* Selectbox/Dropdown Labels */
+            [data-testid="stWidgetLabel"] p, label p, label {{
+                color: {TEXT_PRIMARY} !important;
+                font-size: 14px !important;
+            }}
+            
+            /* Sidebar Success/Info Background Fix */
+            [data-testid="stSidebar"] [data-testid="stNotification"] {{
+                background-color: rgba(25, 28, 33, 0.8) !important;
+                border: 1px solid {BORDER_COLOR} !important;
+            }}
+
+            /* Button Styling (Total Overhaul) */
+            button, .stButton > button {{
+                background-color: #1A1D21 !important;
+                color: {TEXT_PRIMARY} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                border-radius: 4px !important;
+                font-weight: 600 !important;
+                transition: all 0.2s ease !important;
+            }}
+            button:hover {{
+                border-color: {ACCENT_BLUE} !important;
+                background-color: #1F2329 !important;
+            }}
+            
+            /* Metric Values */
             [data-testid="stMetricValue"] {{
                 color: {TEXT_PRIMARY} !important;
                 font-size: 32px !important;
                 font-weight: 600 !important;
             }}
-            [data-testid="stMetricLabel"] {{
-                color: {TEXT_SECONDARY} !important;
-                font-size: 13px !important;
-                font-weight: 400 !important;
-                text-transform: uppercase;
-                letter-spacing: 0.05rem;
-            }}
             
             /* Card & Panel Styling */
             .terminal-panel {{
-                background-color: {PANEL_COLOR};
-                border: 1px solid {DIVIDER_COLOR};
-                border-radius: 4px;
-                padding: 24px;
-                margin-bottom: 16px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            }}
-            
-            /* Typography Hierarchy */
-            h1 {{
-                font-size: 28px !important;
-                font-weight: 600 !important;
-                color: {TEXT_PRIMARY} !important;
-            }}
-            h2, h3 {{
-                font-size: 20px !important;
-                font-weight: 500 !important;
-                color: {TEXT_PRIMARY} !important;
-            }}
-            
-            /* Metadata / Secondary Text Override */
-            .metadata-text, .stCaption, caption {{
-                color: {TEXT_MUTED} !important;
-                font-size: 12px !important;
+                background-color: {PANEL_COLOR} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                padding: 24px !important;
+                border-radius: 4px !important;
             }}
 
-            /* Orb Pulse Effect (Voice UI) */
-            @keyframes pulse {{
-                0% {{ transform: scale(1); opacity: 0.8; }}
-                50% {{ transform: scale(1.05); opacity: 1; }}
-                100% {{ transform: scale(1); opacity: 0.8; }}
-            }}
-            .voice-orb {{
-                width: 120px;
-                height: 120px;
-                background: radial-gradient(circle, {ACCENT_BLUE} 0%, #1D4ED8 100%);
-                border: 2px solid rgba(59,130,246,0.4);
-                border-radius: 50%;
-                margin: 40px auto;
-                animation: pulse 2.5s infinite ease-in-out;
-                box-shadow: 0 0 25px {ACCENT_GLOW};
+            /* Typography Hierarchy */
+            h1, h2, h3, .main-title, .section-header {{
+                color: {TEXT_PRIMARY} !important;
+                font-weight: 600 !important;
             }}
             
-            /* Table Styling */
-            div[data-testid="stDataFrame"] {{
-                border: 1px solid {BORDER_COLOR};
-                background-color: {PANEL_COLOR};
+            /* Data Source / Captions Visibility */
+            .stCaption, caption, .metadata-text {{
+                color: #A0A6AD !important;
+                font-size: 13px !important;
             }}
             
-            /* Tooltip / Hover Force */
-            [data-testid="stTooltipContent"] * {{
-                color: #FFFFFF !important;
+            /* Chart Background Force (If iframe) */
+            .user-select-none {{
+                background-color: {BG_COLOR} !important;
             }}
+            
+            /* Expander Fix (Personalization) */
+            [data-testid="stExpander"] {{
+                background-color: #1A1D21 !important;
+                border: 1px solid {BORDER_COLOR} !important;
+            }}
+
+            /* Hide Streamlit components */
+            #MainMenu, footer, header {{visibility: hidden !important;}}
         </style>
     """, unsafe_allow_html=True)
 
