@@ -8,6 +8,7 @@ DB_NAME = "agri_intel.db"
 def init_db():
     """Initialize the database with necessary tables."""
     conn = sqlite3.connect(DB_NAME)
+    conn.execute("PRAGMA journal_mode=WAL;")
     c = conn.cursor()
     
     # Table: Market Prices

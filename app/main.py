@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import sys
 import os
 from datetime import datetime
+import threading
 
 # Add root directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -99,16 +100,22 @@ st.sidebar.header("Configuration")
 
 # Debug / Manual Update
 if st.sidebar.button("🔄 Force Data Update"):
-    with st.spinner("Forcing data update..."):
+    if not st.session_state.get('update_in_progress', False):
         import etl.data_loader
-        importlib.reload(etl.data_loader)
-        importlib.reload(db_manager)
-        etl.data_loader.run_daily_update()
-        db_manager.set_last_update()
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        st.success("Update Complete!")
-        st.rerun()
+        def manual_background_update():
+            try:
+                etl.data_loader.run_daily_update()
+                db_manager.set_last_update()
+            except Exception as e:
+                print(f"Manual Update Failed: {e}")
+            finally:
+                st.session_state['update_in_progress'] = False
+
+        threading.Thread(target=manual_background_update, daemon=True).start()
+        st.session_state['update_in_progress'] = True
+        st.sidebar.success("Update triggered in background!")
+    else:
+        st.sidebar.warning("Update already in progress...")
 
 last_db_update = db_manager.get_last_update()
 if last_db_update:
@@ -171,37 +178,29 @@ else:
         pass
 
 if should_update:
-    import time
-    try:
-        # Progress UI
-        st.info("🚀 New data available! Updating market intelligence...")
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+    # Background Update Handler
+    if 'update_in_progress' not in st.session_state:
+        st.session_state['update_in_progress'] = False
+
+    if not st.session_state['update_in_progress']:
+        st.sidebar.info("🚀 Background Update Started. The terminal will remain functional.")
         
-        def update_progress(p, text):
-            # Ensure p is float between 0.0 and 1.0
-            p = min(max(float(p), 0.0), 1.0)
-            progress_bar.progress(p)
-            status_text.markdown(f"**{text}**")
-            
-        # Hot-fix: Force reload module to prevent Stale Module Error on Streamlit Cloud
-        import importlib
-        import database.db_manager as db_manager
-        import etl.data_loader
-        importlib.reload(db_manager)
-        importlib.reload(etl.data_loader)
-        
-        etl.data_loader.run_daily_update(progress_callback=update_progress)
-        
-        status_text.success("✅ Update Complete!")
-        time.sleep(1)
-        st.cache_resource.clear()
-        st.rerun()
-    except Exception as e:
-        import traceback
-        st.error(f"Auto-update failed: {e}")
-        st.code(traceback.format_exc())
-        print(f"Update Error: {e}")
+        def background_update():
+            import etl.data_loader
+            try:
+                etl.data_loader.run_daily_update()
+                db_manager.set_last_update() 
+            except Exception as e:
+                print(f"Background Update Failed: {e}")
+            finally:
+                st.session_state['update_in_progress'] = False
+
+        update_thread = threading.Thread(target=background_update, daemon=True)
+        update_thread.start()
+        st.session_state['update_in_progress'] = True
+
+if st.session_state.get('update_in_progress', False):
+    st.sidebar.warning("⏳ Intelligence Swarm is active in the background. Latest data will appear incrementally.")
 # -------------------------
 
 # Initialize Agents
