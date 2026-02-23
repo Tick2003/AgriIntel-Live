@@ -306,7 +306,7 @@ def suppress_output():
         with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
             yield
 
-def run_daily_update(progress_callback=None):
+def run_daily_update(progress_callback=None, skip_swarm=False):
     """
     Runs the full ETL pipeline with Robustness (Logs, Partial Updates, Duration).
     """
@@ -402,6 +402,10 @@ def run_daily_update(progress_callback=None):
         dbm.log_system_event("ERROR", "ETL", f"Weather Fetch Failed: {e}")
     
     # 4. Intelligence Processing (ML + Risk + Decision)
+    if skip_swarm:
+        print("Fast Mode: Skipping Intelligence Swarm.")
+        return
+
     print("Running Intelligence Swarm (Forecast + Risk + Decision)...")
     if progress_callback:
         progress_callback(0.25, "Starting Intelligence Swarm...")

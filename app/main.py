@@ -61,7 +61,7 @@ lang_manager = LanguageManager()
 # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
-        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.2 Terminal</span></div>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.3-HOTFIX Terminal</span></div>
         <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
     </div>
 """, unsafe_allow_html=True)
@@ -100,20 +100,25 @@ st.sidebar.header("Configuration")
 
 # Debug / Manual Update
 if st.sidebar.button("🔄 Force Data Update"):
-    if not st.session_state.get('update_in_progress', False):
-        import etl.data_loader
-        def manual_background_update():
-            try:
-                etl.data_loader.run_daily_update()
-                db_manager.set_last_update()
-            except Exception as e:
-                print(f"Manual Update Failed: {e}")
-            finally:
-                st.session_state['update_in_progress'] = False
+    if not os.path.exists(LOCK_FILE):
+        try:
+            with open(LOCK_FILE, "w") as f: f.write(str(datetime.now()))
+            import etl.data_loader
+            def manual_background_update():
+                try:
+                    etl.data_loader.run_daily_update(skip_swarm=False)
+                    db_manager.set_last_update()
+                except Exception as e:
+                    print(f"Manual Update Failed: {e}")
+                finally:
+                    if os.path.exists(LOCK_FILE):
+                        os.remove(LOCK_FILE)
 
-        threading.Thread(target=manual_background_update, daemon=True).start()
-        st.session_state['update_in_progress'] = True
-        st.sidebar.success("Update triggered in background!")
+            threading.Thread(target=manual_background_update, daemon=True).start()
+            st.sidebar.success("Update triggered in background!")
+        except Exception as e:
+            if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
+            st.sidebar.error(f"Manual trigger failed: {e}")
     else:
         st.sidebar.warning("Update already in progress...")
 
@@ -129,78 +134,67 @@ db_commodities, db_mandis = get_db_options()
 selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
-# --- AUTO-UPDATE LOGIC ---
-from datetime import datetime
-import etl.data_loader
-import database.db_manager as db_manager
+# --- AUTO-UPDATE LOGIC (v1.3-HOTFIX) ---
+LOCK_FILE = ".update.lock"
 
-# Ensure DB is initialized and migrated
+# Ensure DB is initialized
 try:
     db_manager.init_db()
 except Exception as e:
     print(f"DB Init failed: {e}")
 
 try:
-    if hasattr(db_manager, 'get_last_update'):
-        last_update_str = db_manager.get_last_update()
-    else:
-        # Fallback if function is missing (e.g. old cached version)
-        print("Warning: get_last_update not found in db_manager")
-        last_update_str = None
+    last_update_str = db_manager.get_last_update() if hasattr(db_manager, 'get_last_update') else None
 except Exception as e:
-    print(f"Auto-update check failed: {e}")
     last_update_str = None
-should_update = False
 
+should_update = False
 if not last_update_str:
     should_update = True
 else:
-    # Robust parsing of last_update_str
     last_update = None
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
         try:
             last_update = datetime.strptime(last_update_str, fmt)
             break
-        except ValueError:
-            continue
-            
+        except: continue
     if not last_update or (datetime.now() - last_update).total_seconds() > 6 * 3600:
         should_update = True
-    
-    # Check for Sparse Data (e.g. only 1 row) -> Force Update to Seed History
-    try:
-        # Quick check on a default commodity
-        test_df = db_manager.get_latest_prices("Potato")
-        if not test_df.empty and len(test_df) < 5:
-            should_update = True
-            print("Force updating due to sparse data...")
-    except:
-        pass
 
 if should_update:
-    # Background Update Handler
-    if 'update_in_progress' not in st.session_state:
-        st.session_state['update_in_progress'] = False
-
-    if not st.session_state['update_in_progress']:
-        st.sidebar.info("🚀 Background Update Started. The terminal will remain functional.")
-        
-        def background_update():
+    if not os.path.exists(LOCK_FILE):
+        st.sidebar.info("🚀 Data Outdated. Running fast update...")
+        try:
+            # Create Lock
+            with open(LOCK_FILE, "w") as f: f.write(str(datetime.now()))
+            
+            # 1. Sync Fast Update (Downloads data, skips 2-hour swarm)
             import etl.data_loader
-            try:
-                etl.data_loader.run_daily_update()
-                db_manager.set_last_update() 
-            except Exception as e:
-                print(f"Background Update Failed: {e}")
-            finally:
-                st.session_state['update_in_progress'] = False
+            etl.data_loader.run_daily_update(skip_swarm=True)
+            db_manager.set_last_update() # Set timestamp so we don't trigger again immediately
+            
+            # 2. Async Full Swarm (Runs the 2-hour loop in background)
+            def full_swarm_background():
+                try:
+                    import etl.data_loader
+                    etl.data_loader.run_daily_update(skip_swarm=False)
+                except Exception as e:
+                    print(f"Background Swarm Failed: {e}")
+                finally:
+                    if os.path.exists(LOCK_FILE):
+                        os.remove(LOCK_FILE)
 
-        update_thread = threading.Thread(target=background_update, daemon=True)
-        update_thread.start()
-        st.session_state['update_in_progress'] = True
+            threading.Thread(target=full_swarm_background, daemon=True).start()
+            st.sidebar.success("Fast Update Complete! Intelligence Swarm running in background.")
+            st.rerun()
+        except Exception as e:
+            if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
+            st.sidebar.error(f"Update failed: {e}")
+    else:
+        st.sidebar.warning("⏳ Intelligence Swarm is active (started by another session).")
 
-if st.session_state.get('update_in_progress', False):
-    st.sidebar.warning("⏳ Intelligence Swarm is active in the background. Latest data will appear incrementally.")
+if os.path.exists(LOCK_FILE):
+    st.sidebar.caption("💡 Note: Market intelligence is being recalculated in the background.")
 # -------------------------
 
 # Initialize Agents
