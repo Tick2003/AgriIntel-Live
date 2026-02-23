@@ -306,9 +306,9 @@ def suppress_output():
         with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
             yield
 
-def run_daily_update(progress_callback=None, skip_swarm=False):
+def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
     """
-    Runs the full ETL pipeline with Robustness (Logs, Partial Updates, Duration).
+    v1.6-RECOVERY: Supports skip_swarm and ignore extra kwargs for robustness.
     """
     start_time = time.time()
     dbm.log_system_event("INFO", "ETL", "Daily Update Started")

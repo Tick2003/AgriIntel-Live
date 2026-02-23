@@ -61,7 +61,7 @@ lang_manager = LanguageManager()
 # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
-        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.4-ULTRA Terminal</span></div>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_AMBER}; font-size: 14px;'>v1.6-RECOVERY Terminal</span></div>
         <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
     </div>
 """, unsafe_allow_html=True)
@@ -134,67 +134,54 @@ db_commodities, db_mandis = get_db_options()
 selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
-# --- AUTO-UPDATE LOGIC (v1.3-HOTFIX) ---
+# --- AUTO-UPDATE LOGIC (v1.5-FINAL-HOTFIX) ---
 LOCK_FILE = ".update.lock"
 
-# Ensure DB is initialized
-try:
-    db_manager.init_db()
-except Exception as e:
-    print(f"DB Init failed: {e}")
+# Force DB Init early
+db_manager.init_db()
 
-try:
-    last_update_str = db_manager.get_last_update() if hasattr(db_manager, 'get_last_update') else None
-except Exception as e:
-    last_update_str = None
-
+# Check for staleness silently
 should_update = False
-if not last_update_str:
+last_up = db_manager.get_last_update()
+if not last_up:
     should_update = True
 else:
-    last_update = None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-        try:
-            last_update = datetime.strptime(last_update_str, fmt)
-            break
-        except: continue
-    if not last_update or (datetime.now() - last_update).total_seconds() > 6 * 3600:
+    try:
+        dt = datetime.strptime(last_up, "%Y-%m-%d %H:%M:%S")
+        if (datetime.now() - dt).total_seconds() > 6 * 3600:
+            should_update = True
+    except:
         should_update = True
 
-if should_update:
-    if not os.path.exists(LOCK_FILE):
-        st.sidebar.info("🚀 Data Outdated. Running fast update...")
+if should_update and not os.path.exists(LOCK_FILE):
+    # v1.6: ABSOLUTE DECOUPLING WITH RELOADS
+    def atomic_update_sequence():
+        import etl.data_loader
+        import importlib
+        import database.db_manager as dbm
         try:
-            # Create Lock
+            # Force Reload of both modules to pick up signature changes
+            importlib.reload(etl.data_loader)
+            importlib.reload(dbm)
+            
             with open(LOCK_FILE, "w") as f: f.write(str(datetime.now()))
             
-            # 1. Sync Fast Update (Downloads data, skips 2-hour swarm)
-            import etl.data_loader
+            # Step 1: Fast Sync Update
             etl.data_loader.run_daily_update(skip_swarm=True)
-            db_manager.set_last_update() # Set timestamp so we don't trigger again immediately
+            dbm.set_last_update()
             
-            # 2. Async Full Swarm (Runs the 2-hour loop in background)
-            def full_swarm_background():
-                try:
-                    import etl.data_loader
-                    etl.data_loader.run_daily_update(skip_swarm=False)
-                except Exception as e:
-                    print(f"Background Swarm Failed: {e}")
-                finally:
-                    if os.path.exists(LOCK_FILE):
-                        os.remove(LOCK_FILE)
-
-            threading.Thread(target=full_swarm_background, daemon=True).start()
-            st.sidebar.success("Fast Update Complete! Intelligence Swarm running in background.")
-            st.rerun()
+            # Step 2: Full Swarm in Background
+            etl.data_loader.run_daily_update(skip_swarm=False)
         except Exception as e:
+            print(f"v1.6 Error: {e}")
+        finally:
             if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
-            st.sidebar.error(f"Update failed: {e}")
-    else:
-        st.sidebar.warning("⏳ Intelligence Swarm is active (started by another session).")
+
+    threading.Thread(target=atomic_update_sequence, daemon=True).start()
+    st.sidebar.info("🚀 Recovery v1.6: Background Update Active.")
 
 if os.path.exists(LOCK_FILE):
-    st.sidebar.caption("💡 Note: Market intelligence is being recalculated in the background.")
+    st.sidebar.warning("⏳ Intelligence agents are active in background.")
 # -------------------------
 
 # Initialize Agents
