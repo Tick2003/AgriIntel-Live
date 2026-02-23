@@ -6,9 +6,12 @@ DB_NAME = "agri_intel.db"
 # v1.1 - Force Update
 
 def init_db():
-    """Initialize the database with necessary tables."""
+    """Initialize the database with necessary tables (v1.7-SILENT)."""
     conn = sqlite3.connect(DB_NAME)
-    conn.execute("PRAGMA journal_mode=WAL;")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    except:
+        pass
     c = conn.cursor()
     
     # Table: Market Prices
@@ -31,11 +34,10 @@ def init_db():
     try:
         c.execute("SELECT unit FROM market_prices LIMIT 1")
     except sqlite3.OperationalError:
-        print("Migrating: Adding 'unit' column to market_prices")
         try:
             c.execute("ALTER TABLE market_prices ADD COLUMN unit TEXT DEFAULT 'Rs/Quintal'")
-        except Exception as e:
-            print(f"Migration warning: {e}")
+        except:
+            pass
 
     # Table: News/Alerts
     c.execute('''
@@ -106,12 +108,11 @@ def init_db():
     try:
         c.execute("SELECT wind_speed FROM weather_logs LIMIT 1")
     except sqlite3.OperationalError:
-        print("Migrating: Adding 'wind_speed' and 'humidity' to weather_logs")
         try:
             c.execute("ALTER TABLE weather_logs ADD COLUMN wind_speed REAL DEFAULT 0.0")
             c.execute("ALTER TABLE weather_logs ADD COLUMN humidity REAL DEFAULT 0.0")
-        except Exception as e:
-            print(f"Migration warning: {e}")
+        except:
+            pass
 
     # Table: System Logs (New)
     c.execute('''
@@ -159,12 +160,11 @@ def init_db():
     try:
         c.execute("SELECT mae FROM model_metrics LIMIT 1")
     except sqlite3.OperationalError:
-        print("Migrating: Adding 'mae' and 'health_score' to model_metrics")
         try:
             c.execute("ALTER TABLE model_metrics ADD COLUMN mae REAL DEFAULT 0.0")
             c.execute("ALTER TABLE model_metrics ADD COLUMN health_score REAL DEFAULT 0.0")
-        except Exception as e:
-            print(f"Migration warning: {e}")
+        except:
+            pass
 
     # Table: Raw Mandi Prices (Staging) - New Phase 6
     c.execute('''
@@ -272,11 +272,13 @@ def init_db():
     except Exception as e:
         print(f"SaaS Init Error: {e}")
 
-    conn.commit()
-    conn.close()
-    print(f"Database {DB_NAME} initialized.")
-    
-    # Auto-Restore from CSV if DB is empty (Phase 5 - Git Sync)
+    try:
+        conn.commit()
+        conn.close()
+    except:
+        pass
+        
+    # Auto-Restore from CSV if DB is empty
     import_prices_from_csv()
 
 def optimize_db():

@@ -61,7 +61,7 @@ lang_manager = LanguageManager()
 # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
-        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_AMBER}; font-size: 14px;'>v1.6-RECOVERY Terminal</span></div>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.7-CLEANBOOT Terminal</span></div>
         <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
     </div>
 """, unsafe_allow_html=True)
@@ -154,16 +154,12 @@ else:
         should_update = True
 
 if should_update and not os.path.exists(LOCK_FILE):
-    # v1.6: ABSOLUTE DECOUPLING WITH RELOADS
+    # v1.7: ABSOLUTE DECOUPLING (NO RELOADS)
     def atomic_update_sequence():
         import etl.data_loader
-        import importlib
         import database.db_manager as dbm
         try:
-            # Force Reload of both modules to pick up signature changes
-            importlib.reload(etl.data_loader)
-            importlib.reload(dbm)
-            
+            # Persistent check for lock
             with open(LOCK_FILE, "w") as f: f.write(str(datetime.now()))
             
             # Step 1: Fast Sync Update
@@ -173,12 +169,12 @@ if should_update and not os.path.exists(LOCK_FILE):
             # Step 2: Full Swarm in Background
             etl.data_loader.run_daily_update(skip_swarm=False)
         except Exception as e:
-            print(f"v1.6 Error: {e}")
+            print(f"v1.7 Background Update Error: {e}")
         finally:
             if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
     threading.Thread(target=atomic_update_sequence, daemon=True).start()
-    st.sidebar.info("🚀 Recovery v1.6: Background Update Active.")
+    st.sidebar.info("🚀 System initializing data in background.")
 
 if os.path.exists(LOCK_FILE):
     st.sidebar.warning("⏳ Intelligence agents are active in background.")
