@@ -61,7 +61,7 @@ lang_manager = LanguageManager()
 # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
-        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.3-HOTFIX Terminal</span></div>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.4-ULTRA Terminal</span></div>
         <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
     </div>
 """, unsafe_allow_html=True)
