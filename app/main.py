@@ -1037,6 +1037,7 @@ elif page == "Data Reliability":
             import contextlib
             import io
             f = io.StringIO()
+            import etl.data_loader
             with contextlib.redirect_stdout(f):
                 etl.data_loader.run_daily_update()
             
