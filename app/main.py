@@ -98,6 +98,8 @@ auth_agent.logout_button()
 # Sidebar
 st.sidebar.header("Configuration")
 
+LOCK_FILE = ".update.lock"
+
 # Debug / Manual Update
 if st.sidebar.button("🔄 Force Data Update"):
     if not os.path.exists(LOCK_FILE):
@@ -135,7 +137,6 @@ selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, in
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
 # --- AUTO-UPDATE LOGIC (v1.5-FINAL-HOTFIX) ---
-LOCK_FILE = ".update.lock"
 
 # Force DB Init early
 db_manager.init_db()
