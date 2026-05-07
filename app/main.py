@@ -230,7 +230,7 @@ if "alerts" in st.session_state and st.session_state["alerts"]:
 # Load Data
 # Helper wrapper for caching
 @st.cache_data(ttl=3600)
-def fetch_and_process_data(commodity, mandi):
+def fetch_and_process_data(commodity, mandi, db_update_time):
     return get_live_data(commodity, mandi)
 
 @st.cache_data(ttl=3600)
@@ -279,7 +279,7 @@ def fetch_arbitrage_snapshot(commodity, all_mandis):
     return pd.DataFrame()
 
 # Load Data
-data = fetch_and_process_data(selected_commodity, selected_mandi)
+data = fetch_and_process_data(selected_commodity, selected_mandi, last_db_update)
 last_date = data['date'].max().strftime('%Y-%m-%d')
 st.caption(f"Data Source: Agmarknet (Pilot Mode) | Last Updated: {last_date}")
 
