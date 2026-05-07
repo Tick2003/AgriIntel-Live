@@ -118,6 +118,7 @@ if st.sidebar.button("🔄 Force Data Update"):
 
             threading.Thread(target=manual_background_update, daemon=True).start()
             st.sidebar.success("Update triggered in background!")
+            st.cache_data.clear() # Clear cache so fresh data is fetched after update
         except Exception as e:
             if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
             st.sidebar.error(f"Manual trigger failed: {e}")
@@ -166,9 +167,11 @@ if should_update and not os.path.exists(LOCK_FILE):
             # Step 1: Fast Sync Update
             etl.data_loader.run_daily_update(skip_swarm=True)
             dbm.set_last_update()
+            st.cache_data.clear() # Clear cache after fast sync
             
             # Step 2: Full Swarm in Background
             etl.data_loader.run_daily_update(skip_swarm=False)
+            st.cache_data.clear() # Clear cache after full swarm
         except Exception as e:
             print(f"v1.7 Background Update Error: {e}")
         finally:
