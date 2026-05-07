@@ -2,36 +2,39 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.io as pio
 
-# --- DESIGN TOKENS (STRICT INSTITUTIONAL PALETTE) ---
-BG_COLOR = "#111315"
-PANEL_COLOR = "#1A1D21"
+# --- DESIGN TOKENS (PREMIUM INSTITUTIONAL PALETTE) ---
+BG_COLOR = "#0D0F12"  # Deeper, richer background
+PANEL_COLOR = "rgba(18, 21, 25, 0.8)" # Transparent panel
 CARD_BG = "rgba(255, 255, 255, 0.03)"
-BORDER_COLOR = "#2A2F36"
-DIVIDER_COLOR = "rgba(255,255,255,0.06)"
+BORDER_COLOR = "rgba(255, 255, 255, 0.08)"
+DIVIDER_COLOR = "rgba(255,255,255,0.05)"
 
-TEXT_PRIMARY = "#E6E6E6"
-TEXT_SECONDARY = "#A0A6AD"
-TEXT_MUTED = "#C5CBD3"  # Standardized metadata color
+TEXT_PRIMARY = "#F2F2F2"
+TEXT_SECONDARY = "#9BA1A8"
+TEXT_MUTED = "#6B7280"
 
-ACCENT_GREEN = "#3DDC84"
-ACCENT_AMBER = "#FFB020"
-ACCENT_RED = "#FF4D4F"
-ACCENT_BLUE = "#3B82F6"
-ACCENT_GLOW = "rgba(59,130,246,0.15)"
+ACCENT_GREEN = "#10B981"  # Emerald
+ACCENT_AMBER = "#F59E0B"  # Amber
+ACCENT_RED = "#EF4444"    # Rose/Red
+ACCENT_BLUE = "#3B82F6"   # Royal Blue
+ACCENT_GLOW = "rgba(59,130,246,0.12)"
+GLASS_BG = "rgba(255, 255, 255, 0.02)"
+BACKDROP_BLUR = "blur(12px)"
+TRANSITION = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
 
 # --- PLOTLY TERMINAL THEME (BLOOMBERG STYLE) ---
 terminal_template = go.layout.Template()
 terminal_template.layout = go.Layout(
-    plot_bgcolor="#111315", # Explicitly forced
-    paper_bgcolor="#111315",
-    font=dict(color="#E6E6E6", family="Inter, Manrope, sans-serif", size=12),
+    plot_bgcolor="rgba(0,0,0,0)", # Fully transparent for glass effect
+    paper_bgcolor="rgba(0,0,0,0)", # Fully transparent for glass effect
+    font=dict(color="#F2F2F2", family="Public Sans, sans-serif", size=12),
     xaxis=dict(
         showgrid=True, 
         gridcolor="rgba(255, 255, 255, 0.05)", 
         gridwidth=0.5,
         linecolor=BORDER_COLOR, 
         zeroline=False,
-        tickfont=dict(size=10, color="#A0A6AD")
+        tickfont=dict(size=10, color="#9BA1A8")
     ),
     yaxis=dict(
         showgrid=True, 
@@ -39,12 +42,12 @@ terminal_template.layout = go.Layout(
         gridwidth=0.5,
         linecolor=BORDER_COLOR, 
         zeroline=False,
-        tickfont=dict(size=10, color="#A0A6AD")
+        tickfont=dict(size=10, color="#9BA1A8")
     ),
     margin=dict(l=40, r=20, t=40, b=40),
-    hoverlabel=dict(bgcolor=PANEL_COLOR, font_size=12, font_family="Inter"),
+    hoverlabel=dict(bgcolor="#1A1D21", font_size=12, font_family="Public Sans"),
     showlegend=True,
-    legend=dict(font=dict(size=10, color="#A0A6AD"), bgcolor="rgba(0,0,0,0)")
+    legend=dict(font=dict(size=10, color="#9BA1A8"), bgcolor="rgba(0,0,0,0)")
 )
 pio.templates["agriintel_terminal"] = terminal_template
 pio.templates.default = "agriintel_terminal"
@@ -53,121 +56,150 @@ def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
-            /* --- INSTITUTIONAL UI RECOVERY BUILD 110 --- */
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&display=swap');
+            /* --- PREMIUM FORMAL UI BUILD 2.1 --- */
+            @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 
-            /* --- 1. CORE DARK ARCHITECTURE --- */
+            /* --- 1. CORE ARCHITECTURE --- */
             .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
                 background-color: {BG_COLOR} !important;
+                background-image: 
+                    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+                    radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.03) 0px, transparent 50%) !important;
             }}
             
             [data-testid="stSidebar"], [data-testid="stSidebar"] > div {{
                 background-color: {PANEL_COLOR} !important;
+                backdrop-filter: {BACKDROP_BLUR} !important;
                 border-right: 1px solid {BORDER_COLOR} !important;
+                transition: {TRANSITION} !important;
             }}
 
-            /* --- 2. EXPANDER, NOTIFICATION & CODE BLOCKS (CRITICAL) --- */
-            /* Force Expander Background & Header */
-            div[data-testid="stExpander"] {{
-                background-color: #1A1D21 !important;
+            /* --- 2. GLASSMORPHIC COMPONENTS --- */
+            div[data-testid="stExpander"], .terminal-panel {{
+                background-color: {GLASS_BG} !important;
+                backdrop-filter: {BACKDROP_BLUR} !important;
                 border: 1px solid {BORDER_COLOR} !important;
-                border-radius: 4px !important;
-                margin-bottom: 10px !important;
+                border-radius: 12px !important;
+                margin-bottom: 16px !important;
+                transition: {TRANSITION} !important;
             }}
             
+            div[data-testid="stExpander"]:hover, .terminal-panel:hover {{
+                border-color: rgba(59, 130, 246, 0.3) !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4) !important;
+            }}
+
             div[data-testid="stExpander"] summary {{
-                background-color: #1A1D21 !important;
+                background-color: transparent !important;
                 color: {TEXT_PRIMARY} !important;
                 font-weight: 600 !important;
+                padding: 12px !important;
             }}
             
-            /* Target st.code blocks (The white boxes in screenshot) */
-            [data-testid="stCodeBlock"], [data-testid="stCodeBlock"] pre, [data-testid="stCodeBlock"] code {{
-                background-color: #0E1117 !important;
-                color: {TEXT_PRIMARY} !important;
-                border: 1px solid {BORDER_COLOR} !important;
-            }}
-            
-            /* Target the white boxes inside the Notification Log Alert style */
+            /* Target st.code & st.alert */
+            [data-testid="stCodeBlock"], [data-testid="stCodeBlock"] pre, [data-testid="stCodeBlock"] code,
             [data-testid="stNotification"], .stAlert {{
-                background-color: #0E1117 !important;
+                background-color: rgba(0, 0, 0, 0.2) !important;
                 color: {TEXT_PRIMARY} !important;
                 border: 1px solid {BORDER_COLOR} !important;
-            }}
-            
-            [data-testid="stNotification"] * {{
-                color: {TEXT_PRIMARY} !important;
+                border-radius: 8px !important;
+                transition: {TRANSITION} !important;
             }}
 
-            /* Force DataFrame & Table Dark Mode */
-            [data-testid="stDataFrame"], [data-testid="stTable"], .stDataFrame, .stTable, div[role="grid"] {{
-                background-color: #0E1117 !important;
-                border: 1px solid {BORDER_COLOR} !important;
-            }}
-            
-            [data-testid="stDataFrame"] *, [data-testid="stTable"] * {{
+            /* --- 3. TYPOGRAPHY & VISUAL DEPTH --- */
+            h1, h2, h3 {{
                 color: {TEXT_PRIMARY} !important;
+                font-family: 'IBM Plex Serif', serif !important;
+                font-weight: 700 !important;
+                letter-spacing: -0.01em !important;
             }}
 
-            /* --- 3. TARGETED TEXT VISIBILITY --- */
-            h1, h2, h3, p, span, label, li, .stMarkdown, .main-title, .section-header {{
-                color: {TEXT_PRIMARY} !important;
-                font-family: 'Inter', sans-serif;
-            }}
-            
-            [data-testid="stMetricLabel"], .stCaption, caption, .metadata-text {{
+            p, span, label, li, .stMarkdown {{
                 color: {TEXT_SECONDARY} !important;
-                font-size: 13px !important;
-                font-weight: 500 !important;
+                font-family: 'Public Sans', sans-serif !important;
+                line-height: 1.6 !important;
+            }}
+            
+            [data-testid="stMetricLabel"] {{
+                color: {TEXT_MUTED} !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
                 text-transform: uppercase !important;
+                letter-spacing: 0.12em !important;
+                font-family: 'Public Sans', sans-serif !important;
             }}
 
-            /* --- 4. WIDGET & INPUT VISIBILITY --- */
-            [data-testid="stWidgetLabel"] p, label p, label {{
-                color: {TEXT_PRIMARY} !important;
-                font-size: 14px !important;
-                font-weight: 500 !important;
-            }}
-            
-            div[data-baseweb="input"] input, div[data-baseweb="select"] > div {{
-                background-color: #0E1117 !important;
-                color: {TEXT_PRIMARY} !important;
-                border: 1px solid {BORDER_COLOR} !important;
-            }}
-            
-            /* --- 5. BUTTON & UTILITY --- */
-            .stButton > button {{
-                background-color: {PANEL_COLOR} !important;
-                color: {TEXT_PRIMARY} !important;
-                border: 1px solid {BORDER_COLOR} !important;
-                font-weight: 600 !important;
-            }}
-            
             [data-testid="stMetricValue"] {{
                 color: {TEXT_PRIMARY} !important;
-                font-size: 32px !important;
+                font-size: 2.2rem !important;
                 font-weight: 600 !important;
+                font-family: 'IBM Plex Serif', serif !important;
             }}
             
-            /* Surgical UI Visibility */
+            /* --- 4. WIDGET REFINEMENT --- */
+            div[data-baseweb="input"] input, div[data-baseweb="select"] > div {{
+                background-color: rgba(255, 255, 255, 0.03) !important;
+                color: {TEXT_PRIMARY} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                border-radius: 8px !important;
+                transition: {TRANSITION} !important;
+            }}
+
+            div[data-baseweb="input"] input:focus, div[data-baseweb="select"] > div:focus {{
+                border-color: {ACCENT_BLUE} !important;
+                box-shadow: 0 0 0 2px {ACCENT_GLOW} !important;
+            }}
+            
+            .stButton > button {{
+                background: linear-gradient(135deg, {ACCENT_BLUE}, #2563EB) !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 8px !important;
+                font-weight: 600 !important;
+                padding: 10px 24px !important;
+                transition: {TRANSITION} !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.05em !important;
+                font-size: 12px !important;
+            }}
+            
+            .stButton > button:hover {{
+                transform: translateY(-1px) !important;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+                filter: brightness(1.1) !important;
+            }}
+            
+            /* --- 5. CLEANUP & UTILITY --- */
             #MainMenu, footer {{ display: none !important; }}
             [data-testid="stHeader"] {{ 
                 background: transparent !important; 
-                visibility: visible !important;
-                z-index: 1000001 !important;
             }}
             
-            /* High-Specificity Sidebar Toggle */
-            button[data-testid="stSidebarCollapseButton"], 
-            button[data-testid="stSidebarCollapseButton"] * {{
-                visibility: visible !important;
-                color: {ACCENT_BLUE} !important;
-                display: flex !important;
-                z-index: 1000002 !important;
+            .stMetric {{
+                background: {GLASS_BG} !important;
+                padding: 20px !important;
+                border-radius: 12px !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                transition: {TRANSITION} !important;
             }}
-            
-            iframe {{
-                background-color: {BG_COLOR} !important;
+
+            .stMetric:hover {{
+                border-color: {ACCENT_BLUE} !important;
+            }}
+
+            /* --- 6. GLASS CHARTS --- */
+            [data-testid="stPlotlyChart"] {{
+                background-color: {GLASS_BG} !important;
+                backdrop-filter: {BACKDROP_BLUR} !important;
+                border: 1px solid {BORDER_COLOR} !important;
+                border-radius: 12px !important;
+                padding: 12px !important;
+                transition: {TRANSITION} !important;
+            }}
+
+            [data-testid="stPlotlyChart"]:hover {{
+                border-color: rgba(59, 130, 246, 0.3) !important;
             }}
         </style>
     """, unsafe_allow_html=True)

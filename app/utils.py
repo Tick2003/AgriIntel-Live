@@ -41,23 +41,34 @@ def get_db_options():
 
 def load_css():
     """
-    Returns custom CSS for the dashboard (Institutional Dark).
+    Returns custom CSS for the dashboard (Premium Glassmorphism).
     """
     return """
     <style>
         .stApp {
-            background-color: #111315 !important;
-            color: #E6E6E6 !important;
+            background-color: #0D0F12 !important;
+            color: #F2F2F2 !important;
         }
         .metric-card {
-            background-color: #1A1D21 !important;
-            color: #FFFFFF !important;
-            padding: 20px;
-            border-radius: 4px;
-            border: 1px solid #2A2F36;
+            background-color: rgba(255, 255, 255, 0.02) !important;
+            backdrop-filter: blur(12px) !important;
+            color: #F2F2F2 !important;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
         }
-        h1, h2, h3, p, span, div {
-            color: #E6E6E6 !important;
+        .metric-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+        h1, h2, h3 {
+            color: #F2F2F2 !important;
+            font-family: 'IBM Plex Serif', serif !important;
+        }
+        p, span, div {
+            color: #9BA1A8 !important;
+            font-family: 'Public Sans', sans-serif !important;
         }
     </style>
     """
