@@ -55,13 +55,18 @@ from agents.auth_manager import AuthAgent
 st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 inject_terminal_css()
 
+# --- BOOT-TIME CACHE CLEAR (Prevents Stale Data on Redeploy) ---
+if 'boot_cache_cleared' not in st.session_state:
+    st.cache_data.clear()
+    st.session_state['boot_cache_cleared'] = True
+
 # Load Lang Manager
 lang_manager = LanguageManager()
 
 # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
-        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.7-CLEANBOOT Terminal</span></div>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.8-DATAFIX Terminal</span></div>
         <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
     </div>
 """, unsafe_allow_html=True)
@@ -229,17 +234,18 @@ if "alerts" in st.session_state and st.session_state["alerts"]:
 
 # Load Data
 # Helper wrapper for caching
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def fetch_and_process_data(commodity, mandi, db_update_time):
+    """Fetches live data with cache-busting based on DB update time."""
     return get_live_data(commodity, mandi)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def run_forecasting_agent(data, commodity, mandi):
     # This trains a model, so it MUST be cached
     agent = ForecastingAgent()
     return agent.generate_forecasts(data, commodity, mandi)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def run_shock_risk_agents(data, forecast_df, sentiment_score, arrival_anomaly, weather_risk):
     # shock_agent = AnomalyDetectionEngine() # Removed as agents dict is used
     # risk_agent = MarketRiskEngine() # Removed as agents dict is used
@@ -256,17 +262,17 @@ def run_shock_risk_agents(data, forecast_df, sentiment_score, arrival_anomaly, w
     
     return shock_info, risk_info
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def run_explanation_agent(commodity, risk_info, shock_info, forecast_df):
     explain_agent = AIExplanationAgent()
     return explain_agent.generate_explanation(commodity, risk_info, shock_info, forecast_df)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def run_decision_agent(current_price, forecast_df, risk_dict, shock_dict):
     agent = DecisionAgent()
     return agent.get_signal(current_price, forecast_df, risk_dict, shock_dict)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def fetch_arbitrage_snapshot(commodity, all_mandis):
     frames = []
     for m in all_mandis:

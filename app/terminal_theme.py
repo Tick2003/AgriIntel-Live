@@ -56,8 +56,9 @@ def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
-            /* --- PREMIUM FORMAL UI BUILD 2.1 --- */
+            /* --- PREMIUM FORMAL UI BUILD 2.2 --- */
             @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
             /* --- 1. CORE ARCHITECTURE --- */
             .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{

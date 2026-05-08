@@ -420,11 +420,15 @@ def import_prices_from_csv():
             df.to_sql('market_prices', conn, if_exists='append', index=False)
             print(f"Restored {len(df)} records.")
             
-        # 3. Finalize Update Metadata
-        # c.execute("SELECT MAX(date) FROM market_prices")
-        # new_max = c.fetchone()[0]
-        # if new_max:
-        #     c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (new_max,))
+        # 3. Finalize Update Metadata — Set last_update to actual max date in DB
+        c = conn.cursor()
+        c.execute("SELECT MAX(date) FROM market_prices")
+        new_max = c.fetchone()[0]
+        if new_max:
+            from datetime import datetime as _dt
+            now_str = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (now_str,))
+            print(f"Set last_update to {now_str} (data max: {new_max})")
             
     except Exception as e:
         print(f"CSV Sync failed: {e}")
