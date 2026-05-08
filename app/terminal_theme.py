@@ -59,20 +59,26 @@ def inject_terminal_css():
             /* --- PREMIUM FORMAL UI BUILD 2.4 --- */
             @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 
-            /* GLOBAL FIX: Hide ALL Streamlit Material Symbols icon text fallback */
-            .material-symbols-rounded {{
+            /* GLOBAL FIX: Hide Streamlit icon text fallback (keyboard_double_arrow) */
+            /* Streamlit uses Emotion-generated classes, NOT .material-symbols-rounded */
+            /* Target: stHeader buttons (expand), stSidebar close button, expander icons */
+            [data-testid="stHeader"] button span span,
+            [data-testid="stSidebar"] > div > div > div > button span span,
+            button[data-testid="stSidebarCollapseButton"] span span,
+            [data-testid="stExpander"] summary span span span {{
                 font-size: 0 !important;
+                color: transparent !important;
                 overflow: hidden !important;
-                width: 20px !important;
-                height: 20px !important;
                 display: inline-block !important;
+                width: 0 !important;
+                height: 0 !important;
+                line-height: 0 !important;
             }}
-            /* Replace with CSS arrows */
-            .material-symbols-rounded::after {{
-                font-size: 16px !important;
-                font-family: 'Public Sans', sans-serif !important;
-                color: {TEXT_SECONDARY} !important;
-                display: inline-block !important;
+            /* Constrain the buttons themselves */
+            [data-testid="stHeader"] button {{
+                max-width: 44px !important;
+                max-height: 44px !important;
+                overflow: hidden !important;
             }}
 
             /* --- 1. CORE ARCHITECTURE --- */
@@ -192,18 +198,11 @@ def inject_terminal_css():
                 background: transparent !important; 
             }}
 
-            /* Sidebar collapse/expand buttons - constrain size */
-            button[data-testid="stSidebarCollapseButton"],
-            [data-testid="collapsedControl"] {{
-                max-width: 40px !important;
-                max-height: 40px !important;
+            /* Additional sidebar button containment */
+            button[data-testid="stSidebarCollapseButton"] {{
+                max-width: 44px !important;
+                max-height: 44px !important;
                 overflow: hidden !important;
-            }}
-            [data-testid="collapsedControl"] button {{
-                font-size: 0 !important;
-                overflow: hidden !important;
-                max-width: 40px !important;
-                max-height: 40px !important;
             }}
             
             .stMetric {{
