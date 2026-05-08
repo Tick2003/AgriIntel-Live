@@ -176,6 +176,19 @@ def inject_terminal_css():
             [data-testid="stHeader"] {{ 
                 background: transparent !important; 
             }}
+
+            /* Fix: Hide Streamlit sidebar collapse button icon text fallback */
+            [data-testid="stSidebar"] button[kind="header"],
+            [data-testid="collapsedControl"] button,
+            button[data-testid="baseButton-headerNoPadding"] {{
+                font-size: 0 !important;
+                overflow: hidden !important;
+            }}
+            [data-testid="stSidebar"] button[kind="header"] span,
+            button[data-testid="baseButton-headerNoPadding"] span {{
+                font-size: 0 !important;
+                visibility: hidden !important;
+            }}
             
             .stMetric {{
                 background: {GLASS_BG} !important;
