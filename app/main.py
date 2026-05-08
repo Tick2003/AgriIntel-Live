@@ -42,6 +42,7 @@ from app.terminal_theme import (
 
 # Page Config
 st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
+st.logo("logo.png")
 inject_terminal_css()
 
 # --- BOOT-TIME CACHE CLEAR (Prevents Stale Data on Redeploy) ---
@@ -85,6 +86,7 @@ if org_id:
     org = db_manager.get_org_details(org_id)
     if org: org_name = org['name']
 
+st.sidebar.image("logo.png", use_container_width=True)
 st.sidebar.title("📉 Terminal Config")
 st.sidebar.success(f"👤 {user_email}\n🏢 {org_name} ({user_role})")
 auth_agent.logout_button()
