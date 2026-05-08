@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import database.db_manager as dbm
 from agents.forecast_execution import ForecastingAgent
 from agents.risk_scoring import MarketRiskEngine
@@ -296,15 +295,7 @@ def fetch_real_weather(api_key=None):
             
     return pd.DataFrame(weather_data)
 
-import contextlib
-import os
 
-@contextlib.contextmanager
-def suppress_output():
-    """Context manager to suppress stdout and stderr."""
-    with open(os.devnull, 'w') as devnull:
-        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
-            yield
 
 def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
     """

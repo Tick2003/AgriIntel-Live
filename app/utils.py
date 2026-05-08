@@ -4,10 +4,10 @@ import numpy as np
 from datetime import datetime, timedelta
 import sys
 import os
+import streamlit as st
 
 # Ensure root is in path to import database module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import sqlite3
 from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs
 
@@ -39,39 +39,6 @@ def get_db_options():
         print(f"Error fetching DB options: {e}")
         return ["Potato", "Onion", "Tomato"], ["Agra", "Nasik", "Bengaluru"]
 
-def load_css():
-    """
-    Returns custom CSS for the dashboard (Premium Glassmorphism).
-    """
-    return """
-    <style>
-        .stApp {
-            background-color: #0D0F12 !important;
-            color: #F2F2F2 !important;
-        }
-        .metric-card {
-            background-color: rgba(255, 255, 255, 0.02) !important;
-            backdrop-filter: blur(12px) !important;
-            color: #F2F2F2 !important;
-            padding: 24px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            transition: all 0.3s ease;
-        }
-        .metric-card:hover {
-            border-color: rgba(59, 130, 246, 0.4);
-            transform: translateY(-2px);
-        }
-        h1, h2, h3 {
-            color: #F2F2F2 !important;
-            font-family: 'IBM Plex Serif', serif !important;
-        }
-        p, span, div {
-            color: #9BA1A8 !important;
-            font-family: 'Public Sans', sans-serif !important;
-        }
-    </style>
-    """
 
 def get_live_data(commodity: str = "Potato", mandi: str = "Agra") -> pd.DataFrame:
     """

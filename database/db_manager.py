@@ -828,14 +828,12 @@ def get_historical_signals(commodity, mandi):
         df = pd.DataFrame() # Table might not exist yet if no signals logged
     conn.close()
     return df
+def get_recent_quality_alerts(limit=5):
     """Fetch recent data quality alerts."""
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql(f"SELECT * FROM data_quality_logs ORDER BY date DESC LIMIT {limit}", conn)
     conn.close()
     return df
-
-if __name__ == "__main__":
-    init_db()
 
 def get_user_by_email(email):
     """Retrieve user details for Auth."""
@@ -866,3 +864,6 @@ def get_org_details(org_id):
         return None
     finally:
         conn.close()
+
+if __name__ == "__main__":
+    init_db()

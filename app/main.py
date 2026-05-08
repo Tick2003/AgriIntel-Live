@@ -1,5 +1,5 @@
 import streamlit as st
-# Version 1.1 - Hotfix for dependencies (xgboost, streamlit-oauth)
+# Version 1.9 - Debug & Cleanup
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -30,7 +30,8 @@ from agents.language_manager import LanguageManager
 from agents.chatbot_engine import ChatbotEngine
 from agents.optimization_engine import OptimizationEngine
 from agents.business_engine import B2BMatcher, FintechEngine
-from app.utils import get_live_data, load_css, get_news_feed, get_weather_data, get_db_options
+from agents.decision_support import DecisionAgent
+from app.utils import get_live_data, get_news_feed, get_weather_data, get_db_options
 import database.db_manager as db_manager
 from app.voice_admin import show_voice_admin
 from app.terminal_theme import (
@@ -38,18 +39,6 @@ from app.terminal_theme import (
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_GREEN, ACCENT_AMBER, 
     ACCENT_RED, ACCENT_BLUE, TEXT_MUTED, DIVIDER_COLOR, get_status_color
 )
-import importlib 
-import agents.decision_support
-import agents.risk_scoring
-import agents.auth_manager
-import app.terminal_theme
-# Force Reload to prevent Stale Module errors on Cloud
-importlib.reload(agents.decision_support)
-importlib.reload(agents.risk_scoring)
-importlib.reload(agents.auth_manager)
-importlib.reload(app.terminal_theme)
-from agents.decision_support import DecisionAgent
-from agents.auth_manager import AuthAgent 
 
 # Page Config
 st.set_page_config(page_title="AgriIntel.in Terminal", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
@@ -66,7 +55,7 @@ lang_manager = LanguageManager()
 # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: space-between; height: 60px; background-color: {BG_COLOR}; border-bottom: 1px solid {BORDER_COLOR}; margin-bottom: 24px; padding: 0 24px;'>
-        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.8-DATAFIX Terminal</span></div>
+        <div style='font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};'>AgriIntel.in <span style='color: {ACCENT_BLUE}; font-size: 14px;'>v1.9-CLEAN Terminal</span></div>
         <div style='color: {TEXT_SECONDARY}; font-size: 13px;'>{datetime.now().strftime('%d %b %Y | %H:%M:%S')}</div>
     </div>
 """, unsafe_allow_html=True)
@@ -142,47 +131,34 @@ db_commodities, db_mandis = get_db_options()
 selected_commodity = st.sidebar.selectbox("Select Commodity", db_commodities, index=0)
 selected_mandi = st.sidebar.selectbox("Select Mandi", db_mandis, index=0)
 
-# --- AUTO-UPDATE LOGIC (v1.5-FINAL-HOTFIX) ---
-
-# Force DB Init early
-db_manager.init_db()
-
-# Check for staleness silently
+# --- AUTO-UPDATE LOGIC ---
+# Check for staleness using the already-fetched last_db_update
 should_update = False
-last_up = db_manager.get_last_update()
-if not last_up:
+if not last_db_update:
     should_update = True
 else:
     try:
-        dt = datetime.strptime(last_up, "%Y-%m-%d %H:%M:%S")
+        dt = datetime.strptime(last_db_update, "%Y-%m-%d %H:%M:%S")
         if (datetime.now() - dt).total_seconds() > 6 * 3600:
             should_update = True
     except:
         should_update = True
 
 if should_update and not os.path.exists(LOCK_FILE):
-    # v1.7: ABSOLUTE DECOUPLING (NO RELOADS)
-    def atomic_update_sequence():
+    def background_update():
         import etl.data_loader
         import database.db_manager as dbm
         try:
-            # Persistent check for lock
             with open(LOCK_FILE, "w") as f: f.write(str(datetime.now()))
-            
-            # Step 1: Fast Sync Update
             etl.data_loader.run_daily_update(skip_swarm=True)
             dbm.set_last_update()
-            st.cache_data.clear() # Clear cache after fast sync
-            
-            # Step 2: Full Swarm in Background
-            etl.data_loader.run_daily_update(skip_swarm=False)
-            st.cache_data.clear() # Clear cache after full swarm
+            st.cache_data.clear()
         except Exception as e:
-            print(f"v1.7 Background Update Error: {e}")
+            print(f"Background Update Error: {e}")
         finally:
             if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
-    threading.Thread(target=atomic_update_sequence, daemon=True).start()
+    threading.Thread(target=background_update, daemon=True).start()
     st.sidebar.info("🚀 System initializing data in background.")
 
 if os.path.exists(LOCK_FILE):
@@ -290,7 +266,6 @@ last_date = data['date'].max().strftime('%Y-%m-%d')
 st.caption(f"Data Source: Agmarknet (Pilot Mode) | Last Updated: {last_date}")
 
 # Run Agents (Cached)
-# Run Agents (Cached)
 health_status = agents["health"].check_daily_completeness(data) 
 forecast_df = run_forecasting_agent(data, selected_commodity, selected_mandi)
 
@@ -334,14 +309,7 @@ last_date_str = data['date'].iloc[-1].strftime("%Y-%m-%d")
 
 # Robust Logging
 try:
-    if hasattr(db_manager, 'log_signal'):
-        db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
-    else:
-        # Hot-fix for stale module reload issue
-        import importlib
-        importlib.reload(db_manager)
-        if hasattr(db_manager, 'log_signal'):
-            db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
+    db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
 except Exception as e:
     print(f"Logging Error: {e}")
 
@@ -957,53 +925,12 @@ elif page == "Voice":
         role_label = "USER" if chat['role'] == 'user' else "AGRIINTEL"
         st.markdown(f"**{role_label}**: `{chat['msg']}`")
 
-# --- PAGE: INSTITUTIONAL DASHBOARD ---
-elif page == "Institutional Dashboard":
-    st.header("🇮🇳 Institutional Market Dashboard")
-    
-    # 1. State-wise Aggregation
-    state_df = db_manager.get_state_level_aggregation()
-    
-    if not state_df.empty:
-        # Top Metrics
-        c1, c2, c3 = st.columns(3)
-        c1.metric("National Avg Price", f"₹{state_df['Avg Price'].mean():.0f}")
-        c2.metric("Avg Market Volatility", f"{state_df['Volatility'].mean()*100:.1f}%")
-        c3.metric("Active States Monitored", len(state_df))
-        
-        # Map Visualization
-        st.subheader("📍 Real-Time Market Activity Map")
-        coords = db_manager.get_mandi_coordinates()
-        
-        # Prepare Data for Map
-        map_data = []
-        for mandi, val in coords.items():
-            map_data.append({"lat": val['lat'], "lon": val['lon'], "mandi": mandi, "state": val['state']})
-            
-        map_df = pd.DataFrame(map_data)
-        
-        # Advanced Map with Plotly
-        fig = px.scatter_mapbox(
-            map_df, lat="lat", lon="lon", hover_name="mandi", hover_data=["state"],
-            zoom=3.5, height=500, size_max=15
-        )
-        fig.update_layout(mapbox_style="open-street-map")
-        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-        st.plotly_chart(fig, use_container_width=True)
 
-        # State Table
-        st.subheader("📊 State-wise Performance")
-        st.dataframe(state_df.style.format({
-            "Avg Price": "₹{:.0f}",
-            "Volatility": "{:.1%}"
-        }), use_container_width=True)
-    else:
-        st.info("Insufficient data for national aggregation.")
 
 # --- PAGE: DATA RELIABILITY (New Phase 6) ---
 elif page == "Data Reliability":
     st.header("🛠️ Data Reliability Dashboard")
-# ... (rest of the file)
+
     st.caption("Monitor the health of the data ingestion pipeline and scraper performance.")
     
     # 1. Scraper Stats

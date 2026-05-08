@@ -56,28 +56,35 @@ def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
     st.markdown(f"""
         <style>
-            /* --- PREMIUM FORMAL UI BUILD 2.4 --- */
+            /* --- PREMIUM FORMAL UI BUILD 3.0 (CLEANED) --- */
             @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 
-            /* GLOBAL FIX: Hide Streamlit icon text fallback (keyboard_double_arrow) */
-            /* Streamlit uses Emotion-generated classes, NOT .material-symbols-rounded */
-            /* Target: stHeader buttons (expand), stSidebar close button, expander icons */
-            [data-testid="stHeader"] button span span,
-            [data-testid="stSidebar"] > div > div > div > button span span,
-            button[data-testid="stSidebarCollapseButton"] span span,
-            [data-testid="stExpander"] summary span span span {{
-                font-size: 0 !important;
-                color: transparent !important;
-                overflow: hidden !important;
-                display: inline-block !important;
-                width: 0 !important;
-                height: 0 !important;
-                line-height: 0 !important;
-            }}
-            /* Constrain the buttons themselves */
-            [data-testid="stHeader"] button {{
+            /* FIX: Hide Streamlit icon text fallback (keyboard_double_arrow) */
+            /* Sidebar EXPAND button (when sidebar is collapsed) */
+            [data-testid="collapsedControl"] {{
                 max-width: 44px !important;
                 max-height: 44px !important;
+                overflow: hidden !important;
+            }}
+            [data-testid="collapsedControl"] button {{
+                max-width: 44px !important;
+                max-height: 44px !important;
+                overflow: hidden !important;
+            }}
+            [data-testid="collapsedControl"] button span {{
+                visibility: hidden !important;
+                max-width: 0 !important;
+                overflow: hidden !important;
+            }}
+            /* Sidebar COLLAPSE button (when sidebar is open) */
+            button[data-testid="stSidebarCollapseButton"] {{
+                max-width: 44px !important;
+                max-height: 44px !important;
+                overflow: hidden !important;
+            }}
+            button[data-testid="stSidebarCollapseButton"] span {{
+                visibility: hidden !important;
+                max-width: 0 !important;
                 overflow: hidden !important;
             }}
 
@@ -198,12 +205,6 @@ def inject_terminal_css():
                 background: transparent !important; 
             }}
 
-            /* Additional sidebar button containment */
-            button[data-testid="stSidebarCollapseButton"] {{
-                max-width: 44px !important;
-                max-height: 44px !important;
-                overflow: hidden !important;
-            }}
             
             .stMetric {{
                 background: {GLASS_BG} !important;
