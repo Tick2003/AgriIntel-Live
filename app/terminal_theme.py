@@ -54,34 +54,25 @@ pio.templates.default = "agriintel_terminal"
 
 def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
-    # Inject Material Symbols font via <link> tag (more reliable than @import in <style>)
-    st.markdown("""
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-    """, unsafe_allow_html=True)
-    
     st.markdown(f"""
         <style>
-            /* --- PREMIUM FORMAL UI BUILD 2.3 --- */
+            /* --- PREMIUM FORMAL UI BUILD 2.4 --- */
             @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 
-            /* Force Material Symbols font for Streamlit icon elements */
-            .material-symbols-rounded,
-            [class*="material-symbols"] {{
-                font-family: 'Material Symbols Rounded' !important;
-                font-weight: normal !important;
-                font-style: normal !important;
-                font-size: 24px !important;
-                line-height: 1 !important;
-                letter-spacing: normal !important;
-                text-transform: none !important;
+            /* GLOBAL FIX: Hide ALL Streamlit Material Symbols icon text fallback */
+            .material-symbols-rounded {{
+                font-size: 0 !important;
+                overflow: hidden !important;
+                width: 20px !important;
+                height: 20px !important;
                 display: inline-block !important;
-                white-space: nowrap !important;
-                word-wrap: normal !important;
-                direction: ltr !important;
-                -webkit-font-smoothing: antialiased !important;
-                -moz-osx-font-smoothing: grayscale !important;
-                text-rendering: optimizeLegibility !important;
-                font-feature-settings: 'liga' !important;
+            }}
+            /* Replace with CSS arrows */
+            .material-symbols-rounded::after {{
+                font-size: 16px !important;
+                font-family: 'Public Sans', sans-serif !important;
+                color: {TEXT_SECONDARY} !important;
+                display: inline-block !important;
             }}
 
             /* --- 1. CORE ARCHITECTURE --- */
@@ -201,25 +192,18 @@ def inject_terminal_css():
                 background: transparent !important; 
             }}
 
-            /* Fix: Hide Streamlit sidebar collapse/expand icon text fallback */
+            /* Sidebar collapse/expand buttons - constrain size */
             button[data-testid="stSidebarCollapseButton"],
+            [data-testid="collapsedControl"] {{
+                max-width: 40px !important;
+                max-height: 40px !important;
+                overflow: hidden !important;
+            }}
             [data-testid="collapsedControl"] button {{
                 font-size: 0 !important;
                 overflow: hidden !important;
-                width: 32px !important;
-                height: 32px !important;
-                min-width: 32px !important;
-            }}
-            button[data-testid="stSidebarCollapseButton"] span,
-            button[data-testid="stSidebarCollapseButton"] span span,
-            [data-testid="collapsedControl"] button span,
-            [data-testid="collapsedControl"] button span span {{
-                font-size: 0 !important;
-                color: transparent !important;
-                overflow: hidden !important;
-                display: block !important;
-                width: 0 !important;
-                height: 0 !important;
+                max-width: 40px !important;
+                max-height: 40px !important;
             }}
             
             .stMetric {{
