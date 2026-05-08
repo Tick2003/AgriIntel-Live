@@ -54,11 +54,35 @@ pio.templates.default = "agriintel_terminal"
 
 def inject_terminal_css():
     """Injects high-performance institutional terminal CSS with TOTAL visibility."""
+    # Inject Material Symbols font via <link> tag (more reliable than @import in <style>)
+    st.markdown("""
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    """, unsafe_allow_html=True)
+    
     st.markdown(f"""
         <style>
-            /* --- PREMIUM FORMAL UI BUILD 2.2 --- */
+            /* --- PREMIUM FORMAL UI BUILD 2.3 --- */
             @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
-            @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+            /* Force Material Symbols font for Streamlit icon elements */
+            .material-symbols-rounded,
+            [class*="material-symbols"] {{
+                font-family: 'Material Symbols Rounded' !important;
+                font-weight: normal !important;
+                font-style: normal !important;
+                font-size: 24px !important;
+                line-height: 1 !important;
+                letter-spacing: normal !important;
+                text-transform: none !important;
+                display: inline-block !important;
+                white-space: nowrap !important;
+                word-wrap: normal !important;
+                direction: ltr !important;
+                -webkit-font-smoothing: antialiased !important;
+                -moz-osx-font-smoothing: grayscale !important;
+                text-rendering: optimizeLegibility !important;
+                font-feature-settings: 'liga' !important;
+            }}
 
             /* --- 1. CORE ARCHITECTURE --- */
             .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
