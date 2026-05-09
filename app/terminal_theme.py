@@ -151,7 +151,12 @@ def inject_terminal_css():
                 box-shadow: 0 0 0 2px {ACCENT_GLOW} !important;
             }}
             
-            .stButton > button {{
+            /* Buttons */
+            .stButton > button,
+            button[data-testid="baseButton-secondary"],
+            button[data-testid="baseButton-primary"],
+            .stFormSubmitButton > button,
+            .stDownloadButton > button {{
                 background: linear-gradient(135deg, {ACCENT_BLUE}, #2563EB) !important;
                 color: white !important;
                 border: none !important;
@@ -164,10 +169,73 @@ def inject_terminal_css():
                 font-size: 12px !important;
             }}
             
-            .stButton > button:hover {{
+            .stButton > button:hover,
+            button[data-testid="baseButton-secondary"]:hover,
+            button[data-testid="baseButton-primary"]:hover,
+            .stFormSubmitButton > button:hover,
+            .stDownloadButton > button:hover {{
                 transform: translateY(-1px) !important;
                 box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
                 filter: brightness(1.1) !important;
+            }}
+
+            /* Radio Buttons */
+            [data-testid="stRadio"] label,
+            [data-testid="stRadio"] div[role="radiogroup"] label {{
+                color: {TEXT_SECONDARY} !important;
+                font-family: 'Public Sans', sans-serif !important;
+            }}
+            [data-testid="stRadio"] div[role="radiogroup"] label:hover {{
+                color: {TEXT_PRIMARY} !important;
+            }}
+            [data-testid="stRadio"] div[role="radiogroup"] label[data-checked="true"],
+            [data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] {{
+                color: {TEXT_PRIMARY} !important;
+                font-weight: 600 !important;
+            }}
+            /* Radio dot visibility */
+            [data-testid="stRadio"] div[role="radio"] {{
+                border-color: {TEXT_MUTED} !important;
+            }}
+            [data-testid="stRadio"] div[role="radio"][aria-checked="true"] {{
+                border-color: {ACCENT_BLUE} !important;
+                background-color: {ACCENT_BLUE} !important;
+            }}
+
+            /* Checkbox */
+            [data-testid="stCheckbox"] label {{
+                color: {TEXT_SECONDARY} !important;
+            }}
+
+            /* Number Input steppers */
+            button[data-testid="stNumberInput-StepUp"],
+            button[data-testid="stNumberInput-StepDown"],
+            [data-testid="stNumberInput"] button {{
+                color: {TEXT_PRIMARY} !important;
+                background-color: rgba(255, 255, 255, 0.05) !important;
+                border-color: {BORDER_COLOR} !important;
+            }}
+
+            /* File uploader */
+            [data-testid="stFileUploader"] {{
+                color: {TEXT_SECONDARY} !important;
+            }}
+            [data-testid="stFileUploader"] section {{
+                background-color: rgba(255, 255, 255, 0.03) !important;
+                border: 1px dashed {BORDER_COLOR} !important;
+                border-radius: 8px !important;
+            }}
+
+            /* Chat input */
+            [data-testid="stChatInput"] textarea {{
+                color: {TEXT_PRIMARY} !important;
+                background-color: rgba(255, 255, 255, 0.03) !important;
+            }}
+
+            /* Selectbox / Multiselect dropdown text */
+            div[data-baseweb="select"] span,
+            div[data-baseweb="popover"] li {{
+                color: {TEXT_PRIMARY} !important;
             }}
             
             /* --- 5. CLEANUP & UTILITY --- */
