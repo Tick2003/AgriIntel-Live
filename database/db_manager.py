@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 DB_NAME = "agri_intel.db"
-# v1.1 - Force Update
+
 
 def init_db():
     """Initialize the database with necessary tables (v1.7-SILENT)."""
@@ -281,40 +281,17 @@ def init_db():
     # Auto-Restore from CSV if DB is empty
     import_prices_from_csv()
 
-def optimize_db():
-    """Runs maintenance tasks to optimize DB size and query speed."""
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.execute("VACUUM")
-        conn.execute("ANALYZE")
-        conn.close()
-        print("Database optimized (VACUUM + ANALYZE completed).")
-    except Exception as e:
-        print(f"Optimization failed: {e}")
-
-def get_long_term_trends(commodity, mandi, days=365):
-    """Fetches long-term price history for warehouse analysis."""
-    conn = sqlite3.connect(DB_NAME)
-    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    query = f"SELECT date, price_modal FROM market_prices WHERE commodity='{commodity}' AND mandi='{mandi}' AND date >= '{start_date}' ORDER BY date"
-    df = pd.read_sql(query, conn)
-    conn.close()
-    return df
-
 def get_state_level_aggregation():
     """
     Aggregates data by State (derived from Mandi location or Mock map).
     Returns DF with State, Volatility, PriceChange.
-    Note: 'mandi' field currently doesn't have State. We will mock mapping for demo.
     """
     conn = sqlite3.connect(DB_NAME)
-    # Get latest date
     df = pd.read_sql("SELECT commodity, mandi, price_modal, date FROM market_prices", conn)
     conn.close()
     
     if df.empty: return pd.DataFrame()
     
-    # Mock State Mapping (Demo)
     mandi_state_map = {
         "Azadpur": "Delhi", "Pune": "Maharashtra", "Lasalgaon": "Maharashtra",
         "Indore": "Madhya Pradesh", "Kolar": "Karnataka", "Agra": "Uttar Pradesh",
@@ -323,10 +300,7 @@ def get_state_level_aggregation():
     
     df['state'] = df['mandi'].map(mandi_state_map).fillna("Other")
     
-    # Calculate Volatility per State (groupby)
-    # Volatility = Std Dev of price / Mean Price
     state_stats = []
-    
     for state, group in df.groupby('state'):
         if len(group) > 5:
             vol = group['price_modal'].std() / group['price_modal'].mean() if group['price_modal'].mean() > 0 else 0
@@ -340,20 +314,6 @@ def get_state_level_aggregation():
             
     return pd.DataFrame(state_stats)
 
-def get_mandi_coordinates():
-    """Returns Mock Lat/Long for Demo Mandis."""
-    return {
-        "Azadpur": {"lat": 28.7041, "lon": 77.1025, "state": "Delhi"},
-        "Pune": {"lat": 18.5204, "lon": 73.8567, "state": "Maharashtra"},
-        "Lasalgaon": {"lat": 20.1466, "lon": 74.2255, "state": "Maharashtra"},
-        "Indore": {"lat": 22.7196, "lon": 75.8577, "state": "Madhya Pradesh"},
-        "Kolar": {"lat": 13.1363, "lon": 78.1292, "state": "Karnataka"},
-        "Agra": {"lat": 27.1767, "lon": 78.0081, "state": "Uttar Pradesh"},
-        "Cuttack": {"lat": 20.4625, "lon": 85.8828, "state": "Odisha"},
-        "Nasik": {"lat": 19.9975, "lon": 73.7898, "state": "Maharashtra"},
-        "Shimla": {"lat": 31.1048, "lon": 77.1734, "state": "Himachal Pradesh"}
-    }
-    
 def get_recent_quality_alerts(limit=10):
     """Fetches recent data quality alerts."""
     conn = sqlite3.connect(DB_NAME)
@@ -813,25 +773,6 @@ def get_price_history(commodity, mandi, start_date=None, end_date=None):
     query += " ORDER BY date ASC"
     
     df = pd.read_sql(query, conn)
-    conn.close()
-    return df
-
-def get_historical_signals(commodity, mandi):
-    """Fetches logged decision signals."""
-    conn = sqlite3.connect(DB_NAME)
-    # dependent on log_signal implementation, assuming table 'decision_logs' or similar 
-    # Check data_loader.py: dbm.log_signal calls INSERT INTO trade_signals
-    query = f"SELECT * FROM trade_signals WHERE commodity='{commodity}' AND mandi='{mandi}' ORDER BY date ASC"
-    try:
-        df = pd.read_sql(query, conn)
-    except:
-        df = pd.DataFrame() # Table might not exist yet if no signals logged
-    conn.close()
-    return df
-def get_recent_quality_alerts(limit=5):
-    """Fetch recent data quality alerts."""
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql(f"SELECT * FROM data_quality_logs ORDER BY date DESC LIMIT {limit}", conn)
     conn.close()
     return df
 

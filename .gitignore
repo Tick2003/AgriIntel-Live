@@ -11,6 +11,12 @@ env/
 # Database
 *.sqlite3
 agri_intel.db
+*.db.bak
+
+# Runtime artifacts
+.update.lock
+temp_grading_img.jpg
+*.log
 
 # OS
 .DS_Store

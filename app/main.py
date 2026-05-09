@@ -1,5 +1,4 @@
 import streamlit as st
-# Version 1.9 - Debug & Cleanup
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -33,11 +32,10 @@ from agents.business_engine import B2BMatcher, FintechEngine
 from agents.decision_support import DecisionAgent
 from app.utils import get_live_data, get_news_feed, get_weather_data, get_db_options
 import database.db_manager as db_manager
-from app.voice_admin import show_voice_admin
 from app.terminal_theme import (
     inject_terminal_css, BG_COLOR, PANEL_COLOR, BORDER_COLOR, 
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_GREEN, ACCENT_AMBER, 
-    ACCENT_RED, ACCENT_BLUE, TEXT_MUTED, DIVIDER_COLOR, get_status_color
+    ACCENT_RED, ACCENT_BLUE, TEXT_MUTED, get_status_color
 )
 
 # Page Config
@@ -631,133 +629,6 @@ elif page == "News":
     else:
         st.info("Searching for intelligence signals... (Feed Empty)")
 
-# --- MODEL PERFORMANCE ---
-elif page == "Model Performance":
-    st.markdown("<h1>Model Performance & Evaluation</h1>", unsafe_allow_html=True)
-    
-    # 1. Real-World Tracking (New Phase 7)
-    st.subheader("📈 Real-World Accuracy Tracking")
-    
-    # Fetch Metrics History
-    try:
-        metrics_df = db_manager.get_performance_history(selected_commodity, selected_mandi)
-        
-        if not metrics_df.empty:
-            latest = metrics_df.iloc[-1]
-            
-            # Health Score Gauge
-            c1, c2, c3, c4 = st.columns(4)
-            
-            c1.metric("Model Health Score", f"{latest['health_score']:.1f}/100", 
-                     delta=f"{latest['health_score'] - metrics_df.iloc[-2]['health_score']:.1f}" if len(metrics_df) > 1 else None)
-            
-            c2.metric("Current MAPE", f"{latest['mape']:.1f}%", inverse_mode=True)
-            c3.metric("Current RMSE", f"₹{latest['rmse']:.1f}", inverse_mode=True)
-            c4.metric("Samples Tracked", f"{latest['sample_size']}")
-            
-            # --- Drift Detection ---
-            if latest['health_score'] < 60:
-                 st.error(f"⚠️ MODEL DRIFT DETECTED: Health Score {latest['health_score']:.1f}/100 is critical. Retraining required.")
-            elif latest['mape'] > 20: 
-                 st.warning(f"⚠️ Accuracy Warning: MAPE {latest['mape']:.1f}% exceeds 20% threshold.")
-            elif len(metrics_df) > 7:
-                 avg_mape_7d = metrics_df.iloc[-8:-1]['mape'].mean()
-                 if latest['mape'] > 1.5 * avg_mape_7d:
-                      st.warning(f"⚠️ Drift Alert: Error spiked to {latest['mape']:.1f}% (vs 7-day avg {avg_mape_7d:.1f}%)")
-            
-            # Health Trend Chart
-            st.caption("Model Health Trend (Last 90 Days)")
-            st.line_chart(metrics_df.set_index('date')['health_score'])
-            
-            # Actual vs Predicted Chart (Historic)
-            st.subheader("🔍 Forecast vs Actuals")
-            track_df = db_manager.get_forecast_vs_actuals(selected_commodity, selected_mandi)
-            
-            if not track_df.empty:
-                fig_perf = go.Figure()
-                fig_perf.add_trace(go.Scatter(
-                    x=track_df['target_date'], y=track_df['actual_price'], 
-                    name='Truth', line=dict(color=TEXT_PRIMARY, width=1.5)
-                ))
-                fig_perf.add_trace(go.Scatter(
-                    x=track_df['target_date'], y=track_df['predicted_price'], 
-                    name='Projection', line=dict(color=ACCENT_BLUE, width=1.5, dash='dot')
-                ))
-                fig_perf.update_layout(template="agriintel_terminal", transition_duration=0)
-                st.plotly_chart(fig_perf, use_container_width=True, config={'displayModeBar': False})
-                
-        else:
-            st.info("No tracking data available yet. Metrics will appear after the next daily update.")
-            
-    except Exception as e:
-        st.error(f"Error loading metrics: {e}")
-
-    st.markdown("---")
-    st.subheader("🧪 Verification: Backtest Audit")
-    
-    if len(data) > 60:
-        # 2. Split Data (Hide last 30 days)
-        train_data = data.iloc[:-30]
-        test_data = data.iloc[-30:]
-        
-        # 3. Generate ML Forecast (Historical Performance Mode)
-        agent = ForecastingAgent()
-        forecast_df = agent.generate_forecasts(train_data, selected_commodity, selected_mandi)
-        
-        # Align dates
-        
-        # 4. Generate Baseline Forecast (Naive Persistence: Last Known Price)
-        last_price = train_data['price'].iloc[-1]
-        baseline_preds = [last_price] * 30
-        
-        # 5. Calculate Metrics
-        from sklearn.metrics import mean_absolute_error, mean_squared_error
-        
-        ml_preds = forecast_df['forecast_price'].values
-        actuals = test_data['price'].values
-        
-        # Ensure lengths match
-        min_len = min(len(ml_preds), len(actuals))
-        ml_preds = ml_preds[:min_len]
-        actuals = actuals[:min_len]
-        baseline_preds = baseline_preds[:min_len]
-        
-        mae_ml = mean_absolute_error(actuals, ml_preds)
-        mae_base = mean_absolute_error(actuals, baseline_preds)
-        
-        if mae_base > 0:
-            improvement = ((mae_base - mae_ml) / mae_base) * 100
-        else:
-            improvement = 0
-        
-        # 6. Display Metrics
-        c1, c2, c3 = st.columns(3)
-        c1.metric("ML Accuracy Boost", f"{improvement:.1f}%", "vs Naive Baseline")
-        c2.metric("ML Error (MAE)", f"₹{mae_ml:.2f}")
-        c3.metric("Baseline Error", f"₹{mae_base:.2f}")
-        
-        st.info(f"**Evaluation on Hidden Test Set**: We hid the last 30 days of data and asked the AI to predict them. The chart below proves if the AI beat the market.")
-        
-        # 7. Plot Comparison (Smooth & Institutional)
-        dates_eval = test_data['date'].values[:min_len]
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=dates_eval, y=actuals, 
-            mode='lines', name='Truth', 
-            line=dict(color=TEXT_MUTED, width=1.5)
-        ))
-        fig.add_trace(go.Scatter(
-            x=dates_eval, y=ml_preds, 
-            mode='lines', name='AI Model', 
-            line=dict(color=ACCENT_BLUE, width=2)
-        ))
-        
-        fig.update_layout(template="agriintel_terminal", hovermode="x unified", transition_duration=0)
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        
-    else:
-        st.warning("Not enough historical data to run a full 30-day backtest evaluation.")
 
 # --- PAGE: CONSULTANT (Analytical Intelligence) ---
 elif page == "Consultant":

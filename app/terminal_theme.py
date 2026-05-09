@@ -5,7 +5,6 @@ import plotly.io as pio
 # --- DESIGN TOKENS (PREMIUM INSTITUTIONAL PALETTE) ---
 BG_COLOR = "#0D0F12"  # Deeper, richer background
 PANEL_COLOR = "rgba(18, 21, 25, 0.8)" # Transparent panel
-CARD_BG = "rgba(255, 255, 255, 0.03)"
 BORDER_COLOR = "rgba(255, 255, 255, 0.08)"
 DIVIDER_COLOR = "rgba(255,255,255,0.05)"
 
@@ -59,34 +58,6 @@ def inject_terminal_css():
             /* --- PREMIUM FORMAL UI BUILD 3.0 (CLEANED) --- */
             @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 
-            /* FIX: Hide Streamlit icon text fallback (keyboard_double_arrow) */
-            /* Sidebar EXPAND button (when sidebar is collapsed) */
-            [data-testid="collapsedControl"] {{
-                max-width: 44px !important;
-                max-height: 44px !important;
-                overflow: hidden !important;
-            }}
-            [data-testid="collapsedControl"] button {{
-                max-width: 44px !important;
-                max-height: 44px !important;
-                overflow: hidden !important;
-            }}
-            [data-testid="collapsedControl"] button span {{
-                visibility: hidden !important;
-                max-width: 0 !important;
-                overflow: hidden !important;
-            }}
-            /* Sidebar COLLAPSE button (when sidebar is open) */
-            button[data-testid="stSidebarCollapseButton"] {{
-                max-width: 44px !important;
-                max-height: 44px !important;
-                overflow: hidden !important;
-            }}
-            button[data-testid="stSidebarCollapseButton"] span {{
-                visibility: hidden !important;
-                max-width: 0 !important;
-                overflow: hidden !important;
-            }}
 
             /* --- 1. CORE ARCHITECTURE --- */
             .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
@@ -144,7 +115,7 @@ def inject_terminal_css():
                 letter-spacing: -0.01em !important;
             }}
 
-            p, span, label, li, .stMarkdown {{
+            p, label, li, .stMarkdown {{
                 color: {TEXT_SECONDARY} !important;
                 font-family: 'Public Sans', sans-serif !important;
                 line-height: 1.6 !important;
