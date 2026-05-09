@@ -35,7 +35,7 @@ import database.db_manager as db_manager
 from app.terminal_theme import (
     inject_terminal_css, BG_COLOR, PANEL_COLOR, BORDER_COLOR, 
     TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_GREEN, ACCENT_AMBER, 
-    ACCENT_RED, ACCENT_BLUE, TEXT_MUTED, get_status_color
+    ACCENT_RED, ACCENT_BLUE, TEXT_MUTED, DIVIDER_COLOR, get_status_color
 )
 
 # Page Config
@@ -562,20 +562,25 @@ elif page == "Arbitrage":
             )
             
             if not arb_res.empty:
-                # Column selection for terminal view
-                disp_cols = ['Target Mandi', 'Potential Profit', 'Spread', 'Distance (km)']
+                # Use only columns that exist in the result
+                available_cols = [c for c in arb_res.columns if c in ['Target Mandi', 'Net Profit/Qt', 'Distance (km)', 'Target Price', 'Current Price', 'Confidence']]
                 
                 # Institutional Styling
-                st.dataframe(
-                    arb_res[disp_cols].style.format({
-                        "Potential Profit": "₹{:.0f}",
-                        "Spread": "₹{:.2f}"
-                    }).map(
+                fmt = {}
+                if 'Net Profit/Qt' in available_cols:
+                    fmt['Net Profit/Qt'] = '₹{:.0f}'
+                if 'Target Price' in available_cols:
+                    fmt['Target Price'] = '₹{:.0f}'
+                if 'Current Price' in available_cols:
+                    fmt['Current Price'] = '₹{:.0f}'
+                
+                styled = arb_res[available_cols].style.format(fmt)
+                if 'Net Profit/Qt' in available_cols:
+                    styled = styled.map(
                         lambda x: f"color: {ACCENT_GREEN}; font-weight: 600" if isinstance(x, (float, int)) and x > 500 else "",
-                        subset=["Potential Profit"]
-                    ), 
-                    use_container_width=True
-                )
+                        subset=['Net Profit/Qt']
+                    )
+                st.dataframe(styled, use_container_width=True)
             else:
                 st.info("No arbitrage signals above the risk-adjusted threshold detected.")
         else:
@@ -835,7 +840,7 @@ elif page == "Data Reliability":
             color = 'red' if val == 'CRITICAL' else 'orange' if val == 'WARNING' else 'black'
             return f'color: {color}'
             
-        st.dataframe(alerts_df.style.applymap(highlight_severity, subset=['severity']), use_container_width=True)
+        st.dataframe(alerts_df.style.map(highlight_severity, subset=['severity']), use_container_width=True)
     else:
         st.success("✅ No recent data quality issues detected.")
     
