@@ -20,9 +20,11 @@ app = FastAPI(
 )
 
 # --- Security ---
-API_KEY = "agriintel-secret-key-123" # Mock Key
+API_KEY = os.environ.get("AGRIINTEL_API_KEY", "")
 
 async def verify_api_key(x_api_key: str = Header(...)):
+    if not API_KEY:
+        raise HTTPException(status_code=500, detail="Server API key not configured")
     if x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return x_api_key
