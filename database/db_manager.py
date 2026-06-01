@@ -272,6 +272,55 @@ def init_db():
     except Exception as e:
         print(f"SaaS Init Error: {e}")
 
+    # --- REAL-TIME UPGRADE (RACE Engine) ---
+
+    # Table: Intraday Trades (Real-Time Tick Storage)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS intraday_trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            commodity TEXT,
+            mandi TEXT,
+            price REAL,
+            quantity REAL,
+            trade_type TEXT
+        )
+    ''')
+    # Index for fast real-time queries
+    c.execute("CREATE INDEX IF NOT EXISTS idx_intraday_cmd ON intraday_trades (commodity, mandi, timestamp)")
+
+    # Table: Ensemble Weights Log (RACE Model Weight Tracking)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS ensemble_weights_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            commodity TEXT,
+            mandi TEXT,
+            regime TEXT,
+            model_name TEXT,
+            weight REAL,
+            cv_mape REAL
+        )
+    ''')
+
+    # Migration: Add regime column to forecast_logs
+    try:
+        c.execute("SELECT regime FROM forecast_logs LIMIT 1")
+    except sqlite3.OperationalError:
+        try:
+            c.execute("ALTER TABLE forecast_logs ADD COLUMN regime TEXT DEFAULT 'UNKNOWN'")
+        except:
+            pass
+
+    # Migration: Add model_version column to model_metrics (if missing)
+    try:
+        c.execute("SELECT model_version FROM model_metrics LIMIT 1")
+    except sqlite3.OperationalError:
+        try:
+            c.execute("ALTER TABLE model_metrics ADD COLUMN model_version TEXT DEFAULT 'v1.0'")
+        except:
+            pass
+
     try:
         conn.commit()
         conn.close()
@@ -805,6 +854,77 @@ def get_org_details(org_id):
         return None
     finally:
         conn.close()
+
+# --- REAL-TIME / INTRADAY METHODS ---
+
+def save_intraday_trade(trade_dict):
+    """Save a single intraday trade to the database."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute(
+        """INSERT INTO intraday_trades (timestamp, commodity, mandi, price, quantity, trade_type)
+           VALUES (:timestamp, :commodity, :mandi, :price, :quantity, :trade_type)""",
+        trade_dict,
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_latest_intraday_trades(commodity=None, mandi=None, limit=50):
+    """Fetch the latest intraday trades."""
+    conn = sqlite3.connect(DB_NAME)
+    query = "SELECT * FROM intraday_trades"
+    conditions = []
+    if commodity:
+        conditions.append(f"commodity = '{commodity}'")
+    if mandi:
+        conditions.append(f"mandi = '{mandi}'")
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += f" ORDER BY timestamp DESC LIMIT {limit}"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+
+def clear_old_intraday_trades(hours=24):
+    """Remove intraday trades older than specified hours."""
+    from datetime import timedelta as _td
+    cutoff = (datetime.now() - _td(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM intraday_trades WHERE timestamp < ?", (cutoff,))
+    conn.commit()
+    conn.close()
+
+
+def log_ensemble_weights(date, commodity, mandi, regime, model_weights, cv_mapes):
+    """Log RACE ensemble model weights for tracking weight evolution."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    for model_name, weight in model_weights.items():
+        mape = cv_mapes.get(model_name, 0)
+        c.execute(
+            """INSERT INTO ensemble_weights_log (date, commodity, mandi, regime, model_name, weight, cv_mape)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (date, commodity, mandi, regime, model_name, weight, mape),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_ensemble_weight_history(commodity, mandi, limit=30):
+    """Retrieve recent ensemble weight evolution."""
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql(
+        f"""SELECT * FROM ensemble_weights_log
+            WHERE commodity='{commodity}' AND mandi='{mandi}'
+            ORDER BY date DESC LIMIT {limit * 4}""",
+        conn,
+    )
+    conn.close()
+    return df
+
 
 if __name__ == "__main__":
     init_db()

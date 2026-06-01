@@ -16,5 +16,11 @@ from .db_manager import (
     get_signal_stats,
     log_forecast,
     log_model_metrics,
-    get_performance_history
+    get_performance_history,
+    # Real-Time / RACE additions
+    save_intraday_trade,
+    get_latest_intraday_trades,
+    clear_old_intraday_trades,
+    log_ensemble_weights,
+    get_ensemble_weight_history,
 )

@@ -1,3 +1,13 @@
+"""
+AGENT 2 — FORECAST EXECUTION AGENT (v3.0-RACE)
+================================================
+Wraps the RACE (Regime-Adaptive Competitive Ensemble) forecaster
+for production use, with full backward compatibility.
+
+If RACE fails (missing dependencies, insufficient data, etc.),
+falls back to the original XGBoost-only Trend+Residual approach.
+"""
+
 import pandas as pd
 import numpy as np
 from datetime import timedelta
@@ -5,6 +15,10 @@ import xgboost as xgb
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+import warnings
+
+warnings.filterwarnings("ignore")
+
 
 class ForecastingAgent:
     """
@@ -17,6 +31,18 @@ class ForecastingAgent:
         # We will use a LinearRegression for trend and XGB for residuals
         self.trend_model = LinearRegression()
         self.residual_model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, learning_rate=0.1)
+        self._race_forecaster = None
+        self._race_available = False
+        self._init_race()
+
+    def _init_race(self):
+        """Try to initialise the RACE forecaster."""
+        try:
+            from agents.forecast_engine import RACEForecaster
+            self._race_forecaster = RACEForecaster()
+            self._race_available = True
+        except Exception:
+            self._race_available = False
 
     def prepare_features(self, df):
         """
@@ -84,7 +110,6 @@ class ForecastingAgent:
             'verbosity': 0 # Silent mode
         }
         
-        # print("Skipping Auto-Tune for speed...") 
         xgb_model = xgb.XGBRegressor(**best_params)
         model = xgb_model.fit(X, y) # Fit once
         
@@ -93,19 +118,85 @@ class ForecastingAgent:
 
     def generate_forecasts(self, data: pd.DataFrame, commodity: str, mandi: str, weather_df: pd.DataFrame = None) -> pd.DataFrame:
         """
-        Generates 30-day forecast using Trend + Residual approach with Weather Integration.
+        Generates 30-day forecast.
+        
+        Strategy:
+        1. Try RACE ensemble first (XGBoost + LightGBM + CatBoost with regime-adaptive weighting).
+        2. Fall back to legacy Trend + Residual XGBoost-only approach.
+        """
+        # --- RACE PATH (Primary) ---
+        if self._race_available:
+            try:
+                result = self._race_forecaster.forecast(
+                    data, commodity, mandi, horizon=30, weather_df=weather_df
+                )
+                return result.forecast_df
+            except Exception as e:
+                # RACE failed — fall through to legacy
+                pass
+
+        # --- LEGACY PATH (Fallback) ---
+        return self._generate_legacy_forecast(data, commodity, mandi, weather_df)
+
+    def generate_realtime_forecast(self, data: pd.DataFrame, commodity: str,
+                                    mandi: str, intraday_df: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Real-time forecast that incorporates intraday ticks.
+        Uses RACE fast-path if available, otherwise legacy.
+        """
+        if self._race_available and intraday_df is not None:
+            try:
+                result = self._race_forecaster.forecast_realtime(
+                    data, commodity, mandi, intraday_df
+                )
+                return result.forecast_df
+            except Exception:
+                pass
+        return self.generate_forecasts(data, commodity, mandi)
+
+    def get_race_metadata(self, data: pd.DataFrame, commodity: str,
+                          mandi: str) -> dict:
+        """
+        Get full RACE metadata (regime, weights, etc.) for UI display.
+        Returns a dict with regime info, model weights, and confidence.
+        """
+        if self._race_available:
+            try:
+                result = self._race_forecaster.forecast(data, commodity, mandi)
+                return {
+                    "regime": result.regime.regime,
+                    "regime_confidence": result.regime.confidence,
+                    "transition_probs": result.regime.transition_prob,
+                    "model_weights": result.model_weights,
+                    "confidence": result.confidence,
+                    "metadata": result.metadata,
+                    "forecast_df": result.forecast_df,
+                }
+            except Exception:
+                pass
+        return {
+            "regime": "STABLE",
+            "regime_confidence": 0.5,
+            "transition_probs": {},
+            "model_weights": {"XGBoost": 1.0},
+            "confidence": 0.5,
+            "metadata": {"fallback": True},
+            "forecast_df": self.generate_forecasts(data, commodity, mandi),
+        }
+
+    def _generate_legacy_forecast(self, data: pd.DataFrame, commodity: str,
+                                   mandi: str, weather_df: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Original Trend + Residual approach with Weather Integration.
         """
         # Ensure data is sorted
         data = data.sort_values('date').copy()
         
         # Merge Weather if available
         if weather_df is not None and not weather_df.empty:
-            # Ensure dates match for merge
             weather_df['date'] = pd.to_datetime(weather_df['date'])
             data = pd.merge(data, weather_df[['date', 'rainfall', 'temperature']], on='date', how='left')
-            # Forward fill missing weather (persistence)
             data['rainfall'] = data['rainfall'].fillna(0)
-            # Fix FutureWarning
             data['temperature'] = data['temperature'].ffill().fillna(25)
         
         # Minimum data check
@@ -149,9 +240,6 @@ class ForecastingAgent:
         mse_val = mean_squared_error(y_val, val_preds)
         rmse_val = np.sqrt(mse_val)
         
-        # Log to debug-level if needed, but remove print for production to avoid spam
-        # print(f"Residual Model RMSE: {rmse_val:.2f}") 
-        
         # Retrain on full data with best params
         self.residual_model.fit(X, y)
         
@@ -168,11 +256,9 @@ class ForecastingAgent:
             next_ordinal = next_date.toordinal()
             
             # A. Predict Trend
-            # Fix UserWarning: Ensure input has feature names
             pred_trend = self.trend_model.predict(pd.DataFrame([[next_ordinal]], columns=['date_ordinal']))[0]
             
             # B. Predict Residual (Recursive)
-            # Create temp row
             temp_df = current_data.copy()
             next_row = pd.DataFrame([{
                 'date': next_date,
@@ -180,7 +266,7 @@ class ForecastingAgent:
                 'trend': pred_trend,
                 'price': np.nan, 
                 'date_ordinal': next_ordinal,
-                'rainfall': temp_df['rainfall'].iloc[-1] if 'rainfall' in temp_df.columns else 0, # Weather Persistence
+                'rainfall': temp_df['rainfall'].iloc[-1] if 'rainfall' in temp_df.columns else 0,
                 'temperature': temp_df['temperature'].iloc[-1] if 'temperature' in temp_df.columns else 25
             }])
             temp_df = pd.concat([temp_df, next_row], ignore_index=True)
@@ -207,8 +293,6 @@ class ForecastingAgent:
         # --- STEP 4: CONFIDENCE INTERVALS ---
         forecast_prices = np.array(forecast_prices)
         
-        # Uncertainty grows with time, but tuned model should be tighter
-        # Use simple heuristic: RMSE * log(t) instead of sqrt(t) for slightly tighter bounds initially
         time_steps = np.arange(1, 31)
         uncertainty_factor = np.log(time_steps + 1) + 0.5 
         

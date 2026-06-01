@@ -102,3 +102,47 @@ def get_weather_data():
         return get_weather_logs()
     except:
         return pd.DataFrame()
+
+
+# --- REAL-TIME UTILITIES ---
+
+def get_intraday_data(commodity: str, mandi: str, limit: int = 50) -> pd.DataFrame:
+    """Fetch latest intraday trades from the database."""
+    try:
+        from database.db_manager import get_latest_intraday_trades
+        df = get_latest_intraday_trades(commodity, mandi, limit)
+        if not df.empty:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+    except Exception as e:
+        print(f"Intraday data error: {e}")
+        return pd.DataFrame()
+
+
+def get_order_book_data(commodity: str, mandi: str, depth: int = 10) -> dict:
+    """Build a live order book from recent BID/ASK entries."""
+    try:
+        from etl.realtime_stream import get_order_book
+        return get_order_book(commodity, mandi, depth)
+    except Exception as e:
+        print(f"Order book error: {e}")
+        return {"bids": pd.DataFrame(), "asks": pd.DataFrame()}
+
+
+def get_intraday_price_series(commodity: str, mandi: str, limit: int = 100) -> pd.DataFrame:
+    """Get executed trade prices for intraday charting."""
+    try:
+        from database.db_manager import get_latest_intraday_trades
+        df = get_latest_intraday_trades(commodity, mandi, limit * 3)
+        if not df.empty:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            # Filter to executed trades only for price chart
+            trades = df[df['trade_type'] == 'TRADE'].head(limit)
+            if trades.empty:
+                # Use all ticks if no TRADE type
+                trades = df.head(limit)
+            return trades.sort_values('timestamp')
+        return pd.DataFrame()
+    except Exception as e:
+        print(f"Intraday price series error: {e}")
+        return pd.DataFrame()

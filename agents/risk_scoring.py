@@ -109,3 +109,52 @@ class MarketRiskEngine:
                 regime = label
                 
         return regime
+
+    def calculate_realtime_risk(self, base_risk: dict, intraday_shocks: dict) -> dict:
+        """
+        Augments daily risk score with real-time intraday shocks.
+        Increases the risk score by up to 20 points based on anomaly severity.
+        """
+        augmented_risk = base_risk.copy()
+        
+        if not intraday_shocks or not intraday_shocks.get("is_shock"):
+            augmented_risk["intraday_risk_delta"] = 0
+            return augmented_risk
+
+        severity = intraday_shocks.get("severity", "None")
+        delta = 0
+        if severity == "Critical":
+            delta = 20
+        elif severity == "High":
+            delta = 15
+        elif severity == "Medium":
+            delta = 10
+            
+        augmented_risk["intraday_risk_delta"] = delta
+        new_score = min(100, base_risk.get("risk_score", 0) + delta)
+        augmented_risk["risk_score"] = new_score
+        
+        # Recalculate level
+        if new_score > 75:
+            augmented_risk["risk_level"] = "Critical"
+        elif new_score > 50:
+            augmented_risk["risk_level"] = "High"
+        elif new_score > 25:
+            augmented_risk["risk_level"] = "Moderate"
+        else:
+            augmented_risk["risk_level"] = "Stable"
+            
+        # Update breakdown
+        if "breakdown" in augmented_risk:
+            augmented_risk["breakdown"] = augmented_risk["breakdown"].copy()
+            augmented_risk["breakdown"]["Intraday Shocks"] = delta
+            
+        # Update explanation tags
+        if "explanation_tags" in augmented_risk:
+            tags = list(augmented_risk["explanation_tags"])
+            if delta > 0:
+                tags.append(f"Real-Time {severity} Shock (+{delta} Risk)")
+            augmented_risk["explanation_tags"] = tags
+
+        return augmented_risk
+
