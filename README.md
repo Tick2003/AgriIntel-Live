@@ -10,25 +10,21 @@
 
 AgriIntel.in consolidates 20+ specialized AI agents into a unified, high-performance architecture:
 
-### 🎙️ 1. Conversational Access Stack
-*   **Telephony-Ready Infrastructure**: Real-time voice interaction layer for standard phone calls (In Sandbox Environment).
+### 🎙️ 1. Conversational Access Stack (Voice Gateway)
+*   **Telephony-Ready Infrastructure**: Real-time voice interaction layer for standard phone calls (Hindi and English).
 *   **Multi-Turn Dialogue Management**: Sustained conversational context across sessions.
-*   **Regional Language Engine**: Native support for **Hindi**, **Marathi**, **Odia**, and **English**.
 *   **Telecom Mapping**: Automatic region-aware language detection via carrier circle mapping.
-*   **Digital Outreach**: SMS/Messenger-style interaction mode (Pilot Mode).
 
-### 📊 2. Strategic Intelligence Stack
-*   **Hybrid Price Forecasting**: Residual-corrected additive models for 30-day market predictions.
-*   **Risk & Shock Decomposition**: Quantitative analysis of **Volatility**, **Abnormal Shocks**, **Sentiment**, and **Weather** risk drivers.
-*   **Decision Signal Banner**: Dynamic "Buy/Hold/Sell" advisory with reliability metadata.
-*   **AI Analyst Deep-Dive**: Interactive consultant for hypothetical scenario analysis.
-*   **Institutional Dashboard**: State-level heatmaps and governance-focused market aggregation.
+### 🧠 2. RACE Forecasting & Real-Time Trading Stack (NEW)
+*   **RACE Forecaster (Regime-Adaptive Competitive Ensemble)**: Patent-grade engine combining HMM (Hidden Markov Model) regime classification (Stable/Volatile/Crisis) with dynamic inverse-MAPE weighted ensembles across **XGBoost**, **LightGBM**, and **CatBoost**.
+*   **High-Frequency Intraday Simulation Engine**: Daemon-driven simulator generating live eNAM bid/ask and completed trades every 2-3s, biased by weather stress and news sentiment.
+*   **Bloomberg-Style Trading Desk UI**: Streamlit page designed with non-blocking `@st.fragment` rendering live order books, scrolling trade tickers, and Plotly intraday charts.
+*   **$3\sigma$ Shock Sentinel & Risk Augmentation**: Statistical sentinel flagging ticks exceeding $3\sigma$ deviation, instantly augmenting baseline risk score (+20 pts) in <5 seconds.
 
-### 🚛 3. Supply Chain Efficiency Stack
-*   **Spatial Arbitrage Engine**: Identification of regional trade opportunities with logistical cost modeling.
-*   **Network Optimization**: Shortest-path routing using Dijkstra's logic (Integrating Tolls & Fuel).
-*   **Computer Vision Grading**: Structural quality assessment (Phase II Enhancement).
-*   **Agri-Credit & B2B Matchmaking**: Matchmaking Farmers with Exporters and calculating AI-driven creditworthiness scores.
+### 🚛 3. Supply Chain & Logistics Stack
+*   **Spatial Arbitrage Corridor Engine**: Maps mandi networks using Dijkstra’s shortest-path algorithms to optimize route profits (factoring tolls, distance, and transport costs).
+*   **Computer Vision Grading**: Visual produce scanning returning objective commercial grades (Grade A/B/C) with automatic pricing recommendations.
+*   **Agri-Credit & B2B Matchmaking**: Farmers/exporters matchmaking and creditworthiness scoring.
 *   **Smart Resource Planning**: Crop rotation (Simplex Algorithm) and inventory level optimization (EOQ).
 
 ---
