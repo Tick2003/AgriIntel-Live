@@ -1241,7 +1241,7 @@ elif page == "Real-Time Desk":
                 xaxis_title="Time",
                 yaxis_title="Price (₹/Quintal)",
             )
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key="intraday_price_plotly_chart")
 
         render_intraday_chart()
 
