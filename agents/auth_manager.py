@@ -161,12 +161,7 @@ class AuthAgent:
             if submit:
                 user = db_manager.get_user_by_email(email)
                 if user:
-                    try:
-                        is_valid = bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8'))
-                    except ValueError:
-                        is_valid = False
-                        
-                    if is_valid:
+                    if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
                          st.session_state[self.auth_key] = {
                             'logged_in': True,
                             'email': user['email'],
