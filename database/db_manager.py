@@ -273,6 +273,17 @@ def init_db():
             c.execute("INSERT INTO users (email, password_hash, role, org_id, created_at) VALUES ('admin@agriintel.in', ?, 'Admin', ?, ?)",
                      (hashed_admin, org_id, datetime.now().strftime("%Y-%m-%d")))
             logger.info("Initialized Default SaaS Org & User.")
+        else:
+            # Migration: Update existing legacy hashlib admin password to bcrypt
+            c.execute("SELECT id, password_hash FROM users WHERE email = 'admin@agriintel.in'")
+            admin_user = c.fetchone()
+            if admin_user:
+                pw_hash = admin_user[1]
+                if pw_hash and not pw_hash.startswith('$2b$'):
+                    salt = bcrypt.gensalt()
+                    new_hashed = bcrypt.hashpw('admin123'.encode('utf-8'), salt).decode('utf-8')
+                    c.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hashed, admin_user[0]))
+                    logger.info("Migrated Default Admin password to bcrypt format.")
     except Exception as e:
         logger.error(f"SaaS Init Error: {e}", exc_info=True)
 
