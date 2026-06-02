@@ -2,7 +2,6 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import bcrypt
-from utils.logger import logger
 
 DB_NAME = "agri_intel.db"
 
