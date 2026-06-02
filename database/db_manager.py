@@ -1,6 +1,8 @@
 import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
+import bcrypt
+from utils.logger import logger
 
 DB_NAME = "agri_intel.db"
 
@@ -55,7 +57,7 @@ def init_db():
     try:
         c.execute("DELETE FROM news_alerts WHERE substr(date, 1, 1) NOT IN ('0','1','2','3','4','5','6','7','8','9')")
         if c.rowcount > 0:
-            print(f"Cleaned up {c.rowcount} news items with old date format.")
+            logger.info(f"Cleaned up {c.rowcount} news items with old date format.")
     except Exception:
         pass
 
@@ -264,13 +266,15 @@ def init_db():
             c.execute("INSERT INTO organizations (name, plan_type, created_at) VALUES ('Demo Org', 'Enterprise', ?)", 
                      (datetime.now().strftime("%Y-%m-%d"),))
             org_id = c.lastrowid
-            # Default Admin: admin@agriintel.in / admin123 (hashed in real app, plain here for demo simplicity or use mock hash)
-            # In real app: use bcrypt. Here: "hashed_secret"
-            c.execute("INSERT INTO users (email, password_hash, role, org_id, created_at) VALUES ('admin@agriintel.in', 'admin123', 'Admin', ?, ?)",
-                     (org_id, datetime.now().strftime("%Y-%m-%d")))
-            print("Initialized Default SaaS Org & User.")
+            # Default Admin: admin@agriintel.in / admin123
+            # Securely hashing password with bcrypt
+            salt = bcrypt.gensalt()
+            hashed_admin = bcrypt.hashpw('admin123'.encode('utf-8'), salt).decode('utf-8')
+            c.execute("INSERT INTO users (email, password_hash, role, org_id, created_at) VALUES ('admin@agriintel.in', ?, 'Admin', ?, ?)",
+                     (hashed_admin, org_id, datetime.now().strftime("%Y-%m-%d")))
+            logger.info("Initialized Default SaaS Org & User.")
     except Exception as e:
-        print(f"SaaS Init Error: {e}")
+        logger.error(f"SaaS Init Error: {e}", exc_info=True)
 
     # --- REAL-TIME UPGRADE (RACE Engine) ---
 
@@ -386,13 +390,13 @@ def log_system_event(level, source, message, metadata=""):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Logging Failed: {e}")
+        logger.error(f"Logging Failed: {e}", exc_info=True)
 
 def import_prices_from_csv():
     """Restores prices from CSV and performs incremental sync if new data exists."""
     import os
     if not os.path.exists("data/market_prices.csv"):
-        print("Warning: data/market_prices.csv not found.")
+        logger.warning("Warning: data/market_prices.csv not found.")
         return
 
     conn = sqlite3.connect(DB_NAME)
@@ -415,19 +419,19 @@ def import_prices_from_csv():
             new_records = new_records.drop(columns=['date_dt'])
             
             if not new_records.empty:
-                print(f"Syncing {len(new_records)} new records from CSV (Newer than {max_date_db})...")
+                logger.info(f"Syncing {len(new_records)} new records from CSV (Newer than {max_date_db})...")
                 # Filter valid columns for market_prices table
                 valid_cols = ['date', 'commodity', 'mandi', 'price_min', 'price_max', 'price_modal', 'arrival', 'unit']
                 cols_to_save = [c for c in valid_cols if c in new_records.columns]
                 new_records[cols_to_save].to_sql('market_prices', conn, if_exists='append', index=False)
-                print("Incremental sync successful.")
+                logger.info("Incremental sync successful.")
             else:
-                print(f"DB is already up to date (Max Date: {max_date_db}).")
+                logger.info(f"DB is already up to date (Max Date: {max_date_db}).")
         else:
             # Full Restore (Empty DB)
-            print("DB empty. Performing full restoration from CSV...")
+            logger.info("DB empty. Performing full restoration from CSV...")
             df.to_sql('market_prices', conn, if_exists='append', index=False)
-            print(f"Restored {len(df)} records.")
+            logger.info(f"Restored {len(df)} records.")
             
         # 3. Finalize Update Metadata — Set last_update to actual max date in DB
         c = conn.cursor()
@@ -437,10 +441,10 @@ def import_prices_from_csv():
             from datetime import datetime as _dt
             now_str = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
             c.execute("INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_update', ?)", (now_str,))
-            print(f"Set last_update to {now_str} (data max: {new_max})")
+            logger.info(f"Set last_update to {now_str} (data max: {new_max})")
             
     except Exception as e:
-        print(f"CSV Sync failed: {e}")
+        logger.error(f"CSV Sync failed: {e}", exc_info=True)
     finally:
         conn.commit()
         conn.close()
@@ -462,15 +466,17 @@ def save_prices(df):
     
     df_clean.to_sql('market_prices', conn, if_exists='append', index=False)
     conn.close()
-    print(f"Saved {len(df_clean)} price records.")
+    logger.info(f"Saved {len(df_clean)} price records.")
 
 def get_latest_prices(commodity=None):
     """Retrieve prices from the DB."""
     conn = sqlite3.connect(DB_NAME)
     query = "SELECT * FROM market_prices"
+    params = []
     if commodity:
-        query += f" WHERE commodity = '{commodity}'"
-    df = pd.read_sql(query, conn)
+        query += " WHERE commodity = ?"
+        params.append(commodity)
+    df = pd.read_sql(query, conn, params=params)
     conn.close()
     return df
 
@@ -497,9 +503,9 @@ def save_news(df):
         
         if not new_df.empty:
             new_df.to_sql('news_alerts', conn, if_exists='append', index=False)
-            print(f"Added {len(new_df)} new news items.")
+            logger.info(f"Added {len(new_df)} new news items.")
         else:
-            print("No new unique news items found.")
+            logger.info("No new unique news items found.")
             
     conn.close()
 
@@ -520,9 +526,11 @@ def get_weather_logs(region=None):
     """Get weather logs."""
     conn = sqlite3.connect(DB_NAME)
     query = "SELECT * FROM weather_logs"
+    params = []
     if region:
-        query += f" WHERE region = '{region}'"
-    df = pd.read_sql(query, conn)
+        query += " WHERE region = ?"
+        params.append(region)
+    df = pd.read_sql(query, conn, params=params)
     conn.close()
     return df
 
@@ -550,6 +558,8 @@ def set_last_update():
 
 def get_unique_items(column):
     """Get distinct values for a column (commodity/mandi)."""
+    if column not in ['commodity', 'mandi']:
+        raise ValueError("Invalid column name for get_unique_items")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(f"SELECT DISTINCT {column} FROM market_prices ORDER BY {column}")
@@ -591,7 +601,7 @@ def get_signal_stats(commodity, mandi):
     
     if not pending_df.empty:
         c = conn.cursor()
-        prices_df = pd.read_sql(f"SELECT date, price_modal FROM market_prices WHERE commodity='{commodity}' AND mandi='{mandi}'", conn)
+        prices_df = pd.read_sql("SELECT date, price_modal FROM market_prices WHERE commodity=? AND mandi=?", conn, params=[commodity, mandi])
         # Fix date parsing if stored as mixed format, assume YYYY-MM-DD
         prices_df['date'] = pd.to_datetime(prices_df['date'], errors='coerce')
         
@@ -626,13 +636,13 @@ def get_signal_stats(commodity, mandi):
                     c.execute("UPDATE signal_logs SET price_after_7d=?, profitability_status=? WHERE id=?", 
                               (outcome_price, status, row['id']))
             except Exception as e:
-                print(f"Error processing log {row['id']}: {e}")
+                logger.error(f"Error processing log {row['id']}: {e}", exc_info=True)
                 continue
                 
         conn.commit()
 
     # 2. Calculate Stats
-    df = pd.read_sql(f"SELECT * FROM signal_logs WHERE commodity='{commodity}' AND mandi='{mandi}' AND profitability_status IS NOT NULL", conn)
+    df = pd.read_sql("SELECT * FROM signal_logs WHERE commodity=? AND mandi=? AND profitability_status IS NOT NULL", conn, params=[commodity, mandi])
     conn.close()
     
     if df.empty:
@@ -661,7 +671,7 @@ def export_prices_to_csv():
         os.makedirs("data")
         
     df.to_csv("data/market_prices.csv", index=False)
-    print("Exported prices to data/market_prices.csv")
+    logger.info("Exported prices to data/market_prices.csv")
 
 
 # --- PERFORMANCE TRACKING (Phase 5) ---
@@ -691,7 +701,7 @@ def log_forecast(gen_date, commodity, mandi, forecast_df):
         
         conn.commit()
     except Exception as e:
-        print(f"Failed to log forecast: {e}")
+        logger.error(f"Failed to log forecast: {e}", exc_info=True)
     finally:
         conn.close()
 
@@ -706,14 +716,14 @@ def log_model_metrics(date, commodity, mandi, mape, rmse, mae, health_score, acc
         ''', (date, commodity, mandi, mape, rmse, mae, health_score, accuracy, sample_size))
         conn.commit()
     except Exception as e:
-        print(f"Failed to log metrics: {e}")
+        logger.error(f"Failed to log metrics: {e}", exc_info=True)
     finally:
         conn.close()
 
 def get_performance_history(commodity, mandi):
     """Retrieves historical performance metrics."""
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql(f"SELECT * FROM model_metrics WHERE commodity='{commodity}' AND mandi='{mandi}' ORDER BY date", conn)
+    df = pd.read_sql("SELECT * FROM model_metrics WHERE commodity=? AND mandi=? ORDER BY date", conn, params=[commodity, mandi])
     conn.close()
     return df
 
@@ -736,10 +746,10 @@ def get_forecast_vs_actuals(commodity, mandi):
             f.gen_date
         FROM forecast_logs f
         JOIN market_prices m ON f.target_date = m.date AND f.commodity = m.commodity AND f.mandi = m.mandi
-        WHERE f.commodity = '{commodity}' AND f.mandi = '{mandi}'
+        WHERE f.commodity = ? AND f.mandi = ?
         ORDER BY f.target_date
     '''
-    df = pd.read_sql(query, conn)
+    df = pd.read_sql(query, conn, params=[commodity, mandi])
     conn.close()
     
     if not df.empty:
@@ -797,7 +807,7 @@ def log_scraper_execution(status, duration, fetched, validated, rejected, error_
 def get_scraper_stats(limit=30):
     """Fetch scraper stats for dashboard."""
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql(f"SELECT * FROM scraper_execution_stats ORDER BY timestamp DESC LIMIT {limit}", conn)
+    df = pd.read_sql("SELECT * FROM scraper_execution_stats ORDER BY timestamp DESC LIMIT ?", conn, params=[limit])
     
     # Calculate Success Rate
     success_rate = 0
@@ -812,16 +822,19 @@ def get_price_history(commodity, mandi, start_date=None, end_date=None):
     """Fetches historical prices for a specific market within a date range."""
     conn = sqlite3.connect(DB_NAME)
     
-    query = f"SELECT * FROM market_prices WHERE commodity='{commodity}' AND mandi='{mandi}'"
+    query = "SELECT * FROM market_prices WHERE commodity=? AND mandi=?"
+    params = [commodity, mandi]
     
     if start_date:
-        query += f" AND date >= '{start_date}'"
+        query += " AND date >= ?"
+        params.append(start_date)
     if end_date:
-        query += f" AND date <= '{end_date}'"
+        query += " AND date <= ?"
+        params.append(end_date)
         
     query += " ORDER BY date ASC"
     
-    df = pd.read_sql(query, conn)
+    df = pd.read_sql(query, conn, params=params)
     conn.close()
     return df
 
@@ -875,14 +888,18 @@ def get_latest_intraday_trades(commodity=None, mandi=None, limit=50):
     conn = sqlite3.connect(DB_NAME)
     query = "SELECT * FROM intraday_trades"
     conditions = []
+    params = []
     if commodity:
-        conditions.append(f"commodity = '{commodity}'")
+        conditions.append("commodity = ?")
+        params.append(commodity)
     if mandi:
-        conditions.append(f"mandi = '{mandi}'")
+        conditions.append("mandi = ?")
+        params.append(mandi)
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += f" ORDER BY timestamp DESC LIMIT {limit}"
-    df = pd.read_sql(query, conn)
+    query += " ORDER BY timestamp DESC LIMIT ?"
+    params.append(limit)
+    df = pd.read_sql(query, conn, params=params)
     conn.close()
     return df
 
@@ -917,10 +934,11 @@ def get_ensemble_weight_history(commodity, mandi, limit=30):
     """Retrieve recent ensemble weight evolution."""
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql(
-        f"""SELECT * FROM ensemble_weights_log
-            WHERE commodity='{commodity}' AND mandi='{mandi}'
-            ORDER BY date DESC LIMIT {limit * 4}""",
+        """SELECT * FROM ensemble_weights_log
+           WHERE commodity=? AND mandi=?
+           ORDER BY date DESC LIMIT ?""",
         conn,
+        params=[commodity, mandi, limit * 4]
     )
     conn.close()
     return df

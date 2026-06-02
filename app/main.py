@@ -7,6 +7,7 @@ import sys
 import os
 from datetime import datetime
 import threading
+from utils.logger import logger
 
 # Add root directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -105,7 +106,7 @@ if st.sidebar.button("🔄 Force Data Update"):
                     etl.data_loader.run_daily_update(skip_swarm=False)
                     db_manager.set_last_update()
                 except Exception as e:
-                    print(f"Manual Update Failed: {e}")
+                    logger.error(f"Manual Update Failed: {e}", exc_info=True)
                 finally:
                     if os.path.exists(LOCK_FILE):
                         os.remove(LOCK_FILE)
@@ -154,7 +155,7 @@ if should_update and not os.path.exists(LOCK_FILE):
             dbm.set_last_update()
             st.cache_data.clear()
         except Exception as e:
-            print(f"Background Update Error: {e}")
+            logger.error(f"Background Update Error: {e}", exc_info=True)
         finally:
             if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
 
@@ -311,7 +312,7 @@ last_date_str = data['date'].iloc[-1].strftime("%Y-%m-%d")
 try:
     db_manager.log_signal(last_date_str, selected_commodity, selected_mandi, decision_signal['signal'], data['price'].iloc[-1])
 except Exception as e:
-    print(f"Logging Error: {e}")
+    logger.error(f"Logging Error: {e}", exc_info=True)
 
 # Fetch Stats
 signal_stats = {}
@@ -319,7 +320,7 @@ try:
     if hasattr(db_manager, 'get_signal_stats'):
         signal_stats = db_manager.get_signal_stats(selected_commodity, selected_mandi)
 except Exception as e:
-    print(f"Stats Error: {e}")
+    logger.error(f"Stats Error: {e}", exc_info=True)
 # -------------------------------
 
 # Navigation

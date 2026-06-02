@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from utils.logger import logger
 
 class DataReliabilityAgent:
     """
@@ -28,7 +29,7 @@ class DataReliabilityAgent:
         if df.empty:
             return pd.DataFrame(), [], {"total": 0, "valid": 0, "rejected": 0}
             
-        print(f"Validating batch {batch_id} with {len(df)} records...")
+        logger.info(f"Validating batch {batch_id} with {len(df)} records...")
         
         # Pre-fetch historical context for outlier detection
         # Optimization: Fetch last known price for all commodities in checking set
@@ -88,7 +89,7 @@ class DataReliabilityAgent:
                                     issues[-1]['severity'] = "CRITICAL"
                                     issues[-1]['details'] += " - REJECTED as improbable."
                 except Exception as e:
-                    print(f"Validation Error (Outlier): {e}")
+                    logger.error(f"Validation Error (Outlier): {e}", exc_info=True)
 
             # 3. Duplicate Check
             if is_valid:

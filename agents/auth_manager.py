@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import asyncio
+import bcrypt
 from streamlit_oauth import OAuth2Component
 from database import db_manager
 
@@ -159,16 +160,19 @@ class AuthAgent:
             
             if submit:
                 user = db_manager.get_user_by_email(email)
-                if user and user['password_hash'] == password:
-                     st.session_state[self.auth_key] = {
-                        'logged_in': True,
-                        'email': user['email'],
-                        'role': user['role'],
-                        'org_id': user['org_id'],
-                        'name': user['email'].split('@')[0]
-                    }
-                     st.success("Authenticated.")
-                     st.rerun()
+                if user:
+                    if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                         st.session_state[self.auth_key] = {
+                            'logged_in': True,
+                            'email': user['email'],
+                            'role': user['role'],
+                            'org_id': user['org_id'],
+                            'name': user['email'].split('@')[0]
+                        }
+                         st.success("Authenticated.")
+                         st.rerun()
+                    else:
+                        st.error("Invalid credentials.")
                 else:
                     st.error("Invalid credentials.")
 
