@@ -302,18 +302,19 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
     v1.6-RECOVERY: Supports skip_swarm and ignore extra kwargs for robustness.
     """
     start_time = time.time()
-    dbm.log_system_event("INFO", "ETL", "Daily Update Started")
     print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
     
     if progress_callback:
         progress_callback(0.05, "Initializing Database...")
 
-    # Ensure DB is initialized
+    # Ensure DB is initialized FIRST (before any logging)
     try:
         dbm.init_db()
     except Exception as e:
-        dbm.log_system_event("CRITICAL", "ETL", f"DB Init Failed: {e}")
+        print(f"CRITICAL: DB Init Failed: {e}")
         return # Cannot proceed without DB
+
+    dbm.log_system_event("INFO", "ETL", "Daily Update Started")
 
     # 1. Fetch Prices (Real/Simulated)
     if progress_callback:
