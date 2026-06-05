@@ -66,16 +66,22 @@ def fetch_agri_news(query="Agriculture News India"):
     
     return pd.DataFrame(news_items)
 
-# --- 2. FREE PRICE SOURCE: Agmarknet (Government) ---
-# NOTE: Direct scraping is fragile. We simulate the *structure* of Agmarknet data 
-# so the system is robust. In a production environment, you would use:
-# requests.get("http://agmarknet.gov.in/...") and BeautifulSoup to parse the HTML table.
+# --- 2. PRICE SOURCE: Real Data with Simulation Fallback ---
+# Uses cascading sources: data.gov.in API → Agmarknet scraping → simulation
 
 def fetch_mandi_prices_simulated():
     """
     Simulates fetching live data from Agmarknet for demonstration.
-    Returns realistic data structure.
+    Returns realistic data structure. Used as final fallback.
     """
+    # Import enhanced simulation from new scraper
+    try:
+        from etl.agmarknet_scraper import fetch_simulated_prices
+        return fetch_simulated_prices()
+    except Exception:
+        pass
+
+    # Inline fallback if import fails
     commodities = [
         "Onion", "Potato", "Tomato", "Wheat", "Rice", 
         "Maize", "Soyabean", "Mustard", "Cotton", "Sugarcane",
@@ -96,10 +102,8 @@ def fetch_mandi_prices_simulated():
     today = datetime.now().strftime("%Y-%m-%d")
     
     for com in commodities:
-        # Create realistic variation
-        base_price = random.randint(1500, 5000) # Rs/Quintal
+        base_price = random.randint(1500, 5000)
         for mandi in mandis:
-            # Add some noise per mandi
             modal = base_price + random.randint(-200, 200)
             data.append({
                 "date": today,
@@ -108,7 +112,7 @@ def fetch_mandi_prices_simulated():
                 "price_min": modal - 100,
                 "price_max": modal + 100,
                 "price_modal": modal,
-                "arrival": random.randint(50, 500) # Tons
+                "arrival": random.randint(50, 500)
             })
             
     df = pd.DataFrame(data)
@@ -116,25 +120,27 @@ def fetch_mandi_prices_simulated():
 
 def fetch_real_prices(fallback=True):
     """
-    Attempts to scrape real data from Agmarknet. 
-    Falls back to simulation if scraping fails.
+    Fetches REAL commodity prices using cascading data sources:
+        1. data.gov.in API (requires DATA_GOV_IN_API_KEY)
+        2. Direct Agmarknet scraping
+        3. Enhanced simulation fallback
     """
     try:
-        print("Attempting to fetch REAL data from Agmarknet...")
-        # Import the new scraper
         from etl.agmarknet_scraper import get_all_commodities_data
         
         real_df = get_all_commodities_data()
         
         if real_df.empty:
-            raise Exception("Scraper returned no data")
+            raise Exception("All data sources returned no data")
             
-        print(f"Successfully scraped {len(real_df)} records from AgMarknet!")
+        print(f"✅ Got {len(real_df)} price records.")
         return real_df
 
     except Exception as e:
-        print(f"Real Data Fetch failed ({e}). Using robust simulation.")
-        return fetch_mandi_prices_simulated()
+        print(f"Data fetch failed ({e}). Using simulation fallback.")
+        if fallback:
+            return fetch_mandi_prices_simulated()
+        return pd.DataFrame()
 
 def seed_historical_data(days=90):
     """
