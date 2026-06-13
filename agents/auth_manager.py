@@ -97,7 +97,7 @@ class AuthAgent:
         with col2:
             st.markdown("""
             <div class="tactical-login-card">
-                <h1 class="login-title">📉 AgriIntel Terminal v1.2</h1>
+                <h1 class="login-title">📉 AgriIntel Terminal v2.0</h1>
                 <p class="login-subtitle">National Unified Agricultural Intelligence Stack: Strategic Gateway</p>
                 <div style="color: #3B82F6; font-weight: 600; font-size: 1.1em; margin-bottom: 5px;">INSTITUTIONAL ACCESS : AUTHORIZED PERSONNEL ONLY</div>
                 <p style="color: #888; font-size: 0.85em;">Tactical Intelligence Infrastructure | Build 782-X</p>
