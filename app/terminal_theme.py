@@ -546,6 +546,90 @@ def inject_terminal_css():
                 0% {{ background: rgba(59, 130, 246, 0.15); }}
                 100% {{ background: transparent; }}
             }}
+
+            /* --- 23. TRUST & PROVENANCE COMPONENTS --- */
+            .provenance-badge {{
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 12px;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 500;
+                font-family: 'Public Sans', sans-serif;
+                background: rgba(59, 130, 246, 0.08);
+                border: 1px solid rgba(59, 130, 246, 0.2);
+                color: {ACCENT_BLUE};
+                letter-spacing: 0.02em;
+            }}
+            .provenance-bar {{
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                flex-wrap: wrap;
+                padding: 8px 0;
+                margin-bottom: 8px;
+            }}
+            .model-accuracy-badge {{
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 14px;
+                border-radius: 8px;
+                font-size: 12px;
+                font-weight: 600;
+                font-family: 'Public Sans', sans-serif;
+                letter-spacing: 0.02em;
+            }}
+            .model-accuracy-good {{
+                background: rgba(16, 185, 129, 0.1);
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                color: {ACCENT_GREEN};
+            }}
+            .model-accuracy-warn {{
+                background: rgba(245, 158, 11, 0.1);
+                border: 1px solid rgba(245, 158, 11, 0.3);
+                color: {ACCENT_AMBER};
+            }}
+            .model-accuracy-poor {{
+                background: rgba(239, 68, 68, 0.1);
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                color: {ACCENT_RED};
+            }}
+            .disclaimer-bar {{
+                text-align: center;
+                padding: 10px 16px;
+                margin-top: 12px;
+                border-radius: 8px;
+                background: rgba(245, 158, 11, 0.06);
+                border: 1px solid rgba(245, 158, 11, 0.15);
+                color: {TEXT_MUTED};
+                font-size: 11px;
+                font-family: 'Public Sans', sans-serif;
+                line-height: 1.5;
+            }}
+            .signal-reasoning {{
+                padding: 10px 16px;
+                margin-top: -12px;
+                margin-bottom: 16px;
+                border-radius: 0 0 12px 12px;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid {BORDER_COLOR};
+                border-top: none;
+                font-size: 13px;
+                color: {TEXT_SECONDARY};
+                font-family: 'Public Sans', sans-serif;
+                line-height: 1.6;
+            }}
+            .agent-status-item {{
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 0;
+                font-size: 12px;
+                font-family: 'Public Sans', sans-serif;
+                color: {TEXT_SECONDARY};
+            }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -580,6 +664,62 @@ def render_signal_banner(signal: str, confidence: float = 0.0):
         <div class='signal-banner {css_class}' role='status' aria-label='Trading signal: {label}{conf_text}'>
             <span style='font-size: 28px;' aria-hidden='true'>{icon}</span>
             <span>{label}{conf_text}</span>
+        </div>
+    """
+
+
+def render_signal_reasoning(reason: str):
+    """Renders inline reasoning below the signal banner."""
+    if not reason:
+        return ""
+    return f"""
+        <div class='signal-reasoning'>
+            {reason}
+        </div>
+    """
+
+
+def render_data_provenance(last_date: str, source: str = "Agmarknet via data.gov.in", data_points: int = 0, train_start: str = "", train_end: str = ""):
+    """Renders a data provenance bar with freshness timestamp and source badge."""
+    from datetime import datetime
+    parts = []
+    parts.append(f"<span class='provenance-badge'>📅 Data as of: {last_date}</span>")
+    parts.append(f"<span class='provenance-badge'>📡 Source: {source}</span>")
+    if data_points > 0:
+        parts.append(f"<span class='provenance-badge'>📊 {data_points:,} data points</span>")
+    if train_start and train_end:
+        parts.append(f"<span class='provenance-badge'>🧠 Model trained: {train_start} → {train_end}</span>")
+    return f"<div class='provenance-bar'>{''.join(parts)}</div>"
+
+
+def render_model_accuracy_badge(mape: float, health_score: float, sample_size: int):
+    """Renders a color-coded model accuracy badge."""
+    if mape < 8:
+        css_class = "model-accuracy-good"
+        icon = "🟢"
+    elif mape < 15:
+        css_class = "model-accuracy-warn"
+        icon = "🟡"
+    else:
+        css_class = "model-accuracy-poor"
+        icon = "🔴"
+    
+    return f"""
+        <div class='model-accuracy-badge {css_class}'>
+            {icon} Model Accuracy: MAPE {mape:.1f}%
+            &nbsp;|&nbsp; Health: {health_score:.0f}/100
+            &nbsp;|&nbsp; Based on {sample_size:,} predictions
+        </div>
+    """
+
+
+def render_disclaimer():
+    """Renders a persistent disclaimer notice for AI-generated signals."""
+    return """
+        <div class='disclaimer-bar'>
+            ⚖️ All signals and forecasts are AI-generated estimates based on historical data and statistical models — 
+            they do not constitute financial or trading advice. Always verify with local mandi conditions and consult 
+            domain experts before making sell/hold decisions.
         </div>
     """
 
@@ -634,9 +774,10 @@ def render_empty_state(icon, title, message):
 
 
 def render_footer(version="v2.0", data_source="Agmarknet", last_update=None):
-    """Renders the app footer."""
+    """Renders the app footer with disclaimer."""
     update_text = f" | Last DB Update: {last_update}" if last_update else ""
     return f"""
+        {render_disclaimer()}
         <div class='app-footer'>
             <p>AgriIntel.in {version} — National Agricultural Intelligence Stack</p>
             <p>Data Source: {data_source} (Pilot Mode){update_text}</p>
@@ -682,4 +823,5 @@ def style_dataframe(df):
     if format_dict:
         styler = styler.format(format_dict)
     return styler
+
 

@@ -24,6 +24,7 @@ class DataReliabilityAgent:
         """
         issues = []
         valid_indices = []
+        seen_keys = set()  # Track (date, commodity, mandi) for intra-batch deduplication
         
         if df.empty:
             return pd.DataFrame(), [], {"total": 0, "valid": 0, "rejected": 0}
@@ -90,14 +91,27 @@ class DataReliabilityAgent:
                 except Exception as e:
                     print(f"Validation Error (Outlier): {e}")
 
-            # 3. Duplicate Check
+            # 3. Duplicate Check (Intra-batch deduplication)
             if is_valid:
-                # Naive check: does this date/comm/mandi already exist in DB?
-                # Optimization: In high volume, do this in SQL batch.
-                # Here, we trust the DB constraints or simple check.
-                # For now, let's assume if it passed others, it's good, 
-                # but let's check if exact row exists in staging (deduplication within batch)
-                pass 
+                dedup_key = (
+                    str(row.get('date', '')),
+                    str(row.get('commodity', '')),
+                    str(row.get('mandi', ''))
+                )
+                if dedup_key in seen_keys:
+                    issues.append({
+                        "batch_id": batch_id,
+                        "date": row.get('date', datetime.now().strftime("%Y-%m-%d")),
+                        "commodity": row.get('commodity', 'Unknown'),
+                        "mandi": row.get('mandi', 'Unknown'),
+                        "issue_type": "DUPLICATE",
+                        "severity": "WARNING",
+                        "details": f"Duplicate record within batch for {dedup_key[1]} at {dedup_key[2]} on {dedup_key[0]}.",
+                        "raw_value": str(row.to_dict())
+                    })
+                    is_valid = False
+                else:
+                    seen_keys.add(dedup_key)
 
             if is_valid:
                 valid_indices.append(idx)
