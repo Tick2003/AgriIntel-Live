@@ -1,5 +1,9 @@
-import phonenumbers
-from phonenumbers import carrier, geocoder
+try:
+    import phonenumbers
+    from phonenumbers import carrier, geocoder
+    PHONENUMBERS_AVAILABLE = True
+except ImportError:
+    PHONENUMBERS_AVAILABLE = False
 
 class TelecomMapper:
     """
@@ -31,6 +35,8 @@ class TelecomMapper:
         Detects the region (State) and suggests a language based on the phone number.
         Returns: (region, lang_code)
         """
+        if not PHONENUMBERS_AVAILABLE:
+            return "Unknown", "en"
         try:
             # Add +91 if not present for Indian numbers
             if not phone_number.startswith('+'):

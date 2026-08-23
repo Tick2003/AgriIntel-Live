@@ -1,4 +1,8 @@
-import redis
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 import json
 import uuid
 
@@ -8,13 +12,21 @@ class VoiceSessionManager:
     """
     def __init__(self, host='localhost', port=6379, db=0, expiry_seconds=3600):
         try:
-            self.redis = redis.Redis(host=host, port=port, db=db, decode_responses=True)
+            if not REDIS_AVAILABLE:
+                raise ImportError("redis package not installed")
+            self.redis = redis.Redis(
+                host=host, port=port, db=db, 
+                decode_responses=True, 
+                socket_connect_timeout=1.0, 
+                socket_timeout=1.0
+            )
             self.redis.ping()
         except Exception:
             # Fallback to local memory if Redis is unavailable (for demo/dev)
             self.redis = None
             self.local_cache = {}
-            print("Warning: Redis not connected. Using local memory for sessions.")
+            import logging
+            logging.getLogger(__name__).warning("Redis not connected or not installed. Using local memory for sessions.")
             
         self.expiry = expiry_seconds
 

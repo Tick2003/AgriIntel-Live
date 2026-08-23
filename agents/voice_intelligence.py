@@ -1,25 +1,57 @@
-import speech_recognition as sr
-from gtts import gTTS
+"""
+AgriIntel Voice Intelligence Agent (v2.0 — Hardened)
+=====================================================
+Orchestrates voice interaction flow with graceful dependency handling.
+"""
+
 import os
 import json
-import requests
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Graceful imports for optional dependencies
+try:
+    import speech_recognition as sr
+    STT_AVAILABLE = True
+except ImportError:
+    STT_AVAILABLE = False
+    logger.info("speech_recognition not installed — STT disabled")
+
+try:
+    from gtts import gTTS
+    TTS_AVAILABLE = True
+except ImportError:
+    TTS_AVAILABLE = False
+    logger.info("gTTS not installed — TTS disabled")
+
 from agents.chatbot_engine import ChatbotEngine
 from agents.session_manager import VoiceSessionManager
 from utils.telecom_mapper import TelecomMapper
 import database.db_manager as db_manager
-from datetime import datetime
+
+# Load config safely
+try:
+    from config import settings
+    DEFAULT_API_BASE_URL = settings.app.api_base_url
+    DEFAULT_API_KEY = settings.security.api_key
+except ImportError:
+    DEFAULT_API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
+    DEFAULT_API_KEY = os.environ.get("AGRIINTEL_API_KEY", "")
+
 
 class VoiceIntelligenceAgent:
     """
     Orchestrates the voice interaction flow:
     Voice -> STT -> Intent -> API calls -> Response -> TTS -> Voice
     """
-    def __init__(self, api_base_url="http://localhost:8000"):
+    def __init__(self, api_base_url=None):
         self.chatbot = ChatbotEngine(db_manager)
         self.sessions = VoiceSessionManager()
         self.telecom = TelecomMapper()
-        self.api_base_url = api_base_url
-        self.api_key = "agriintel-secret-key-123"
+        self.api_base_url = api_base_url or DEFAULT_API_BASE_URL
+        self.api_key = DEFAULT_API_KEY
 
     def handle_call_start(self, phone_number):
         """Initializes call, detects region/lang, and returns welcome message."""
@@ -41,7 +73,7 @@ class VoiceIntelligenceAgent:
         
         # 1. Speech to Text
         query_text = text_input
-        if audio_data:
+        if audio_data and STT_AVAILABLE:
             query_text = self._stt(audio_data, lang_code)
         
         if not query_text:
@@ -64,8 +96,17 @@ class VoiceIntelligenceAgent:
         return response_text, lang_code
 
     def _stt(self, audio, lang):
-        """Mock/Wrapper for Speech Recognition."""
-        return "stubbed text"
+        """Speech Recognition wrapper."""
+        if not STT_AVAILABLE:
+            return None
+        try:
+            recognizer = sr.Recognizer()
+            # Process audio data
+            text = recognizer.recognize_google(audio, language=lang)
+            return text
+        except Exception as e:
+            logger.error(f"STT failed: {e}")
+            return None
 
     def _get_greeting(self, lang, region):
         greetings = {
@@ -78,9 +119,10 @@ class VoiceIntelligenceAgent:
 
     def _log_interaction(self, session_id, context, query, result):
         """Logs the interaction to the voice_call_logs table."""
-        conn = db_manager.sqlite3.connect(db_manager.DB_NAME)
-        c = conn.cursor()
         try:
+            import sqlite3
+            conn = sqlite3.connect(db_manager.DB_NAME)
+            c = conn.cursor()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             c.execute('''
                 INSERT INTO voice_call_logs (
@@ -89,13 +131,12 @@ class VoiceIntelligenceAgent:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 session_id, context.get('phone_number'), timestamp, context.get('language'), context.get('region'),
-                query, result['intent'], json.dumps(result['entities']), result['response_text'], 0.95
+                query, result.get('intent', ''), json.dumps(result.get('entities', {})), result.get('response_text', ''), 0.95
             ))
             conn.commit()
-        except Exception as e:
-            print(f"Logging error: {e}")
-        finally:
             conn.close()
+        except Exception as e:
+            logger.error(f"Voice interaction logging error: {e}")
 
 if __name__ == "__main__":
     agent = VoiceIntelligenceAgent()

@@ -1,15 +1,34 @@
 import streamlit as st
 import os
-import asyncio
 import bcrypt
-from streamlit_oauth import OAuth2Component
+import logging
+from datetime import datetime, timedelta
+
+try:
+    from streamlit_oauth import OAuth2Component
+    OAUTH_AVAILABLE = True
+except ImportError:
+    OAUTH_AVAILABLE = False
+
 from database import db_manager
+
+logger = logging.getLogger(__name__)
+
+# Load session timeout from config
+try:
+    from config import settings
+    SESSION_TIMEOUT_HOURS = settings.security.session_timeout_hours
+    MAX_LOGIN_ATTEMPTS = settings.security.max_login_attempts
+except ImportError:
+    SESSION_TIMEOUT_HOURS = 8
+    MAX_LOGIN_ATTEMPTS = 5
+
 
 class AuthAgent:
     """
-    AGENT 8 — AUTHENTICATION AGENT
+    AGENT 8 — AUTHENTICATION AGENT (v2.0 — Hardened)
     Role: Gatekeeper
-    Goal: Manage user login/logout via Google OAuth or DB Auth.
+    Goal: Manage user login/logout with session timeout and brute-force protection.
     """
     def __init__(self):
         self.auth_key = "user_auth"
@@ -19,13 +38,25 @@ class AuthAgent:
             self.client_id = st.secrets.get("google_auth", {}).get("client_id")
             self.client_secret = st.secrets.get("google_auth", {}).get("client_secret")
             self.redirect_uri = st.secrets.get("google_auth", {}).get("redirect_uri", "http://localhost:8501")
-        except FileNotFoundError:
+        except (FileNotFoundError, Exception):
             self.client_id = None
             self.client_secret = None
+            self.redirect_uri = "http://localhost:8501"
 
     def check_session(self):
-        """Check if user is logged in."""
-        if self.auth_key in st.session_state and st.session_state[self.auth_key]['logged_in']:
+        """Check if user is logged in and session has not expired."""
+        if self.auth_key in st.session_state and st.session_state[self.auth_key].get('logged_in'):
+            # Check session timeout
+            login_time_str = st.session_state[self.auth_key].get('login_time')
+            if login_time_str:
+                try:
+                    login_time = datetime.fromisoformat(login_time_str)
+                    if datetime.now() - login_time > timedelta(hours=SESSION_TIMEOUT_HOURS):
+                        st.session_state[self.auth_key] = {'logged_in': False}
+                        st.warning("Session expired. Please log in again.")
+                        return False
+                except (ValueError, TypeError):
+                    pass
             return True
         return False
 
@@ -36,7 +67,8 @@ class AuthAgent:
         return None
 
     def get_role(self):
-        return self.get_user_details().get('role', 'Viewer') if self.check_session() else None
+        details = self.get_user_details()
+        return details.get('role', 'Viewer') if details else None
 
     def login_page(self):
         """Render the login page."""
@@ -108,7 +140,7 @@ class AuthAgent:
             st.write("")
             
             # OAuth Flow
-            if self.client_id and self.client_secret:
+            if self.client_id and self.client_secret and OAUTH_AVAILABLE:
                 self._render_google_btn()
             else:
                 self._render_db_login()
@@ -143,44 +175,89 @@ class AuthAgent:
                     'email': email,
                     'role': user['role'],
                     'org_id': user['org_id'],
-                    'name': email.split('@')[0]
+                    'name': email.split('@')[0],
+                    'login_time': datetime.now().isoformat()
                 }
                 st.rerun()
             else:
                  st.error("User not found in organization. Please contact admin.")
 
     def _render_db_login(self):
-        """Database Login (Fallback)"""
+        """Database Login (Fallback) — No pre-filled credentials."""
         st.info("🔐 Secure Enterprise Login")
         
+        # Initialize login attempts tracker
+        if 'login_attempts' not in st.session_state:
+            st.session_state['login_attempts'] = 0
+            st.session_state['lockout_until'] = None
+        
+        # Check lockout
+        if st.session_state.get('lockout_until'):
+            lockout_until = datetime.fromisoformat(st.session_state['lockout_until'])
+            if datetime.now() < lockout_until:
+                remaining = (lockout_until - datetime.now()).seconds // 60
+                st.error(f"🔒 Account locked due to too many failed attempts. Try again in {remaining + 1} minutes.")
+                return
+            else:
+                st.session_state['login_attempts'] = 0
+                st.session_state['lockout_until'] = None
+        
         with st.form("login_form"):
-            email = st.text_input("Work Email", "admin@agriintel.in")
-            password = st.text_input("Password", type="password", value="admin123")
+            email = st.text_input("Work Email", placeholder="your.email@company.com")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
             submit = st.form_submit_button("Login")
             
             if submit:
+                if not email or not password:
+                    st.error("Please enter both email and password.")
+                    return
+                    
                 user = db_manager.get_user_by_email(email)
                 if user:
-                    if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-                         st.session_state[self.auth_key] = {
-                            'logged_in': True,
-                            'email': user['email'],
-                            'role': user['role'],
-                            'org_id': user['org_id'],
-                            'name': user['email'].split('@')[0]
-                        }
-                         st.success("Authenticated.")
-                         st.rerun()
-                    else:
-                        st.error("Invalid credentials.")
+                    try:
+                        if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                            st.session_state[self.auth_key] = {
+                                'logged_in': True,
+                                'email': user['email'],
+                                'role': user['role'],
+                                'org_id': user['org_id'],
+                                'name': user['email'].split('@')[0],
+                                'login_time': datetime.now().isoformat()
+                            }
+                            st.session_state['login_attempts'] = 0
+                            st.success("Authenticated.")
+                            st.rerun()
+                        else:
+                            self._handle_failed_login()
+                    except Exception as e:
+                        logger.error(f"Auth error: {e}")
+                        st.error("Authentication error. Please try again.")
                 else:
-                    st.error("Invalid credentials.")
+                    self._handle_failed_login()
+    
+    def _handle_failed_login(self):
+        """Handle failed login with brute-force protection."""
+        st.session_state['login_attempts'] = st.session_state.get('login_attempts', 0) + 1
+        remaining = MAX_LOGIN_ATTEMPTS - st.session_state['login_attempts']
+        
+        if remaining <= 0:
+            lockout_minutes = 15
+            try:
+                from config import settings as _cfg
+                lockout_minutes = _cfg.security.lockout_duration_minutes
+            except ImportError:
+                pass
+            st.session_state['lockout_until'] = (datetime.now() + timedelta(minutes=lockout_minutes)).isoformat()
+            st.error(f"🔒 Too many failed attempts. Account locked for {lockout_minutes} minutes.")
+        else:
+            st.error(f"Invalid credentials. {remaining} attempts remaining.")
 
     def logout_button(self):
         """Render logout button in sidebar"""
         user = self.get_user_details()
-        role = user.get('role', 'Viewer') if user else ''
-        st.sidebar.caption(f"Logged in as: {user.get('email')} ({role})")
+        if user:
+            role = user.get('role', 'Viewer')
+            st.sidebar.caption(f"Logged in as: {user.get('email')} ({role})")
         
         if st.sidebar.button("🚪 Logout"):
             st.session_state[self.auth_key] = {'logged_in': False}

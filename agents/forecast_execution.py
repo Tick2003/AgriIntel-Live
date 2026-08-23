@@ -313,6 +313,10 @@ class ForecastingAgent:
 
     def _generate_fallback(self, data, commodity, mandi):
         """Original random walk Fallback"""
+        if data.empty:
+            return pd.DataFrame(columns=[
+                'date', 'forecast_price', 'lower_bound', 'upper_bound', 'commodity', 'mandi'
+            ])
         last_date = pd.to_datetime(data['date'].max())
         last_price = data['price'].iloc[-1]
         future_dates = [last_date + timedelta(days=i) for i in range(1, 31)]

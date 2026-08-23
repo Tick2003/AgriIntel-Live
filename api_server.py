@@ -9,6 +9,7 @@ import hmac
 import os
 import sys
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,10 +39,32 @@ except ImportError:
     RATE_LIMITING_AVAILABLE = False
     logger.warning("slowapi not installed — rate limiting disabled. Install with: pip install slowapi")
 
+
+# --- Security ---
+API_KEY = settings.security.api_key
+
+# --- Lifespan (startup/shutdown) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Validate critical config and initialize DB on startup."""
+    if settings.app.is_production and not API_KEY:
+        logger.critical("REFUSING to start in production without AGRIINTEL_API_KEY!")
+        raise RuntimeError("API key not configured for production deployment")
+
+    try:
+        db_manager.init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+
+    yield  # App runs here
+
+
 app = FastAPI(
     title="AgriIntel.in API",
     description="Advanced AI Market Intelligence for Indian Agriculture",
     version="2.0.0",
+    lifespan=lifespan,
     docs_url="/docs" if not settings.app.is_production else None,
     redoc_url="/redoc" if not settings.app.is_production else None,
 )
@@ -73,9 +96,6 @@ if RATE_LIMITING_AVAILABLE and limiter:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# --- Security ---
-API_KEY = settings.security.api_key
-
 async def verify_api_key(x_api_key: str = Header(...)):
     """Verify API key using timing-safe comparison."""
     if not API_KEY:
@@ -83,21 +103,6 @@ async def verify_api_key(x_api_key: str = Header(...)):
     if not hmac.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return x_api_key
-
-# --- Startup Validation ---
-@app.on_event("startup")
-async def startup_validation():
-    """Validate critical config on startup."""
-    if settings.app.is_production and not API_KEY:
-        logger.critical("REFUSING to start in production without AGRIINTEL_API_KEY!")
-        raise RuntimeError("API key not configured for production deployment")
-    
-    # Initialize DB
-    try:
-        db_manager.init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
 
 # --- Response Models ---
 class HealthResponse(BaseModel):

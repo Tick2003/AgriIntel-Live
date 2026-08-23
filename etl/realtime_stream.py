@@ -287,6 +287,37 @@ def get_intraday_trades(commodity: str, mandi: str, limit: int = 50):
         return pd.DataFrame()
 
 
+def get_order_book(commodity: str, mandi: str, depth: int = 10) -> dict:
+    """
+    Build a live order book from recent BID/ASK entries in the database.
+
+    Returns dict with 'bids' and 'asks' DataFrames, each containing
+    price and quantity columns, sorted by best-first.
+    """
+    import pandas as pd
+    try:
+        import database.db_manager as dbm
+        df = dbm.get_latest_intraday_trades(commodity, mandi, limit=depth * 6)
+        if df.empty:
+            return {"bids": pd.DataFrame(), "asks": pd.DataFrame()}
+
+        bids = (
+            df[df["trade_type"] == "BID"]
+            .sort_values("price", ascending=False)
+            .head(depth)[["price", "quantity"]]
+            .reset_index(drop=True)
+        )
+        asks = (
+            df[df["trade_type"] == "ASK"]
+            .sort_values("price", ascending=True)
+            .head(depth)[["price", "quantity"]]
+            .reset_index(drop=True)
+        )
+        return {"bids": bids, "asks": asks}
+    except Exception:
+        return {"bids": pd.DataFrame(), "asks": pd.DataFrame()}
+
+
 # ---------------------------------------------------------------------------
 # CLI entry point (for manual testing)
 # ---------------------------------------------------------------------------

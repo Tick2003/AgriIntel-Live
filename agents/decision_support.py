@@ -96,12 +96,13 @@ class DecisionAgent:
             'reason': "\n".join([f"- {r}" for r in reason_list])
         }
 
-    def simulate_profit(self, current_price, forecast_df, quantity_quintals):
+    def simulate_profit(self, current_price, forecast_df, quantity_quintals=10, qty=None):
         """
         Simulates P&L with Risk Bands using RMSE * sqrt(t).
         """
         if forecast_df.empty: return pd.DataFrame()
         
+        Q = qty if qty is not None else quantity_quintals
         scenarios = []
         # Calculate approximate RMSE from confidence intervals if not passed explicitly/
         # CI = 1.96 * RMSE * sqrt(t). width = upper - lower = 2 * 1.96 * RMSE * sqrt(t)
@@ -131,9 +132,9 @@ class DecisionAgent:
                 # Upper Gain = (Upper_Price - P0) * Q
                 # Lower Gain = (Lower_Price - P0) * Q
                 
-                expected_gain = (Pt - current_price) * quantity_quintals
-                upper_gain = (row['upper_bound'] - current_price) * quantity_quintals
-                lower_gain = (row['lower_bound'] - current_price) * quantity_quintals
+                expected_gain = (Pt - current_price) * Q
+                upper_gain = (row['upper_bound'] - current_price) * Q
+                lower_gain = (row['lower_bound'] - current_price) * Q
                 
                 # Volatility (Risk Band Width)
                 risk_band = (upper_gain - lower_gain) / 2

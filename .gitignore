@@ -11,11 +11,16 @@ env/
 # Database
 *.sqlite3
 agri_intel.db
+test_agri_intel.db
 *.db.bak
 
 # Runtime artifacts
 .update.lock
 temp_grading_img.jpg
+*.log
+
+# ML training artifacts
+catboost_info/
 *.log
 
 # OS
