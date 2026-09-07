@@ -1,14 +1,17 @@
 """Risk Assessment & Shock Monitoring page."""
-import streamlit as st
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Risk", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
 from app.app_core import init_page
 from app.terminal_theme import (
-    TEXT_PRIMARY, ACCENT_BLUE, DIVIDER_COLOR,
-    render_footer, render_status_badge,
+    ACCENT_BLUE,
+    DIVIDER_COLOR,
+    TEXT_PRIMARY,
+    render_footer,
+    render_status_badge,
 )
 
 ctx = init_page()

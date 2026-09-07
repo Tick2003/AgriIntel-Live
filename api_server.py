@@ -6,32 +6,32 @@ and timing-safe auth.
 """
 
 import hmac
+import logging
 import os
 import sys
-import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Depends, Header, Request
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import pandas as pd
 import uvicorn
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # Add root to path
 sys.path.append(os.getcwd())
 
-from config import settings
 import database.db_manager as db_manager
 from agents.arbitrage_engine import ArbitrageAgent
 from agents.risk_scoring import MarketRiskEngine
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # --- Rate Limiting ---
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
-    from slowapi.util import get_remote_address
     from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
     limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
     RATE_LIMITING_AVAILABLE = True
 except ImportError:
@@ -137,7 +137,7 @@ def health_check():
             db_status = "connected"
     except Exception as e:
         db_status = f"error: {e}"
-    
+
     status = "ok" if db_status == "connected" else "degraded"
     return HealthResponse(
         status=status,
@@ -152,11 +152,11 @@ def get_price(commodity: str, mandi: str):
     df = db_manager.get_latest_prices(commodity)
     if df.empty:
         raise HTTPException(status_code=404, detail="Commodity not found")
-    
+
     row = df[df['mandi'] == mandi].sort_values('date').tail(1)
     if row.empty:
         raise HTTPException(status_code=404, detail="Mandi data not found")
-        
+
     return row.to_dict(orient='records')[0]
 
 @app.get("/v1/risk/{commodity}/{mandi}", dependencies=[Depends(verify_api_key)])
@@ -165,14 +165,14 @@ def get_risk(commodity: str, mandi: str):
     df = db_manager.get_price_history(commodity, mandi)
     if df.empty:
         raise HTTPException(status_code=404, detail="Data not found")
-        
+
     df['price'] = df['price_modal']
     volatility = df['price'].pct_change().std()
-    
+
     engine = MarketRiskEngine()
     risk_data = engine.calculate_risk_score(
-        shock_info={"is_shock": False}, 
-        forecast_std=100, 
+        shock_info={"is_shock": False},
+        forecast_std=100,
         market_volatility=volatility if not pd.isna(volatility) else 0.01,
         sentiment_score=0,
         arrival_anomaly=0,
@@ -186,13 +186,13 @@ def get_arbitrage(commodity: str, mandi: str):
     df = db_manager.get_latest_prices(commodity)
     if df.empty:
         raise HTTPException(status_code=404, detail="Commodity data not found")
-        
+
     agent = ArbitrageAgent()
     opps_df = agent.find_opportunities(commodity, mandi, df, {"is_shock": False})
-    
+
     if opps_df.empty:
         return {"opportunities": []}
-        
+
     return {"opportunities": opps_df.to_dict(orient='records')}
 
 # --- Voice Endpoints ---

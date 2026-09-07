@@ -12,11 +12,12 @@ combining rolling volatility, Hurst exponent estimation, kurtosis,
 and price velocity to detect agricultural commodity market regimes.
 """
 
+import warnings
+from dataclasses import dataclass, field
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
-from typing import Dict, Optional
-import warnings
 
 warnings.filterwarnings("ignore")
 
@@ -225,7 +226,7 @@ class RegimeDetector:
     def _rule_based_classify(self, features: Dict) -> RegimeState:
         """Deterministic rule-based regime classification."""
         vol_7 = features.get("vol_7", 0)
-        vol_30 = features.get("vol_30", 0)
+        features.get("vol_30", 0)
         bb_width = features.get("bb_width", 0)
         kurt = features.get("kurtosis", 0)
 

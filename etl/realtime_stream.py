@@ -15,16 +15,19 @@ Public API
 - get_stream_status() -> dict
 """
 
+import logging
+import math
+import os
+import random
+import sys
 import threading
 import time
-import random
-import math
-import sys
-import os
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +131,7 @@ class IntradayStreamGenerator:
 
             except Exception as e:
                 # Never crash the thread — log and continue
-                print(f"[RealtimeStream] tick error: {e}")
+                logger.warning("[RealtimeStream] tick error: %s", e)
 
             # Jitter the sleep so ticks aren't perfectly periodic
             jitter = random.uniform(-0.5, 0.5)

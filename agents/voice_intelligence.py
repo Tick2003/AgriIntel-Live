@@ -4,9 +4,9 @@ AgriIntel Voice Intelligence Agent (v2.0 — Hardened)
 Orchestrates voice interaction flow with graceful dependency handling.
 """
 
-import os
 import json
 import logging
+import os
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -26,10 +26,10 @@ except ImportError:
     TTS_AVAILABLE = False
     logger.info("gTTS not installed — TTS disabled")
 
+import database.db_manager as db_manager
 from agents.chatbot_engine import ChatbotEngine
 from agents.session_manager import VoiceSessionManager
 from utils.telecom_mapper import TelecomMapper
-import database.db_manager as db_manager
 
 # Load config safely
 try:
@@ -57,10 +57,10 @@ class VoiceIntelligenceAgent:
         """Initializes call, detects region/lang, and returns welcome message."""
         region, lang_code = self.telecom.detect_region_and_language(phone_number)
         session_id, context = self.sessions.start_session(phone_number, lang_code, region)
-        
+
         # Initial greeting logic
         greeting = self._get_greeting(lang_code, region)
-        
+
         return session_id, greeting, lang_code
 
     def handle_interaction(self, session_id, audio_data=None, text_input=None):
@@ -70,29 +70,29 @@ class VoiceIntelligenceAgent:
             return "Session expired", "en"
 
         lang_code = context.get('language', 'en')
-        
+
         # 1. Speech to Text
         query_text = text_input
         if audio_data and STT_AVAILABLE:
             query_text = self._stt(audio_data, lang_code)
-        
+
         if not query_text:
             return "I couldn't hear you clearly. Could you repeat?", lang_code
 
         # 2. Intent & Entity Extraction (using enhanced chatbot engine)
         result = self.chatbot.process_query_structured(query_text, context)
         response_text = result['response_text']
-        
+
         # 3. Update context with new entities
         self.sessions.update_context(
-            session_id, 
-            crop=result['entities']['commodity'], 
+            session_id,
+            crop=result['entities']['commodity'],
             mandi=result['entities']['mandi']
         )
-        
+
         # 4. Save Transcript & Log to DB
         self._log_interaction(session_id, context, query_text, result)
-        
+
         return response_text, lang_code
 
     def _stt(self, audio, lang):
@@ -126,7 +126,7 @@ class VoiceIntelligenceAgent:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             c.execute('''
                 INSERT INTO voice_call_logs (
-                    call_sid, phone_number, timestamp, language, region, 
+                    call_sid, phone_number, timestamp, language, region,
                     transcript, intent, entities, response_text, confidence_score
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (

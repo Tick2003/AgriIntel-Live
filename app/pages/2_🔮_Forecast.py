@@ -1,17 +1,21 @@
 """Forecast — 30-day strategic price projection with profit analytics."""
-import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Forecast", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
+from agents.performance_monitor import PerformanceMonitor
 from app.app_core import init_page
 from app.terminal_theme import (
-    TEXT_PRIMARY, TEXT_MUTED, ACCENT_BLUE,
-    render_spacer, render_footer, style_dataframe,
-    render_data_provenance, render_model_accuracy_badge,
+    ACCENT_BLUE,
+    TEXT_MUTED,
+    render_data_provenance,
+    render_footer,
+    render_model_accuracy_badge,
+    render_spacer,
+    style_dataframe,
 )
-from agents.performance_monitor import PerformanceMonitor
 
 ctx = init_page()
 data = ctx["data"]

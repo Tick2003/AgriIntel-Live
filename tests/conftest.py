@@ -5,11 +5,12 @@ AgriIntel Test Configuration & Shared Fixtures
 
 import os
 import sys
-import pytest
-import sqlite3
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock
+
+import numpy as np
+import pandas as pd
+import pytest
 
 # Ensure project root is importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,17 +26,17 @@ os.environ["DEFAULT_ADMIN_PASSWORD"] = "testpass123"
 def setup_test_db():
     """Initialize a clean test database for the entire test session."""
     db_path = "test_agri_intel.db"
-    
+
     # Remove old test DB
     if os.path.exists(db_path):
         os.remove(db_path)
-    
+
     import database.db_manager as dbm
     dbm.DB_NAME = db_path
     dbm.init_db()
-    
+
     yield dbm
-    
+
     # Cleanup after all tests
     try:
         if os.path.exists(db_path):
@@ -61,7 +62,7 @@ def sample_price_df():
     prices = [base_price]
     for _ in range(89):
         prices.append(prices[-1] + np.random.normal(0, 50))
-    
+
     return pd.DataFrame({
         "date": dates,
         "commodity": "Onion",
@@ -89,7 +90,7 @@ def sample_forecast_df():
     dates = [last_date + timedelta(days=i) for i in range(1, 31)]
     base = 2500
     forecasts = base + np.cumsum(np.random.normal(0, 30, 30))
-    
+
     return pd.DataFrame({
         "date": dates,
         "forecast_price": forecasts,
@@ -142,3 +143,63 @@ def sample_intraday_df():
             "trade_type": np.random.choice(["BID", "ASK", "TRADE"]),
         })
     return pd.DataFrame(trades)
+
+
+# ---------------------------------------------------------------------------
+# Network isolation fixtures (monkeypatch requests & feedparser)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mock_requests_get(monkeypatch):
+    """Monkeypatch requests.get to return canned JSON without hitting the network.
+
+    Returns a factory fixture: call it with optional json_data / status_code
+    to customise the mocked response.
+    """
+    class MockResponse:
+        def __init__(self, json_data=None, status_code=200):
+            self._json = json_data or {"records": [], "total": 0}
+            self.status_code = status_code
+            self.text = "{}"
+
+        def json(self):
+            return self._json
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                from requests.exceptions import HTTPError
+                raise HTTPError(f"HTTP {self.status_code}")
+
+    def _factory(json_data=None, status_code=200):
+        resp = MockResponse(json_data, status_code)
+        monkeypatch.setattr("requests.get", lambda *args, **kwargs: resp)
+        return resp
+
+    return _factory
+
+
+@pytest.fixture
+def mock_feedparser(monkeypatch):
+    """Monkeypatch feedparser.parse to return a canned RSS feed without network access."""
+
+    class FakeParsedTime:
+        def __iter__(self):
+            return iter([2026, 1, 1, 10, 0, 0])
+
+        def __getitem__(self, idx):
+            return [2026, 1, 1, 10, 0, 0][idx]
+
+    class FakeSource:
+        title = "Test Source"
+
+    class FakeEntry:
+        title = "Onion prices surge in Maharashtra markets"
+        link = "https://example.com/news/1"
+        published_parsed = (2026, 1, 1, 10, 0, 0)
+        source = FakeSource()
+
+    canned_feed = MagicMock()
+    canned_feed.entries = [FakeEntry()]
+
+    monkeypatch.setattr("feedparser.parse", lambda *args, **kwargs: canned_feed)
+    return canned_feed

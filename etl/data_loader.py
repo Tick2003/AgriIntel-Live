@@ -1,23 +1,30 @@
-import requests
-import feedparser
-import pandas as pd
+import logging
 import random
 import time
 import warnings
-warnings.filterwarnings('ignore') # Squelch all warnings for clean output
-from datetime import datetime, timedelta
+
+import feedparser
+import pandas as pd
+import requests
+
+warnings.filterwarnings('ignore')  # Squelch all warnings for clean output
+import os
 
 # Import database manager (Assuming it's in a sibling directory or added to path)
 import sys
-import os
+from datetime import datetime, timedelta
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import database.db_manager as dbm
-from agents.forecast_execution import ForecastingAgent
-from agents.risk_scoring import MarketRiskEngine
 from agents.decision_support import DecisionAgent
-from agents.shock_monitoring import AnomalyDetectionEngine
+from agents.forecast_execution import ForecastingAgent
 from agents.performance_monitor import PerformanceMonitor
-import numpy as np
+from agents.reference_data import TRACKED_COMMODITIES, TRACKED_MARKETS
+from agents.risk_scoring import MarketRiskEngine
+from agents.shock_monitoring import AnomalyDetectionEngine
+
+logger = logging.getLogger(__name__)
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
 def fetch_agri_news(query="Agriculture News India"):
@@ -25,27 +32,27 @@ def fetch_agri_news(query="Agriculture News India"):
     Fetches news from Google News RSS feed.
     """
     # Use 'when:1d' to force fresh news if possible, but Google RSS params are tricky.
-    # 'ceid=IN:en' is good. 
+    # 'ceid=IN:en' is good.
     # Let's try a broader query to ensure volume.
     rss_url = f"https://news.google.com/rss/search?q={query.replace(' ', '+')}+when:7d&hl=en-IN&gl=IN&ceid=IN:en"
     feed = feedparser.parse(rss_url)
-    
+
     # Load Sentiment Agent
     try:
         from agents.sentiment_analysis import SentimentAgent
         sa = SentimentAgent()
     except Exception as e:
-        print(f"Sentiment Agent Warning: {e}")
+        logger.warning("Sentiment Agent unavailable: %s", e)
         sa = None
 
     news_items = []
     for entry in feed.entries[:5]: # Top 5 news
-        
+
         sentiment = "Neutral"
         if sa:
             analysis = sa.analyze(entry.title)
             sentiment = analysis['label']
-            
+
         # Parse Date to ISO for correct sorting
         try:
             if hasattr(entry, 'published_parsed') and entry.published_parsed:
@@ -53,7 +60,7 @@ def fetch_agri_news(query="Agriculture News India"):
                  date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
             else:
                  date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        except:
+        except Exception:
             date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         news_items.append({
@@ -63,7 +70,7 @@ def fetch_agri_news(query="Agriculture News India"):
             "url": entry.link,
             "sentiment": sentiment
         })
-    
+
     return pd.DataFrame(news_items)
 
 # --- 2. PRICE SOURCE: Real Data with Simulation Fallback ---
@@ -81,26 +88,13 @@ def fetch_mandi_prices_simulated():
     except Exception:
         pass
 
-    # Inline fallback if import fails
-    commodities = [
-        "Onion", "Potato", "Tomato", "Wheat", "Rice", 
-        "Maize", "Soyabean", "Mustard", "Cotton", "Sugarcane",
-        "Gram", "Tur", "Moong", "Masur", "Urad",
-        "Apple", "Banana", "Mango", "Grapes", "Orange",
-        "Garlic", "Ginger", "Turmeric", "Jeera", "Chilli"
-    ]
-    mandis = [
-        "Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore",
-        "Pune", "Mumbai", "Jaipur", "Ahmedabad", "Surat",
-        "Kanpur", "Lucknow", "Varanasi", "Agra", "Bareilly",
-        "Kolkata", "Bhubaneswar", "Cuttack", "Patna", "Ranchi",
-        "Chennai", "Coimbatore", "Madurai", "Hyderabad", "Warangal",
-        "Bangalore", "Mysore", "Hubli", "Shimoga", "Bellary"
-    ]
-    
+    # Inline fallback if import fails (uses shared reference data)
+    commodities = TRACKED_COMMODITIES
+    mandis = TRACKED_MARKETS
+
     data = []
     today = datetime.now().strftime("%Y-%m-%d")
-    
+
     for com in commodities:
         base_price = random.randint(1500, 5000)
         for mandi in mandis:
@@ -114,7 +108,7 @@ def fetch_mandi_prices_simulated():
                 "price_modal": modal,
                 "arrival": random.randint(50, 500)
             })
-            
+
     df = pd.DataFrame(data)
     return df
 
@@ -127,17 +121,17 @@ def fetch_real_prices(fallback=True):
     """
     try:
         from etl.agmarknet_scraper import get_all_commodities_data
-        
+
         real_df = get_all_commodities_data()
-        
+
         if real_df.empty:
-            raise Exception("All data sources returned no data")
-            
-        print(f"✅ Got {len(real_df)} price records.")
+            raise ValueError("All data sources returned no data")
+
+        logger.info("Got %d price records.", len(real_df))
         return real_df
 
     except Exception as e:
-        print(f"Data fetch failed ({e}). Using simulation fallback.")
+        logger.warning("Data fetch failed (%s). Using simulation fallback.", e)
         if fallback:
             return fetch_mandi_prices_simulated()
         return pd.DataFrame()
@@ -146,40 +140,27 @@ def seed_historical_data(days=90):
     """
     Generates historical data for the past 'days' to ensure charts look good.
     """
-    print(f"Seeding {days} days of historical data...")
-    commodities = [
-        "Onion", "Potato", "Tomato", "Wheat", "Rice", 
-        "Maize", "Soyabean", "Mustard", "Cotton", "Sugarcane",
-        "Gram", "Tur", "Moong", "Masur", "Urad",
-        "Apple", "Banana", "Mango", "Grapes", "Orange",
-        "Garlic", "Ginger", "Turmeric", "Jeera", "Chilli"
-    ]
-    mandis = [
-        "Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore",
-        "Pune", "Mumbai", "Jaipur", "Ahmedabad", "Surat",
-        "Kanpur", "Lucknow", "Varanasi", "Agra", "Bareilly",
-        "Kolkata", "Bhubaneswar", "Cuttack", "Patna", "Ranchi",
-        "Chennai", "Coimbatore", "Madurai", "Hyderabad", "Warangal",
-        "Bangalore", "Mysore", "Hubli", "Shimoga", "Bellary"
-    ]
-    
+    logger.info("Seeding %d days of historical data...", days)
+    commodities = TRACKED_COMMODITIES
+    mandis = TRACKED_MARKETS
+
     data = []
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
-    
+
     # Generate a trend for each commodity/mandi
     for com in commodities:
         base_price = random.randint(1500, 5000)
         for mandi in mandis:
             current_price = base_price + random.randint(-200, 200)
-            
+
             for i in range(days):
                 date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
                 # Random walk
                 change = random.randint(-50, 50)
                 current_price += change
                 current_price = max(100, current_price)
-                
+
                 data.append({
                     "date": date,
                     "commodity": com,
@@ -189,10 +170,10 @@ def seed_historical_data(days=90):
                     "price_modal": current_price,
                     "arrival": random.randint(50, 500)
                 })
-                
+
     df = pd.DataFrame(data)
     dbm.save_prices(df)
-    print("Historical seeding complete.")
+    logger.info("Historical seeding complete.")
 
 # Coordinate Mapping for Real Weather
 MANDI_COORDS = {
@@ -220,12 +201,12 @@ def fetch_weather_owm(lat, lon, api_key=None):
     if not api_key:
         # Fallback to Open-Meteo
         return fetch_weather_open_meteo(lat, lon)
-        
+
     try:
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
         response = requests.get(url, timeout=10)
         data = response.json()
-        
+
         if response.status_code == 200:
             return {
                 "temp": data["main"]["temp"],
@@ -234,11 +215,11 @@ def fetch_weather_owm(lat, lon, api_key=None):
                 "wind_speed": data["wind"]["speed"]
             }
         else:
-            print(f"OWM Error: {data.get('message')}")
+            logger.warning("OWM Error: %s", data.get('message'))
             return fetch_weather_open_meteo(lat, lon)
-            
+
     except Exception as e:
-        print(f"OWM Fetch Failed: {e}")
+        logger.warning("OWM Fetch Failed: %s", e)
         return fetch_weather_open_meteo(lat, lon)
 
 def fetch_weather_open_meteo(lat, lon):
@@ -249,7 +230,7 @@ def fetch_weather_open_meteo(lat, lon):
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
         response = requests.get(url, timeout=10)
         data = response.json()
-        
+
         if "current_weather" in data:
             cw = data["current_weather"]
             # Map WMO codes to string (simplified)
@@ -258,7 +239,7 @@ def fetch_weather_open_meteo(lat, lon):
             if wmo_code > 0: condition = "Cloudy"
             if wmo_code > 50: condition = "Rainy"
             if wmo_code > 70: condition = "Storm"
-            
+
             return {
                 "temp": cw["temperature"],
                 "wind_speed": cw["windspeed"],
@@ -266,12 +247,13 @@ def fetch_weather_open_meteo(lat, lon):
                 "humidity": random.randint(40, 90) # Open-Meteo current_weather doesn't always have humidity
             }
     except Exception as e:
-        print(f"Open-Meteo failed: {e}")
-        
+        logger.warning("Open-Meteo failed: %s", e)
+
     return {"temp": 25.0, "humidity": 60, "condition": "Sunny", "wind_speed": 10}
 
 import contextlib
 import os
+
 
 @contextlib.contextmanager
 def suppress_output():
@@ -287,7 +269,7 @@ def fetch_real_weather(api_key=None):
     weather_data = [] # List of dicts for DataFrame
     for mandi, coords in MANDI_COORDS.items():
         w = fetch_weather_owm(coords["lat"], coords["lon"], api_key)
-        
+
         # Add to list
         weather_data.append({
             "date": datetime.now().strftime("%Y-%m-%d"),
@@ -298,7 +280,7 @@ def fetch_real_weather(api_key=None):
             "wind_speed": w['wind_speed'],
             "humidity": w['humidity']
         })
-            
+
     return pd.DataFrame(weather_data)
 
 
@@ -308,8 +290,8 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
     v1.6-RECOVERY: Supports skip_swarm and ignore extra kwargs for robustness.
     """
     start_time = time.time()
-    print(f"Starting Update... [v{datetime.now().strftime('%H%M%S')}]")
-    
+    logger.info("Starting Update... [v%s]", datetime.now().strftime('%H%M%S'))
+
     if progress_callback:
         progress_callback(0.05, "Initializing Database...")
 
@@ -317,126 +299,126 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
     try:
         dbm.init_db()
     except Exception as e:
-        print(f"CRITICAL: DB Init Failed: {e}")
-        return # Cannot proceed without DB
+        logger.critical("DB Init Failed: %s", e)
+        return  # Cannot proceed without DB
 
     dbm.log_system_event("INFO", "ETL", "Daily Update Started")
 
     # 1. Fetch Prices (Real/Simulated)
     if progress_callback:
         progress_callback(0.1, "Fetching Simulation Data...")
-        
+
     prices_df = pd.DataFrame()
     batch_id = f"BATCH_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
+
     try:
         # Check if we need to seed history (First run on Cloud)
         existing_data = dbm.get_latest_prices()
         if existing_data.empty:
-            print("Fresh DB detected! Seeding 90 days of historical data...")
+            logger.info("Fresh DB detected! Seeding 90 days of historical data...")
             seed_historical_data(days=90)
         else:
-            print(f"DB exists. Appending latest daily prices (Batch: {batch_id})...")
+            logger.info("DB exists. Appending latest daily prices (Batch: %s)...", batch_id)
             prices_df = fetch_real_prices(fallback=True)
-            
+
             # --- DATA RELIABILITY (New Phase 6) ---
-            print("Running Data Reliability Checks...")
+            logger.info("Running Data Reliability Checks...")
             from agents.data_reliability import DataReliabilityAgent
             dra = DataReliabilityAgent(db_manager=dbm)
             pm = PerformanceMonitor()
-            
+
             # 1. Save Raw
             dbm.save_raw_prices(prices_df, batch_id)
-            
+
             # 2. Validate
             valid_df, issues, stats = dra.validate_batch(prices_df, batch_id)
-            
+
             # 3. Log Issues
             if issues:
                 dbm.log_quality_issues(issues)
-                print(f"Logged {len(issues)} data quality issues.")
-                
+                logger.info("Logged %d data quality issues.", len(issues))
+
             # 4. Save Clean Data
             if not valid_df.empty:
                 dbm.save_prices(valid_df)
-                print(f"Promoted {len(valid_df)} valid records to Production DB.")
+                logger.info("Promoted %d valid records to Production DB.", len(valid_df))
             else:
-                print("Warning: No valid records to promote.")
-                
+                logger.warning("No valid records to promote.")
+
             # 5. Log Execution Stats
             try:
                 duration = time.time() - start_time
                 status = "SUCCESS" if not valid_df.empty else "PARTIAL_FAILURE"
                 dbm.log_scraper_execution(status, duration, len(prices_df), len(valid_df), stats['rejected'])
             except Exception as e:
-                print(f"Failed to log stats: {e}")
-                
+                logger.warning("Failed to log stats: %s", e)
+
     except Exception as e:
-        print(f"Price Fetch Error: {e}")
+        logger.error("Price Fetch Error: %s", e)
         dbm.log_system_event("ERROR", "ETL", f"Price Fetch Failed: {e}")
         dbm.log_scraper_execution("FAILURE", time.time() - start_time, 0, 0, 0, str(e))
         # Continue to other steps even if prices fail (Partial Update)
- 
+
     # 2. Fetch News (Real)
     if progress_callback:
         progress_callback(0.15, "Fetching Global News...")
-    
+
     try:
         news_df = fetch_agri_news()
         dbm.save_news(news_df)
     except Exception as e:
-        print(f"News Fetch Error: {e}")
+        logger.error("News Fetch Error: %s", e)
         dbm.log_system_event("ERROR", "ETL", f"News Fetch Failed: {e}")
 
     # 3. Fetch Weather (Real)
     if progress_callback:
         progress_callback(0.20, "Fetching Weather Data...")
-    
+
     try:
         weather_df = fetch_real_weather()
         dbm.save_weather(weather_df)
     except Exception as e:
-        print(f"Weather Fetch Error: {e}")
+        logger.error("Weather Fetch Error: %s", e)
         dbm.log_system_event("ERROR", "ETL", f"Weather Fetch Failed: {e}")
-    
+
     # 4. Intelligence Processing (ML + Risk + Decision)
     if skip_swarm:
-        print("Fast Mode: Skipping Intelligence Swarm.")
+        logger.info("Fast Mode: Skipping Intelligence Swarm.")
         return
 
-    print("Running Intelligence Swarm (Forecast + Risk + Decision)...")
+    logger.info("Running Intelligence Swarm (Forecast + Risk + Decision)...")
     if progress_callback:
         progress_callback(0.25, "Starting Intelligence Swarm...")
-    
+
     # Initialize agents for the swarm
     forecaster = ForecastingAgent()
     shock_agent = AnomalyDetectionEngine()
     risk_engine = MarketRiskEngine()
     decision_agent = DecisionAgent()
-    
+
     processed_count = 0
     try:
         # Get unique Commodity-Mandi pairs from DB
         commodities = dbm.get_unique_items("commodity")
         mandis = dbm.get_unique_items("mandi")
-        
+
         total_pairs = len(commodities) * len(mandis)
         current_pair_idx = 0
-        
+
         # GLOBAL SILENCE FOR SWARM LOOP
         with suppress_output():
             for com in commodities:
                 for man in mandis:
                     current_pair_idx += 1
-                    
+
                     try:
                         # Get History
                         df = dbm.get_latest_prices(commodity=com)
                         df = df[df['mandi'] == man]
-                        
+
                         if len(df) < 15: # Need minimum data for forecast
                             continue
-                            
+
                         # Update Progress Bar (Scale 0.25 to 0.95)
                         if progress_callback:
                             progress = 0.25 + (0.7 * (current_pair_idx / total_pairs))
@@ -448,10 +430,10 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
                             df_agent = df_agent.rename(columns={'price_modal': 'price'})
                         # Ensure dates are datetime
                         df_agent['date'] = pd.to_datetime(df_agent['date'])
-                            
+
                         # A. Forecast
                         forecast_df = forecaster.generate_forecasts(df_agent, com, man)
-                        
+
                         if forecast_df.empty:
                             continue
 
@@ -461,23 +443,23 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
                             dbm.log_forecast(gen_date, com, man, forecast_df)
                         except Exception as e:
                             print(f"Forecast Savelog error: {e}")
-                        
+
                         # B. Risk & Shock
                         # Calculate volatility (std dev of daily returns)
                         current_price = df_agent['price'].iloc[-1]
                         df_agent['returns'] = df_agent['price'].pct_change()
                         volatility = df_agent['returns'].std()
                         forecast_std = forecast_df['forecast_price'].std()
-                        
+
                         # Detect Shock
                         shock_info = shock_agent.detect_shocks(df_agent, forecast_df)
-                        
+
                         # Calculate Risk Score
                         risk_data = risk_engine.calculate_risk_score(shock_info, forecast_std, volatility)
-                        
+
                         # C. Decision Signal
                         signal_data = decision_agent.get_signal(current_price, forecast_df, risk_data, shock_info)
-                        
+
                         # D. Log Signal
                         # We log the signal for "Today"
                         today_str = datetime.now().strftime("%Y-%m-%d")
@@ -488,23 +470,26 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
                             signal=signal_data['signal'],
                             price_at_signal=current_price
                         )
-                        
+
                         # E. Update Performance Metrics (Phase 7)
                         try:
                             pm.update_metrics(com, man)
                         except Exception as e:
-                            print(f"Performance Update Failed: {e}")
+                            logger.warning("Performance Update Failed: %s", e)
 
                         processed_count += 1
-                    except Exception as inner_e:
+                    except Exception:
                         # Log individual failures but continue loop
                         # print(f"Error processing {com}-{man}: {inner_e}") # Squelch spam
                         continue
 
-        print(f"Intelligence Processing Complete. Generated signals for {processed_count} markets.")
-        
+        logger.info(
+            "Intelligence Processing Complete. Generated signals for %d markets.",
+            processed_count,
+        )
+
     except Exception as e:
-        print(f"Intelligence Swarm Critical Failure: {e}")
+        logger.critical("Intelligence Swarm Critical Failure: %s", e)
         dbm.log_system_event("CRITICAL", "ETL", f"Swarm Failed: {e}")
 
     finally:
@@ -512,19 +497,19 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
         if progress_callback:
             progress_callback(0.98, "Finalizing Update...")
         dbm.set_last_update()
-        
+
         # 6. Export for Git Tracking
         try:
             dbm.export_prices_to_csv()
         except Exception as e:
-            print(f"Export Failed: {e}")
-        
+            logger.error("Export Failed: %s", e)
+
         if progress_callback:
             progress_callback(1.0, "Update Complete!")
-            
+
         duration = time.time() - start_time
         dbm.log_system_event("INFO", "ETL", "Daily Update Completed", f"Duration: {duration:.2f}s")
-        print(f"Update Complete in {duration:.2f}s.")
+        logger.info("Update Complete in %.2fs.", duration)
 
 if __name__ == "__main__":
     run_daily_update()

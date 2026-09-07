@@ -24,10 +24,10 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -m 'not integration'"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks integration tests",
+    "integration: marks integration tests that require network access or external services",
 ]
 
 [tool.ruff]
@@ -36,7 +36,13 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
-ignore = ["E501"]  # Line length handled separately
+ignore = [
+    "E501",   # Line length — handled by line-length setting above
+    "E402",   # Module-level import not at top — common in Streamlit scripts with sys.path manipulation
+    "E701",   # Multiple statements on one line — pre-existing in some agents
+    "F401",   # Unused import — pre-existing in some modules
+    "E741",   # Ambiguous variable name — pre-existing in some agents
+]
 
 [tool.coverage.run]
 source = ["app", "agents", "database", "etl", "cv", "utils"]

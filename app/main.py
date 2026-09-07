@@ -4,10 +4,10 @@ AgriIntel.in v2.0 — National Agricultural Intelligence Stack
 Entry point. This is the Dashboard (landing page).
 All other pages live in `app/pages/`.
 """
-import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(
     page_title="AgriIntel.in — National Agri Intelligence",
@@ -18,12 +18,16 @@ st.set_page_config(
 
 from app.app_core import init_page, safe_html
 from app.terminal_theme import (
-    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED,
-    ACCENT_BLUE, ACCENT_AMBER, ACCENT_GREEN, ACCENT_RED,
-    BORDER_COLOR,
-    render_signal_banner, render_signal_reasoning, render_spacer, render_footer,
+    ACCENT_AMBER,
+    ACCENT_BLUE,
+    TEXT_PRIMARY,
     render_data_provenance,
-    style_dataframe, render_news_card,
+    render_footer,
+    render_news_card,
+    render_signal_banner,
+    render_signal_reasoning,
+    render_spacer,
+    style_dataframe,
 )
 
 # Initialize shared context (auth, sidebar, agents, data)

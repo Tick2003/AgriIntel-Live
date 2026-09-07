@@ -1,17 +1,20 @@
 """Arbitrage — Compare markets and find arbitrage opportunities."""
-import streamlit as st
+from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 import plotly.graph_objects as go
-from concurrent.futures import ThreadPoolExecutor
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Arbitrage", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
 from app.app_core import init_page
-from app.utils import get_live_data
 from app.terminal_theme import (
-    TEXT_PRIMARY, ACCENT_GREEN, ACCENT_BLUE,
-    render_footer, style_dataframe,
+    ACCENT_BLUE,
+    ACCENT_GREEN,
+    TEXT_PRIMARY,
+    render_footer,
 )
+from app.utils import get_live_data
 
 ctx = init_page()
 data = ctx["data"]

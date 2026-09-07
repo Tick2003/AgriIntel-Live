@@ -15,18 +15,23 @@ Public API
     result = forecaster.forecast_realtime(data, commodity, mandi, intraday_df)
 """
 
+import json
+import logging
+import os
+import warnings
+from dataclasses import dataclass, field
+from datetime import timedelta
+from typing import Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
-from typing import Dict, Optional, List
-from datetime import timedelta
-import warnings
 
 warnings.filterwarnings("ignore")
 
-from .regime_detector import RegimeDetector, RegimeState
-from .feature_factory import FeatureFactory
+logger = logging.getLogger(__name__)
 
+from .feature_factory import FeatureFactory
+from .regime_detector import RegimeDetector, RegimeState
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -227,7 +232,7 @@ class RACEForecaster:
         forecast_df["commodity"] = commodity
         forecast_df["mandi"] = mandi
 
-        return ForecastResult(
+        result = ForecastResult(
             forecast_df=forecast_df,
             regime=regime_state,
             model_weights=weights,
@@ -239,6 +244,60 @@ class RACEForecaster:
                 "rmse": round(rmse_val, 2),
             },
         )
+
+        # Write lightweight run manifest for experiment traceability
+        self._write_run_manifest(
+            commodity=commodity,
+            mandi=mandi,
+            regime_state=regime_state,
+            weights=weights,
+            rmse_val=rmse_val,
+            n_samples=len(data),
+            n_features=len(feature_cols),
+            horizon=horizon,
+        )
+
+        return result
+
+    def _write_run_manifest(
+        self,
+        commodity: str,
+        mandi: str,
+        regime_state: "RegimeState",
+        weights: Dict[str, float],
+        rmse_val: float,
+        n_samples: int,
+        n_features: int,
+        horizon: int,
+    ) -> None:
+        """Write a lightweight JSON run manifest for experiment traceability."""
+        import datetime as _dt
+        manifest = {
+            "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "commodity": commodity,
+            "mandi": mandi,
+            "horizon_days": horizon,
+            "training_samples": n_samples,
+            "feature_count": n_features,
+            "regime": regime_state.regime,
+            "regime_confidence": round(float(regime_state.confidence), 4),
+            "model_weights": weights,
+            "rmse": round(float(rmse_val), 4),
+            "random_state": 42,
+        }
+        try:
+            manifests_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "data", "run_manifests",
+            )
+            os.makedirs(manifests_dir, exist_ok=True)
+            fname = f"{commodity}_{mandi}_{manifest['timestamp'][:10]}.json".replace(" ", "_")
+            fpath = os.path.join(manifests_dir, fname)
+            with open(fpath, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2)
+            logger.debug("Run manifest written: %s", fpath)
+        except Exception as e:
+            logger.warning("Could not write run manifest: %s", e)
 
     def forecast_realtime(
         self,
@@ -307,7 +366,8 @@ class RACEForecaster:
                     preds = m.predict(X_val)
                     mape = np.mean(np.abs((y_val - preds) / (y_val + 1e-9))) * 100
                     scores[m.name].append(mape)
-                except Exception:
+                except Exception as e:
+                    logger.warning("CV fold failed for %s: %s", m.name, e)
                     scores[m.name].append(10.0)  # penalty
 
         return {name: np.mean(vals) if vals else 10.0
@@ -373,8 +433,8 @@ class RACEForecaster:
                 try:
                     p = m.predict(X_pred)[0]
                     pred_price += w * p
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Model predict failed for %s: %s", m.name, e)
 
             future_dates.append(next_date)
             forecast_prices.append(round(pred_price, 2))

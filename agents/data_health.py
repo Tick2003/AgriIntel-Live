@@ -1,5 +1,5 @@
 import pandas as pd
-import numpy as np
+
 
 class DataHealthAgent:
     """
@@ -22,9 +22,9 @@ class DataHealthAgent:
         data['date'] = pd.to_datetime(data['date'])
         full_date_range = pd.date_range(start=data['date'].min(), end=data['date'].max())
         missing_dates = full_date_range.difference(data['date'])
-        
+
         missing_pct = len(missing_dates) / len(full_date_range)
-        
+
         # Check for zeros in price
         zeros_pct = (data['price'] == 0).mean()
 
@@ -36,7 +36,7 @@ class DataHealthAgent:
             issues.append(f"{len(missing_dates)} missing days ({missing_pct:.1%})")
         if missing_pct > 0.3:
             status = "Critical"
-        
+
         if zeros_pct > 0.05:
             status = "Warning" if status == "OK" else status
             issues.append(f"{zeros_pct:.1%} days with zero price")

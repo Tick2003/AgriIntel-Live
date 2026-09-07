@@ -1,7 +1,8 @@
 """Quality Grading (CV) — Upload images for institutional produce grading."""
-import streamlit as st
 import os
 import tempfile
+
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Quality Grading", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
@@ -20,6 +21,7 @@ st.markdown("<h1>Structural Quality Analytics</h1>", unsafe_allow_html=True)
 st.write("Upload visual data for institutional grading (Grade A/B/C).")
 
 from cv.grading_model import GradingModel
+
 grader = GradingModel()
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])

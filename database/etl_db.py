@@ -4,9 +4,10 @@ database/etl_db.py — ETL Pipeline Database Operations
 Raw staging data, quality logs, and scraper execution stats.
 """
 
-import pandas as pd
 import logging
 from datetime import datetime
+
+import pandas as pd
 
 from database.connection import get_connection
 
@@ -24,7 +25,7 @@ def save_raw_prices(df, batch_id):
             df_copy['batch_id'] = batch_id
             df_copy['ingestion_timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             df_copy['status'] = 'PENDING'
-            
+
             df_copy.to_sql('raw_mandi_prices', conn, if_exists='append', index=False)
     except Exception as e:
         logger.error(f"save_raw_prices failed: {e}")
@@ -32,7 +33,7 @@ def save_raw_prices(df, batch_id):
 
 def log_quality_issues(issues_list):
     """
-    Logs data quality issues. 
+    Logs data quality issues.
     issues_list: List of dicts {batch_id, date, commodity, mandi, issue_type, severity, details, raw_value}
     """
     if not issues_list:
@@ -69,13 +70,13 @@ def get_scraper_stats(limit=30):
     try:
         with get_connection() as conn:
             df = pd.read_sql("SELECT * FROM scraper_execution_stats ORDER BY timestamp DESC LIMIT ?", conn, params=[limit])
-            
+
             # Calculate Success Rate
             success_rate = 0
             if not df.empty:
                 success_count = len(df[df['status'] == 'SUCCESS'])
                 success_rate = (success_count / len(df)) * 100
-                
+
             return df, success_rate
     except Exception as e:
         logger.error(f"get_scraper_stats failed: {e}")

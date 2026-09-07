@@ -3,9 +3,10 @@ database/realtime.py — Intraday Trades & RACE Ensemble Weights
 ================================================================
 """
 
-import pandas as pd
 import logging
 from datetime import datetime, timedelta
+
+import pandas as pd
 
 from database.connection import get_connection
 

@@ -14,13 +14,14 @@ API Key Management:
     • Register free at https://data.gov.in → My Account → Generate API Key
 """
 
-import requests
-import pandas as pd
-from datetime import datetime, timedelta
+import logging
+import os
 import random
 import time
-import os
-import logging
+from datetime import datetime
+
+import pandas as pd
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -31,23 +32,14 @@ logger = logging.getLogger(__name__)
 DATA_GOV_RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 DATA_GOV_BASE_URL = "https://api.data.gov.in/resource"
 
-# Commodities & Markets we track
-TRACKED_COMMODITIES = [
-    "Onion", "Potato", "Tomato", "Wheat", "Rice",
-    "Maize", "Soyabean", "Mustard", "Cotton", "Sugarcane",
-    "Gram", "Tur", "Moong", "Masur", "Urad",
-    "Apple", "Banana", "Mango", "Grapes", "Orange",
-    "Garlic", "Ginger", "Turmeric", "Jeera", "Chilli"
-]
-
-TRACKED_MARKETS = [
-    "Azadpur", "Lasalgaon", "Vashi", "Kolar", "Indore",
-    "Pune", "Mumbai", "Jaipur", "Ahmedabad", "Surat",
-    "Kanpur", "Lucknow", "Varanasi", "Agra", "Bareilly",
-    "Kolkata", "Bhubaneswar", "Cuttack", "Patna", "Ranchi",
-    "Chennai", "Coimbatore", "Madurai", "Hyderabad", "Warangal",
-    "Bangalore", "Mysore", "Hubli", "Shimoga", "Bellary"
-]
+# Commodities & Markets we track — imported from canonical reference_data module
+try:
+    from agents.reference_data import TRACKED_COMMODITIES, TRACKED_MARKETS
+except ImportError:
+    import os as _os
+    import sys as _sys
+    _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    from agents.reference_data import TRACKED_COMMODITIES, TRACKED_MARKETS
 
 
 def _get_api_key():
@@ -137,7 +129,7 @@ def fetch_from_data_gov(api_key: str, limit: int = 1000) -> pd.DataFrame:
                     "price_modal": modal_price,
                     "arrival": float(rec.get("quantity", rec.get("Arrival", random.randint(50, 500)))),
                 })
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 continue
 
         df = pd.DataFrame(rows)
@@ -360,35 +352,39 @@ def get_all_commodities_data() -> pd.DataFrame:
     # ---- Source 1: data.gov.in ----
     api_key = _get_api_key()
     if api_key:
-        print("📡 Fetching REAL prices from data.gov.in...")
+        logger.info("Fetching REAL prices from data.gov.in...")
         df = fetch_from_data_gov(api_key, limit=1500)
         if not df.empty:
             source_used = "data.gov.in"
-            print(f"✅ Got {len(df)} real records from data.gov.in "
-                  f"({df['commodity'].nunique()} commodities, {df['mandi'].nunique()} markets)")
+            logger.info(
+                "Got %d real records from data.gov.in (%d commodities, %d markets)",
+                len(df), df["commodity"].nunique(), df["mandi"].nunique(),
+            )
             _log_source(source_used, len(df))
             return df
         else:
-            print("⚠️ data.gov.in returned no data, trying next source...")
+            logger.warning("data.gov.in returned no data, trying next source...")
     else:
-        print("ℹ️ No DATA_GOV_IN_API_KEY set. Skipping data.gov.in. "
-              "(Register free at https://data.gov.in)")
+        logger.info(
+            "No DATA_GOV_IN_API_KEY set. Skipping data.gov.in. "
+            "Register free at https://data.gov.in"
+        )
 
     # ---- Source 2: Direct Agmarknet ----
-    print("📡 Trying direct Agmarknet scraping...")
+    logger.info("Trying direct Agmarknet scraping...")
     df = fetch_from_agmarknet_direct()
     if not df.empty:
         source_used = "agmarknet_direct"
-        print(f"✅ Scraped {len(df)} records from Agmarknet directly.")
+        logger.info("Scraped %d records from Agmarknet directly.", len(df))
         _log_source(source_used, len(df))
         return df
     else:
-        print("⚠️ Agmarknet scraping failed, using simulation fallback...")
+        logger.warning("Agmarknet scraping failed, using simulation fallback...")
 
     # ---- Source 3: Simulation ----
     df = fetch_simulated_prices()
     source_used = "simulation"
-    print(f"🔄 Generated {len(df)} simulated records (fallback).")
+    logger.info("Generated %d simulated records (fallback).", len(df))
     _log_source(source_used, len(df))
     return df
 

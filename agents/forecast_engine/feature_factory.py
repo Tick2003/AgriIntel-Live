@@ -12,10 +12,11 @@ Features:
 - Domain-specific: festival_proximity, days_since_last_shock
 """
 
+import warnings
+from typing import List, Optional
+
 import numpy as np
 import pandas as pd
-from typing import List, Optional
-import warnings
 
 warnings.filterwarnings("ignore")
 

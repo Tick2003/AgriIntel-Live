@@ -5,8 +5,8 @@ st.set_page_config(page_title="AgriIntel — Consultant", layout="wide", page_ic
 
 from app.app_core import init_page, safe_html
 from app.terminal_theme import (
-    TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_GREEN, ACCENT_BLUE, BORDER_COLOR,
-    render_chat_bubble, render_footer,
+    render_chat_bubble,
+    render_footer,
 )
 
 ctx = init_page()

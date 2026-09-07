@@ -47,12 +47,12 @@ class TelecomMapper:
 
             parsed_number = phonenumbers.parse(phone_number, "IN")
             region = geocoder.description_for_number(parsed_number, "en")
-            
+
             # Extract state from region string (e.g., "Maharashtra, India")
             state = region.split(',')[0].strip()
-            
+
             lang_code = self.circle_lang_map.get(state, "en")
-            
+
             return state, lang_code
         except Exception:
             return "Unknown", "en"

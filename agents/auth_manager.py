@@ -1,8 +1,9 @@
-import streamlit as st
-import os
-import bcrypt
 import logging
+import os
 from datetime import datetime, timedelta
+
+import bcrypt
+import streamlit as st
 
 try:
     from streamlit_oauth import OAuth2Component
@@ -32,7 +33,8 @@ class AuthAgent:
     """
     def __init__(self):
         self.auth_key = "user_auth"
-        
+        self._validate_admin_credentials()
+
         # Load Secrets safely
         try:
             self.client_id = st.secrets.get("google_auth", {}).get("client_id")
@@ -42,6 +44,25 @@ class AuthAgent:
             self.client_id = None
             self.client_secret = None
             self.redirect_uri = "http://localhost:8501"
+
+    @staticmethod
+    def _validate_admin_credentials() -> None:
+        """Raise RuntimeError if DEFAULT_ADMIN_PASSWORD is missing in non-test environments.
+
+        This prevents silent deployment with no admin password.
+        Set DEFAULT_ADMIN_PASSWORD in your .env (see .env.example).
+        """
+        env = os.environ.get("AGRIINTEL_ENV", "development")
+        if env == "test":
+            return  # Allow tests to run without a real password
+
+        password = os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
+        if not password:
+            raise RuntimeError(
+                "DEFAULT_ADMIN_PASSWORD environment variable is not set.\n"
+                "Please set it in your .env file (see .env.example).\n"
+                "This is required to bootstrap the admin account on first run."
+            )
 
     def check_session(self):
         """Check if user is logged in and session has not expired."""
@@ -72,16 +93,16 @@ class AuthAgent:
 
     def login_page(self):
         """Render the login page."""
-        st.markdown(f"""
+        st.markdown("""
         <style>
         /* Force Root Dark */
-        .stApp, [data-testid="stAppViewContainer"] {{
+        .stApp, [data-testid="stAppViewContainer"] {
             background-color: #111315 !important;
             color: #E6E6E6 !important;
-        }}
-        
+        }
+
         /* Extreme Specificity for Hero Card */
-        div.tactical-login-card, .stMarkdown div.tactical-login-card {{
+        div.tactical-login-card, .stMarkdown div.tactical-login-card {
             text-align: center !important;
             padding: 50px !important;
             background-color: #1A1D21 !important;
@@ -91,37 +112,37 @@ class AuthAgent:
             margin: 40px auto !important;
             color: #FFFFFF !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
-        }}
-        
-        .login-title, h1.login-title {{
+        }
+
+        .login-title, h1.login-title {
             font-family: 'Inter', sans-serif !important;
             color: #FFFFFF !important;
             font-size: 28px !important;
             font-weight: 700 !important;
             margin-bottom: 12px !important;
-        }}
-        
-        .login-subtitle, p.login-subtitle {{
+        }
+
+        .login-subtitle, p.login-subtitle {
             font-size: 1.15em !important;
             color: #C5CBD3 !important;
             opacity: 1 !important;
             margin-bottom: 30px !important;
-        }}
+        }
 
         /* Inputs Contrast Force */
-        input[type="text"], input[type="password"] {{
+        input[type="text"], input[type="password"] {
             background-color: #1F2329 !important;
             color: #FFFFFF !important;
             border: 1px solid #2A2F36 !important;
-        }}
-        
+        }
+
         /* Button Contrast Force */
-        [data-testid="stForm"] button {{
+        [data-testid="stForm"] button {
             background-color: #3B82F6 !important;
             color: #FFFFFF !important;
             font-weight: 600 !important;
             border: none !important;
-        }}
+        }
         </style>
         """, unsafe_allow_html=True)
 
@@ -135,10 +156,10 @@ class AuthAgent:
                 <p style="color: #888; font-size: 0.85em;">Tactical Intelligence Infrastructure | Build 782-X</p>
             </div>
             """, unsafe_allow_html=True)
-            
-            st.write("") 
+
             st.write("")
-            
+            st.write("")
+
             # OAuth Flow
             if self.client_id and self.client_secret and OAUTH_AVAILABLE:
                 self._render_google_btn()
@@ -154,7 +175,7 @@ class AuthAgent:
             "https://www.googleapis.com/oauth2/v3/tokeninfo",
             "openid email profile"
         )
-        
+
         result = oauth2.authorize_button(
             name="Login with Google",
             icon="https://www.google.com.tw/favicon.ico",
@@ -163,12 +184,12 @@ class AuthAgent:
             key="google_oauth_btn",
             extras_params={"prompt": "select_account"},
         )
-        
+
         if result and result.get('token'):
             email = result.get('token', {}).get('email')
             # Check DB
             user = db_manager.get_user_by_email(email)
-            
+
             if user:
                 st.session_state[self.auth_key] = {
                     'logged_in': True,
@@ -185,12 +206,12 @@ class AuthAgent:
     def _render_db_login(self):
         """Database Login (Fallback) — No pre-filled credentials."""
         st.info("🔐 Secure Enterprise Login")
-        
+
         # Initialize login attempts tracker
         if 'login_attempts' not in st.session_state:
             st.session_state['login_attempts'] = 0
             st.session_state['lockout_until'] = None
-        
+
         # Check lockout
         if st.session_state.get('lockout_until'):
             lockout_until = datetime.fromisoformat(st.session_state['lockout_until'])
@@ -201,17 +222,17 @@ class AuthAgent:
             else:
                 st.session_state['login_attempts'] = 0
                 st.session_state['lockout_until'] = None
-        
+
         with st.form("login_form"):
             email = st.text_input("Work Email", placeholder="your.email@company.com")
             password = st.text_input("Password", type="password", placeholder="Enter your password")
             submit = st.form_submit_button("Login")
-            
+
             if submit:
                 if not email or not password:
                     st.error("Please enter both email and password.")
                     return
-                    
+
                 user = db_manager.get_user_by_email(email)
                 if user:
                     try:
@@ -234,12 +255,12 @@ class AuthAgent:
                         st.error("Authentication error. Please try again.")
                 else:
                     self._handle_failed_login()
-    
+
     def _handle_failed_login(self):
         """Handle failed login with brute-force protection."""
         st.session_state['login_attempts'] = st.session_state.get('login_attempts', 0) + 1
         remaining = MAX_LOGIN_ATTEMPTS - st.session_state['login_attempts']
-        
+
         if remaining <= 0:
             lockout_minutes = 15
             try:
@@ -258,7 +279,7 @@ class AuthAgent:
         if user:
             role = user.get('role', 'Viewer')
             st.sidebar.caption(f"Logged in as: {user.get('email')} ({role})")
-        
+
         if st.sidebar.button("🚪 Logout"):
             st.session_state[self.auth_key] = {'logged_in': False}
             st.rerun()

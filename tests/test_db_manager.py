@@ -6,10 +6,10 @@ Covers all CRUD operations, migrations, and edge cases.
 
 import os
 import sys
-import pytest
-import sqlite3
+from datetime import datetime
+
 import pandas as pd
-from datetime import datetime, timedelta
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,7 +23,7 @@ class TestInitDB:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cursor.fetchall()}
-        
+
         expected_tables = {
             'market_prices', 'news_alerts', 'weather_logs', 'app_metadata',
             'signal_logs', 'user_config', 'system_logs', 'forecast_logs',
@@ -54,7 +54,7 @@ class TestPriceCRUD:
     def test_save_and_retrieve_prices(self, db_manager, sample_price_df):
         """Test saving and retrieving market prices."""
         db_manager.save_prices(sample_price_df)
-        
+
         df = db_manager.get_latest_prices("Onion")
         assert not df.empty
         assert "price_modal" in df.columns
@@ -98,7 +98,7 @@ class TestNewsCRUD:
     def test_save_and_retrieve_news(self, db_manager, sample_news_df):
         """Test saving and retrieving news."""
         db_manager.save_news(sample_news_df)
-        
+
         df = db_manager.get_latest_news()
         assert not df.empty
         assert "title" in df.columns
@@ -107,7 +107,7 @@ class TestNewsCRUD:
         """Test that duplicate news items are not inserted."""
         db_manager.save_news(sample_news_df)
         db_manager.save_news(sample_news_df)  # Save again
-        
+
         df = db_manager.get_latest_news()
         # Titles should be unique
         assert df['title'].nunique() == len(df)
@@ -123,7 +123,7 @@ class TestWeatherCRUD:
     def test_save_and_retrieve_weather(self, db_manager, sample_weather_df):
         """Test saving and retrieving weather data."""
         db_manager.save_weather(sample_weather_df)
-        
+
         df = db_manager.get_weather_logs()
         assert not df.empty
 
@@ -139,7 +139,7 @@ class TestMetadata:
     def test_set_and_get_last_update(self, db_manager):
         """Test setting and getting last update timestamp."""
         db_manager.set_last_update()
-        
+
         result = db_manager.get_last_update()
         assert result is not None
         # Should be parseable datetime
@@ -152,7 +152,7 @@ class TestSignalLogging:
     def test_log_and_get_signal_stats(self, db_manager):
         """Test signal logging and stat retrieval."""
         db_manager.log_signal("2026-01-01", "Onion", "Azadpur", "HOLD", 2500)
-        
+
         stats = db_manager.get_signal_stats("Onion", "Azadpur")
         assert isinstance(stats, dict)
         assert "total" in stats
@@ -171,7 +171,7 @@ class TestSystemLogs:
     def test_log_system_event(self, db_manager):
         """Test system event logging."""
         db_manager.log_system_event("INFO", "TEST", "Test event logged", "metadata123")
-        
+
         with db_manager.get_connection() as conn:
             df = pd.read_sql("SELECT * FROM system_logs WHERE source='TEST'", conn)
         assert not df.empty
@@ -191,7 +191,7 @@ class TestIntradayTrades:
             "trade_type": "TRADE",
         }
         db_manager.save_intraday_trade(trade)
-        
+
         df = db_manager.get_latest_intraday_trades("Onion", "Azadpur", limit=5)
         assert not df.empty
         assert "price" in df.columns
@@ -208,7 +208,7 @@ class TestDataReliability:
     def test_save_raw_prices(self, db_manager, sample_price_df):
         """Test saving raw prices to staging table."""
         db_manager.save_raw_prices(sample_price_df, "TEST_BATCH_001")
-        
+
         with db_manager.get_connection() as conn:
             df = pd.read_sql("SELECT * FROM raw_mandi_prices WHERE batch_id='TEST_BATCH_001'", conn)
         assert not df.empty
@@ -226,14 +226,14 @@ class TestDataReliability:
             "raw_value": "9999",
         }]
         db_manager.log_quality_issues(issues)
-        
+
         alerts = db_manager.get_recent_quality_alerts()
         assert not alerts.empty
 
     def test_log_scraper_execution(self, db_manager):
         """Test scraper execution logging."""
         db_manager.log_scraper_execution("SUCCESS", 12.5, 100, 95, 5)
-        
+
         df, rate = db_manager.get_scraper_stats()
         assert not df.empty
         assert rate > 0

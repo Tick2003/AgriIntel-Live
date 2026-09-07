@@ -5,16 +5,15 @@ Contains auth, sidebar config, agent initialization, and data loading
 shared across all pages in the multi-page Streamlit app.
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import sys
-import os
 import html as html_module
 import logging
-from datetime import datetime
+import os
+import sys
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+
+import pandas as pd
+import streamlit as st
 
 logger = logging.getLogger(__name__)
 
@@ -35,28 +34,31 @@ def init_page():
     Must be called at the top of every page.
     Returns a dict with all shared context, or calls st.stop() if auth fails.
     """
-    from agents.data_health import DataHealthAgent
-    from agents.forecast_execution import ForecastingAgent
-    from agents.shock_monitoring import AnomalyDetectionEngine
-    from agents.risk_scoring import MarketRiskEngine
-    from agents.explanation_report import AIExplanationAgent
-    from agents.arbitrage_engine import ArbitrageAgent
-    from agents.intelligence_core import IntelligenceAgent
-    from agents.user_profile import UserProfileAgent
-    from agents.notification_service import NotificationService
-    from agents.auth_manager import AuthAgent
-    from agents.language_manager import LanguageManager
-    from agents.chatbot_engine import ChatbotEngine
-    from agents.optimization_engine import OptimizationEngine
-    from agents.business_engine import B2BMatcher, FintechEngine
-    from agents.decision_support import DecisionAgent
-    from app.utils import get_live_data, get_news_feed, get_weather_data, get_db_options
     import database.db_manager as db_manager
+    from agents.arbitrage_engine import ArbitrageAgent
+    from agents.auth_manager import AuthAgent
+    from agents.business_engine import B2BMatcher, FintechEngine
+    from agents.chatbot_engine import ChatbotEngine
+    from agents.data_health import DataHealthAgent
+    from agents.decision_support import DecisionAgent
+    from agents.explanation_report import AIExplanationAgent
+    from agents.forecast_execution import ForecastingAgent
+    from agents.intelligence_core import IntelligenceAgent
+    from agents.language_manager import LanguageManager
+    from agents.notification_service import NotificationService
+    from agents.optimization_engine import OptimizationEngine
+    from agents.risk_scoring import MarketRiskEngine
+    from agents.shock_monitoring import AnomalyDetectionEngine
+    from agents.user_profile import UserProfileAgent
     from app.terminal_theme import (
-        inject_terminal_css, BG_COLOR, BORDER_COLOR,
-        TEXT_PRIMARY, TEXT_SECONDARY, ACCENT_BLUE,
-        render_footer,
+        ACCENT_BLUE,
+        BG_COLOR,
+        BORDER_COLOR,
+        TEXT_PRIMARY,
+        TEXT_SECONDARY,
+        inject_terminal_css,
     )
+    from app.utils import get_db_options, get_live_data, get_news_feed, get_weather_data
 
     inject_terminal_css()
 
@@ -66,7 +68,7 @@ def init_page():
         st.session_state['boot_cache_cleared'] = True
 
     # Load Lang Manager
-    lang_manager = LanguageManager()
+    LanguageManager()
 
     # --- TOP NAVIGATION (SIMULATED NAVBAR) ---
     st.markdown(f"""
@@ -95,10 +97,9 @@ def init_page():
     org_id = user_details.get('org_id')
 
     # Get Org Name
-    org_name = "Unknown Org"
     if org_id:
         org = db_manager.get_org_details(org_id)
-        if org: org_name = org['name']
+        if org: org['name']
 
     st.sidebar.image("logo.png", use_container_width=True)
     st.sidebar.title("📉 Terminal Config")
@@ -188,8 +189,8 @@ def init_page():
 
     if should_update and _acquire_lock():
         def background_update():
-            import etl.data_loader
             import database.db_manager as dbm
+            import etl.data_loader
             try:
                 etl.data_loader.run_daily_update(skip_swarm=True)
                 dbm.set_last_update()
@@ -237,7 +238,7 @@ def init_page():
         with st.sidebar.expander("⚙️ Personalization"):
             p_risk = st.selectbox("Risk Tolerance", ["Low", "Medium", "High"], index=["Low", "Medium", "High"].index(user_profile.get('risk_tolerance', 'Medium')))
             p_transport = st.number_input("Transport Cost (₹/Q)", value=float(user_profile.get('transport_cost', 0.0)))
-            
+
             if st.button("Save Preferences"):
                 agents["profile"].update_profile(risk_tolerance=p_risk, transport_cost=p_transport)
                 st.sidebar.success("Saved!")

@@ -1,5 +1,3 @@
-import pandas as pd
-import random
 
 class IntelligenceAgent:
     """
@@ -41,11 +39,11 @@ class IntelligenceAgent:
         """
         if scenario_key not in self.scenarios:
             return None
-            
+
         scen = self.scenarios[scenario_key]
         impact_pct = scen['impact']
         new_price = current_price * (1 + impact_pct/100)
-        
+
         return {
             "scenario": scen['name'],
             "original_price": current_price,
@@ -61,16 +59,16 @@ class IntelligenceAgent:
         """
         # Simple Logic: If trend is up, hold. If flat/down, sell.
         # forecast_trend is list of next 7 days prices
-        
+
         if not forecast_trend or len(forecast_trend) < 3:
             return "Insufficient Data"
-            
+
         start_price = current_price
         max_price = max(forecast_trend)
         max_day = forecast_trend.index(max_price) + 1
-        
+
         profit_potential = ((max_price - start_price) / start_price) * 100
-        
+
         if profit_potential > 5:
             return f"Hold for {max_day} days. Price expected to rise by {profit_potential:.1f}%."
         elif profit_potential > 1:
@@ -84,7 +82,7 @@ class IntelligenceAgent:
         Context Data contains: signal, price, commodity, mandi, risk_score, sentiment, regime
         """
         q = user_query.lower()
-        
+
         # EXTRACT CONTEXT
         signal = context_data.get('signal', 'NEUTRAL')
         conf = context_data.get('confidence', 0)
@@ -92,25 +90,25 @@ class IntelligenceAgent:
         regime = context_data.get('regime', 'Unknown')
         sentiment_label = context_data.get('sentiment', 'Neutral')
         curr_price = context_data.get('current_price', 0)
-        
+
         # PERSONA HEADER
         analyst_intro = "🤖 **AgriIntel.in Analyst**: "
-        
+
         # --- INTENT 1: TRADING ADVICE ---
         if any(w in q for w in ['sell', 'buy', 'hold', 'advice', 'strategy', 'do']):
-            
+
             # Construct a nuanced argument
             tone = "cautious" if risk_score > 50 else "confident"
-            
+
             response = f"""
             {analyst_intro} Based on my analysis, the current strategy is **{signal}**.
-            
+
             **📊 key Market Indicators:**
             *   **Market Regime**: {regime}
             *   **Risk Score**: {risk_score}/100 ({tone})
             *   **News Sentiment**: {sentiment_label}
             *   **Model Confidence**: {int(conf)}%
-            
+
             **💡 Recommendation:**
             {context_data.get('reason', 'Trends suggest following the signal.')}
             """
@@ -120,8 +118,8 @@ class IntelligenceAgent:
         if any(w in q for w in ['price', 'forecast', 'tomorrow', 'future', 'trend']):
             return f"""
             {analyst_intro} The market is currently trading at **₹{curr_price:.2f}**.
-            
-            Our 30-day forecast models (XGBoost + Trend) indicate **{regime}** behavior ahead. 
+
+            Our 30-day forecast models (XGBoost + Trend) indicate **{regime}** behavior ahead.
             Please check the **Price Forecast** tab for the detailed projection curve and confidence intervals.
             """
 
@@ -130,23 +128,23 @@ class IntelligenceAgent:
             sim = self.run_scenario(curr_price, 'heavy_rain')
             return f"""
             {analyst_intro} **Scenario Analysis: Heavy Rain Event** 🌧️
-            
+
             Historical data suggests heavy rainfall disrupts supply chains immediately.
             *   **projected Impact**: {sim['change_pct']}
             *   **Target Price**: ₹{sim['new_price']:.2f}
-            
+
             *Reasoning: {sim['reason']}*
             """
-            
+
         if 'policy' in q or 'ban' in q or 'export' in q:
             sim = self.run_scenario(curr_price, 'export_ban')
             return f"""
             {analyst_intro} **Scenario Analysis: Export Ban** 🚫
-            
+
             An export ban typically creates an immediate local oversupply.
             *   **Projected Impact**: {sim['change_pct']}
             *   **Target Price**: ₹{sim['new_price']:.2f}
-            
+
             *Reasoning: {sim['reason']}*
             """
 

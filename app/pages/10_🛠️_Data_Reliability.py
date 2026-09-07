@@ -1,7 +1,8 @@
 """Data Reliability — Admin pipeline health dashboard."""
-import streamlit as st
-import io
 import contextlib
+import io
+
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Data Reliability", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 

@@ -1,11 +1,13 @@
-import pandas as pd
-import sqlite3
 import os
+import sqlite3
 import sys
+
+import pandas as pd
 
 # Ensure root is in path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.db_manager import DB_NAME
+
 
 class UserProfileAgent:
     """
@@ -50,14 +52,14 @@ class UserProfileAgent:
         """Upsert user profile."""
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        
+
         # Check if exists
-        c.execute(f"SELECT 1 FROM user_config WHERE user_id = ?", (self.user_id,))
+        c.execute("SELECT 1 FROM user_config WHERE user_id = ?", (self.user_id,))
         exists = c.fetchone()
-        
+
         if exists:
             query = """
-                UPDATE user_config 
+                UPDATE user_config
                 SET risk_tolerance=?, transport_cost=?, default_mandi=?, default_commodity=?
                 WHERE user_id=?
             """
@@ -68,7 +70,7 @@ class UserProfileAgent:
                 VALUES (?, ?, ?, ?, ?)
             """
             c.execute(query, (self.user_id, risk_tolerance, transport_cost, default_mandi, default_commodity))
-            
+
         conn.commit()
         conn.close()
         return True

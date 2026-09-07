@@ -6,7 +6,7 @@ class LanguageManager:
             "Odia": "or",
             "Marathi": "mr"
         }
-        
+
         # Dictionary of UI terms
         self.dictionary = {
             "title": {
@@ -72,7 +72,7 @@ class LanguageManager:
         """
         if key not in self.dictionary:
             return key
-            
+
         return self.dictionary[key].get(lang_code, self.dictionary[key]["en"])
 
     def get_lang_code(self, lang_name):

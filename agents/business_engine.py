@@ -1,5 +1,5 @@
 import random
-import pandas as pd
+
 
 class B2BMatcher:
     """
@@ -20,25 +20,25 @@ class B2BMatcher:
         Returns a list of buyers interested in the deal.
         """
         matches = []
-        
-        # Simulation Logic: 
+
+        # Simulation Logic:
         # 1. Nearby buyers get higher match score
         # 2. Match logic is randomized for demo variety
-        
+
         for buyer in self.buyers:
             score = random.randint(60, 99)
-            
+
             # Boost score if location fuzzy matches
             if buyer['location'] in mandi_location or mandi_location in buyer['location']:
                 score += 10
-            
+
             # Cap at 100
             score = min(score, 100)
-            
+
             # Generate a fake bid price
             market_price = 2500 # Base
             bid_price = market_price + random.randint(-100, 200)
-            
+
             matches.append({
                 "buyer_name": buyer['name'],
                 "type": buyer['type'],
@@ -47,7 +47,7 @@ class B2BMatcher:
                 "bid_price": bid_price,
                 "distance": random.randint(5, 500) # km
             })
-            
+
         # Sort by match score
         matches.sort(key=lambda x: x['match_score'], reverse=True)
         return matches
@@ -66,25 +66,25 @@ class FintechEngine:
             reliability_index (float): 0-1 score of how consistent the farmer is.
         """
         # Base Score
-        score = 650 
-        
+        score = 650
+
         # 1. Consistency Bonus
         score += int(reliability_index * 100)
-        
+
         # 2. Yield Stability Bonus (Mock)
         # If yield_history is stable, add points
         if yield_history and len(yield_history) > 1:
             variance = max(yield_history) - min(yield_history)
             if variance < 2.0: # Low variance
                 score += 50
-        
+
         # Cap at 900
         score = min(score, 900)
-        
+
         # Loan Eligibility
         # Logic: Score * 1000
-        loan_limit = score * 500 
-        
+        loan_limit = score * 500
+
         offer = {
             "credit_score": score,
             "rating": self._get_rating(score),

@@ -1,8 +1,9 @@
 """Real-Time Trading Desk — Live order book, transaction feed, intraday charts."""
-import streamlit as st
+from datetime import datetime
+
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Real-Time Desk", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
@@ -18,12 +19,20 @@ selected_commodity = ctx["selected_commodity"]
 selected_mandi = ctx["selected_mandi"]
 last_db_update = ctx["last_db_update"]
 
-from app.utils import get_intraday_data, get_order_book_data, get_intraday_price_series
 from app.terminal_theme import (
-    ACCENT_GREEN, ACCENT_RED, ACCENT_BLUE, ACCENT_AMBER,
-    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, BORDER_COLOR,
-    render_spacer, render_footer, get_status_color,
+    ACCENT_AMBER,
+    ACCENT_BLUE,
+    ACCENT_GREEN,
+    ACCENT_RED,
+    BORDER_COLOR,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    get_status_color,
+    render_footer,
+    render_spacer,
 )
+from app.utils import get_intraday_data, get_intraday_price_series, get_order_book_data
 
 st.markdown("<h1>Real-Time Trading Desk</h1>", unsafe_allow_html=True)
 

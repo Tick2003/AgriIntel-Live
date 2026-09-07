@@ -9,6 +9,6 @@ that dynamically adjusts model weights based on detected market regime
 competitive time-series cross-validation.
 """
 
-from .ensemble import RACEForecaster, ForecastResult
+from .ensemble import ForecastResult, RACEForecaster
 
 __all__ = ["RACEForecaster", "ForecastResult"]

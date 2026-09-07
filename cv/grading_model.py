@@ -1,5 +1,4 @@
 import random
-import os
 
 # Try importing torch, else fallback to mock
 try:
@@ -61,12 +60,12 @@ class GradingModel:
         #         with torch.no_grad():
         #             output = self.model(tensor)
         #             # Logic to get argmax...
-        
+
         # 2. MOCK INFERENCE (For Demo/Hackathon usage)
         # Since we don't have a trained .pth file yet, we simulate smart detection.
-        # In a real demo, we might use colour histograms to hint at quality, 
+        # In a real demo, we might use colour histograms to hint at quality,
         # but random is sufficient for logic flow testing.
-        
+
         mock_grade = random.choice(self.classes)
         # Make Grade A slightly rarer for realism
         if random.random() > 0.7:
@@ -75,7 +74,7 @@ class GradingModel:
             mock_grade = 'Grade B'
         else:
             mock_grade = 'Grade C'
-            
+
         return {
             "grade": mock_grade,
             "confidence": round(random.uniform(0.75, 0.98), 2),

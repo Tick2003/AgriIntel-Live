@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 from datetime import datetime
+
+import pandas as pd
+
 
 class DataReliabilityAgent:
     """
@@ -10,10 +11,10 @@ class DataReliabilityAgent:
     2. Uniqueness (Duplicate Entries)
     3. Plausibility (Outliers vs Historical Data)
     """
-    
+
     def __init__(self, db_manager):
         self.dbm = db_manager
-        
+
     def validate_batch(self, df, batch_id):
         """
         Main validation pipeline.
@@ -25,20 +26,20 @@ class DataReliabilityAgent:
         issues = []
         valid_indices = []
         seen_keys = set()  # Track (date, commodity, mandi) for intra-batch deduplication
-        
+
         if df.empty:
             return pd.DataFrame(), [], {"total": 0, "valid": 0, "rejected": 0}
-            
+
         print(f"Validating batch {batch_id} with {len(df)} records...")
-        
+
         # Pre-fetch historical context for outlier detection
         # Optimization: Fetch last known price for all commodities in checking set
-        # For simplicity, we might do per-row or bulk fetch. 
+        # For simplicity, we might do per-row or bulk fetch.
         # Let's do a bulk fetch of latest prices for known comm/mandis.
-        
+
         for idx, row in df.iterrows():
             is_valid = True
-            
+
             # 1. Missing Value Check
             if pd.isna(row['price_modal']) or pd.isna(row['commodity']) or pd.isna(row['mandi']):
                 issues.append({
@@ -52,7 +53,7 @@ class DataReliabilityAgent:
                     "raw_value": str(row.to_dict())
                 })
                 is_valid = False
-            
+
             # 2. Plausibility Check (Outliers)
             if is_valid:
                 # Check vs History
@@ -66,10 +67,10 @@ class DataReliabilityAgent:
                         if not mandi_df.empty:
                             last_price = mandi_df.iloc[-1]['price_modal']
                             current_price = row['price_modal']
-                            
+
                             # Calculate % change
                             pct_change = abs((current_price - last_price) / last_price)
-                            
+
                             if pct_change > 0.5: # 50% jump
                                 issues.append({
                                     "batch_id": batch_id,
@@ -81,8 +82,8 @@ class DataReliabilityAgent:
                                     "details": f"Price changed by {pct_change*100:.1f}% (Prev: {last_price}, Curr: {current_price})",
                                     "raw_value": str(current_price)
                                 })
-                                # Note: We do NOT set is_valid=False for Shock. 
-                                # Real shocks happen. We just flag it. 
+                                # Note: We do NOT set is_valid=False for Shock.
+                                # Real shocks happen. We just flag it.
                                 # If it was 500% (5.0), maybe we reject.
                                 if pct_change > 3.0: # 300% Error likely
                                     is_valid = False
@@ -115,10 +116,10 @@ class DataReliabilityAgent:
 
             if is_valid:
                 valid_indices.append(idx)
-        
+
         valid_df = df.loc[valid_indices].copy()
         rejected_count = len(df) - len(valid_df)
-        
+
         return valid_df, issues, {
             "total": len(df),
             "valid": len(valid_df),

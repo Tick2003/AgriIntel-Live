@@ -6,7 +6,6 @@ Tests all endpoints, auth, and error handling using FastAPI TestClient.
 
 import os
 import sys
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,6 +15,7 @@ os.environ["AGRIINTEL_DB_NAME"] = "test_agri_intel.db"
 os.environ["AGRIINTEL_ENV"] = "test"
 
 from fastapi.testclient import TestClient
+
 from api_server import app
 
 client = TestClient(app)

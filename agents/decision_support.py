@@ -1,6 +1,7 @@
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 class DecisionAgent:
     """
@@ -19,38 +20,37 @@ class DecisionAgent:
         y = forecast_df['forecast_price'].values
         x = np.arange(len(y))
         slope, _ = np.polyfit(x, y, 1) # Change per day
-        
+
         # 2. Adaptive Trend Threshold (Adaptive Learning Engine)
         # Scale T1 based on volatility. High vol = Higher threshold needed (Noise filter).
         # Base sensitivity: 0.1% daily.
         # Formula: T1 = Price * max(0.001, Volatility * 0.2)
         volatility = risk_dict.get('volatility', 0.01)
         risk_score = risk_dict.get('risk_score', 50)
-        
+
         dynamic_T1 = current_price * max(0.001, volatility * 0.2)
-        
+
         trend_up = slope > dynamic_T1
         trend_down = slope < -dynamic_T1
-        
+
         # 2. Risk Flags
         high_risk = risk_score > 70
-        med_risk = 40 <= risk_score <= 70
         shock_high = shock_dict.get('severity') == 'High'
-        
+
         # 3. Decision Rules
         signal = "NEUTRAL"
         color = "gray"
         reason_list = []
-        
+
         # 🟢 SELL NOW
         # IF trend_down AND (shock_high OR high_risk)
         if trend_down and (shock_high or high_risk):
             signal = "SELL NOW"
             color = "green" # Green for "Action", or Red for "Danger"? User used Green for Sell Now.
             reason_list.append(f"📉 Trend is negative (Slope: {slope:.2f}/day).")
-            if shock_high: reason_list.append(f"💥 High Intensity Shock detected.")
+            if shock_high: reason_list.append("💥 High Intensity Shock detected.")
             if high_risk: reason_list.append(f"🔥 Market Risk is High ({risk_score}).")
-            
+
         # 🟡 HOLD
         # IF trend_up AND NOT shock_high AND risk_score < 60
         elif trend_up and not shock_high and risk_score < 60:
@@ -58,15 +58,15 @@ class DecisionAgent:
             color = "#FFC107" # Amber/Yellow
             reason_list.append(f"📈 Trend is positive (Slope: +{slope:.2f}/day).")
             reason_list.append(f"🛡️ Risk is acceptable ({risk_score}).")
-            
+
         # 🔴 WAIT / RISKY
         # IF shock_high OR high_risk
         elif shock_high or high_risk:
             signal = "WAIT / RISKY"
             color = "red"
-            if shock_high: reason_list.append(f"💥 High Intensity Shock detected.")
+            if shock_high: reason_list.append("💥 High Intensity Shock detected.")
             if high_risk: reason_list.append(f"🔥 Market Risk is High ({risk_score}).")
-            
+
         else:
             signal = "NEUTRAL"
             color = "blue"
@@ -77,14 +77,14 @@ class DecisionAgent:
         # Base: 100
         # Penalties: Risk Score (* 0.4), Shock (-20 if Med)
         # Bonus: Abs(Slope) if significant
-        
+
         confidence = 100 - (risk_score * 0.4)
         if shock_high: confidence -= 30
         elif shock_dict.get('severity') == 'Medium': confidence -= 15
-        
+
         # Clamp 0-99
         confidence = max(10, min(99, confidence))
-        
+
         # Format "SELL NOW (Confidence: 82%)"
         signal_text = f"{signal} (Confidence: {int(confidence)}%)"
 
@@ -101,7 +101,7 @@ class DecisionAgent:
         Simulates P&L with Risk Bands using RMSE * sqrt(t).
         """
         if forecast_df.empty: return pd.DataFrame()
-        
+
         Q = qty if qty is not None else quantity_quintals
         scenarios = []
         # Calculate approximate RMSE from confidence intervals if not passed explicitly/
@@ -109,20 +109,20 @@ class DecisionAgent:
         # RMSE approx = width / (3.92 * sqrt(t))
         # Let's estimate local sigma (RMSE) from the first few days or usage passed sigma.
         # For simplicity, we can infer sigma from the first valid CI width.
-        
+
         horizons = [7, 15, 30]
-        
+
         for days in horizons:
             if days <= len(forecast_df):
                 row = forecast_df.iloc[days-1]
                 Pt = row['forecast_price']
-                
+
                 # Infer RMSE-like spread from the bound width provided by ForecastingAgent
                 # ForecastingAgent logic: bound = price +/- 1.96 * std_dev * sqrt(t)
                 # So (Upper - Lower) = 3.92 * std_dev * sqrt(t)
                 # width = row['upper_bound'] - row['lower_bound']
                 # sigma_proxy = width / (3.92 * np.sqrt(days))
-                
+
                 # Wait, simpler: The user GAVE the formula for Risk Band:
                 # Upper = (Pt + 1.96 * sigma * sqrt(t) - P0) * Q
                 # We already have Pt, Lower, Upper in the dataframe!
@@ -131,20 +131,20 @@ class DecisionAgent:
                 # Expected Gain = (Pt - P0) * Q
                 # Upper Gain = (Upper_Price - P0) * Q
                 # Lower Gain = (Lower_Price - P0) * Q
-                
+
                 expected_gain = (Pt - current_price) * Q
                 upper_gain = (row['upper_bound'] - current_price) * Q
                 lower_gain = (row['lower_bound'] - current_price) * Q
-                
+
                 # Volatility (Risk Band Width)
                 risk_band = (upper_gain - lower_gain) / 2
-                
+
                 scenarios.append({
                     'Horizon': f"{days} Days",
                     'Expected Price': Pt,
                     'Expected Profit': expected_gain,
-                    'Risk (±)': risk_band, 
+                    'Risk (±)': risk_band,
                     'Range': f"₹{lower_gain:.0f} to ₹{upper_gain:.0f}"
                 })
-        
+
         return pd.DataFrame(scenarios)

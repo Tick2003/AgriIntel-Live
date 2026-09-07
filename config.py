@@ -7,7 +7,6 @@ Uses environment variables with sensible dev defaults.
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -52,7 +51,7 @@ class AppConfig:
     log_level: str = os.environ.get("LOG_LEVEL", "INFO")
     api_base_url: str = os.environ.get("API_BASE_URL", "http://localhost:8000")
     cache_ttl: int = int(os.environ.get("CACHE_TTL", "600"))
-    
+
     # Data retention
     intraday_retention_hours: int = int(os.environ.get("INTRADAY_RETENTION_HOURS", "72"))
     log_retention_days: int = int(os.environ.get("LOG_RETENTION_DAYS", "90"))
@@ -60,7 +59,7 @@ class AppConfig:
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
-    
+
     @property
     def is_development(self) -> bool:
         return self.environment == "development"

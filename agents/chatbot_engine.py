@@ -1,6 +1,5 @@
-import re
-import pandas as pd
 import random
+
 
 class ChatbotEngine:
     """
@@ -9,7 +8,7 @@ class ChatbotEngine:
     """
     def __init__(self, db_manager):
         self.db = db_manager
-        
+
     def process_query_structured(self, query, context=None):
         """
         Parses query and returns {intent, entities, response_text}.
@@ -17,12 +16,12 @@ class ChatbotEngine:
         """
         q = query.lower()
         context = context or {}
-        
+
         # 1. Extract Entities
         commodity = self._extract_commodity(q) or context.get('crop')
         mandi = self._extract_mandi(q) or context.get('mandi')
         time_horizon = self._extract_time_horizon(q)
-        
+
         # 2. Detect Intent
         intent = "unknown"
         if any(w in q for w in ["price", "rate", "bhav", "daam"]):
@@ -40,7 +39,7 @@ class ChatbotEngine:
 
         # 3. Formulate Response (Simulated data fetch for now)
         response_text = self._generate_response(intent, commodity, mandi, time_horizon)
-        
+
         return {
             "intent": intent,
             "entities": {
@@ -74,20 +73,20 @@ class ChatbotEngine:
     def _generate_response(self, intent, commodity, mandi, time):
         if not commodity:
             return "Please name the crop you are asking about."
-        
+
         mandi_str = f" in {mandi}" if mandi else " in nearby markets"
-        
+
         if intent == "price_query":
             price = random.randint(2000, 4000)
             return f"The current price of {commodity}{mandi_str} is ₹{price} per quintal."
-            
+
         if intent == "forecast_query":
             return f"Based on our AI analytics, {commodity} prices{mandi_str} are expected to rise by 5% next week."
-            
+
         if intent == "sell_or_hold_advice":
             return f"Current recommendation for {commodity}: Hold. Prices are expected to strengthen."
-            
+
         if intent == "risk_status":
             return f"Market risk for {commodity}{mandi_str} is Low (Score: 24/100)."
-            
+
         return f"I understand you are asking about {commodity}. How can I help further?"

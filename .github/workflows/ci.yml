@@ -1,0 +1,55 @@
+name: CI — Test, Lint & Coverage
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test-and-lint:
+    name: Test & Lint (Python 3.10)
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # ── Python Setup ──────────────────────────────────────────────────────
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      # ── Install Dependencies ───────────────────────────────────────────────
+      - name: Install production dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install dev / test extras
+        run: pip install -e ".[dev]"
+
+      # ── Lint ──────────────────────────────────────────────────────────────
+      - name: Lint with ruff
+        run: ruff check .
+
+      # ── Tests + Coverage ──────────────────────────────────────────────────
+      - name: Run tests (excluding integration / network tests)
+        env:
+          AGRIINTEL_ENV: test
+          AGRIINTEL_DB_NAME: test_agri_intel.db
+          DEFAULT_ADMIN_EMAIL: testadmin@agriintel.test
+          DEFAULT_ADMIN_PASSWORD: testpass_ci_only_123
+        run: |
+          pytest \
+            -m "not integration" \
+            --cov=app \
+            --cov=agents \
+            --cov=database \
+            --cov=etl \
+            --cov=cv \
+            --cov=utils \
+            --cov-report=term-missing \
+            --cov-fail-under=50 \
+            -v

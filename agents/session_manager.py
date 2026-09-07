@@ -6,6 +6,7 @@ except ImportError:
 import json
 import uuid
 
+
 class VoiceSessionManager:
     """
     Manages conversational context across voice interaction turns using Redis.
@@ -15,9 +16,9 @@ class VoiceSessionManager:
             if not REDIS_AVAILABLE:
                 raise ImportError("redis package not installed")
             self.redis = redis.Redis(
-                host=host, port=port, db=db, 
-                decode_responses=True, 
-                socket_connect_timeout=1.0, 
+                host=host, port=port, db=db,
+                decode_responses=True,
+                socket_connect_timeout=1.0,
                 socket_timeout=1.0
             )
             self.redis.ping()
@@ -27,7 +28,7 @@ class VoiceSessionManager:
             self.local_cache = {}
             import logging
             logging.getLogger(__name__).warning("Redis not connected or not installed. Using local memory for sessions.")
-            
+
         self.expiry = expiry_seconds
 
     def get_session(self, session_id):

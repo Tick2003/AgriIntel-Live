@@ -1,5 +1,6 @@
 import heapq
 
+
 class MandiGraph:
     def __init__(self):
         # Adjacency list: {node: [(neighbor, distance_km), ...]}
@@ -40,40 +41,40 @@ class MandiGraph:
                     distances[neighbor] = distance
                     previous[neighbor] = current_node
                     heapq.heappush(pq, (distance, neighbor))
-        
+
         return distances, previous
 
     def find_best_profit_route(self, start_mandi, quantity_tons, commodity_prices):
         """
         Finds the best destination Mandi based on:
         (Price * Qty) - (Transport Cost)
-        
+
         Args:
             start_mandi (str): Starting location name.
             quantity_tons (float): Amount of produce.
             commodity_prices (dict): {mandi_name: price_per_quintal}
                                      Note: 1 Ton = 10 Quintals.
-        
+
         Returns:
             dict: Best option details {target_mandi, net_profit, distance, transport_cost}
             list: Ranked list of all options.
         """
         distances, _ = self._get_shortest_paths(start_mandi)
-        
+
         options = []
-        
+
         for mandi, price_per_quintal in commodity_prices.items():
             if mandi not in distances or distances[mandi] == float('inf'):
                 continue
-                
+
             dist_km = distances[mandi]
             transport_cost = dist_km * self.transport_cost_per_km_ton * quantity_tons
-            
+
             # Revenue: Price (per quintal) * Quantity (tons * 10)
             gross_revenue = price_per_quintal * (quantity_tons * 10)
-            
+
             net_profit = gross_revenue - transport_cost
-            
+
             options.append({
                 "mandi": mandi,
                 "distance_km": dist_km,
@@ -82,13 +83,13 @@ class MandiGraph:
                 "net_profit": round(net_profit, 2),
                 "price_per_q": price_per_quintal
             })
-            
+
         # Sort by Net Profit descending
         options.sort(key=lambda x: x['net_profit'], reverse=True)
-        
+
         if not options:
             return None, []
-            
+
         return options[0], options
 
 # --- Usage Example / Mock Setup ---

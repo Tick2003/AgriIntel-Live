@@ -4,13 +4,13 @@ database/connection.py — Connection Pool & Schema Init
 Thread-safe SQLite connection management and database initialization.
 """
 
-import sqlite3
-import pandas as pd
-from datetime import datetime, timedelta
-from contextlib import contextmanager
-import bcrypt
 import logging
+import sqlite3
 import threading
+from contextlib import contextmanager
+from datetime import datetime
+
+import bcrypt
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     c = conn.cursor()
-    
+
     try:
         # Table: Market Prices
         c.execute('''
@@ -70,7 +70,7 @@ def init_db():
                 unit TEXT DEFAULT 'Rs/Quintal'
             )
         ''')
-        
+
         # --- MIGRATIONS ---
         # Check if 'unit' exists in market_prices (Update)
         try:
@@ -92,7 +92,7 @@ def init_db():
                 sentiment TEXT
             )
         ''')
-        
+
         # Cleanup Old Date Formats (Wed, Fri etc.) to fix sorting
         try:
             c.execute("DELETE FROM news_alerts WHERE substr(date, 1, 1) NOT IN ('0','1','2','3','4','5','6','7','8','9')")
@@ -132,8 +132,8 @@ def init_db():
                 price_after_7d REAL,
                 profitability_status TEXT
             )
-        ''') 
-        
+        ''')
+
         # Table: User Config (New Phase 4)
         c.execute('''
             CREATE TABLE IF NOT EXISTS user_config (
@@ -144,7 +144,7 @@ def init_db():
                 default_commodity TEXT
             )
         ''')
-        
+
         # --- MIGRATIONS ---
         # Check if 'wind_speed' exists in weather_logs (Phase 2 update)
         try:
@@ -196,8 +196,8 @@ def init_db():
                 signal_accuracy REAL,
                 sample_size INTEGER
             )
-        ''') 
-        
+        ''')
+
         # Migration for Phase 7 (Performance Tracker)
         try:
             c.execute("SELECT mae FROM model_metrics LIMIT 1")
@@ -221,7 +221,7 @@ def init_db():
                 price_modal REAL,
                 arrival REAL,
                 ingestion_timestamp TEXT,
-                status TEXT DEFAULT 'PENDING' 
+                status TEXT DEFAULT 'PENDING'
             )
         ''')
         # status: PENDING, VALIDATED, REJECTED
@@ -254,11 +254,11 @@ def init_db():
                 error_message TEXT
             )
         ''')
-        
+
         # --- WAREHOUSE OPTIMIZATION (Phase 6) ---
         # Add Index for fast filtering on Commodity+Mandi+Date
         c.execute("CREATE INDEX IF NOT EXISTS idx_market_prices_cmd ON market_prices (commodity, mandi, date)")
-        
+
         # --- SAAS ARCHITECTURE (Phase 7) ---
         c.execute('''
             CREATE TABLE IF NOT EXISTS organizations (
@@ -280,7 +280,7 @@ def init_db():
                 FOREIGN KEY(org_id) REFERENCES organizations(id)
             )
         ''')
-        
+
         c.execute('''
             CREATE TABLE IF NOT EXISTS voice_call_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -306,10 +306,10 @@ def init_db():
         try:
             c.execute("SELECT count(*) FROM organizations")
             if c.fetchone()[0] == 0:
-                c.execute("INSERT INTO organizations (name, plan_type, created_at) VALUES ('Demo Org', 'Enterprise', ?)", 
+                c.execute("INSERT INTO organizations (name, plan_type, created_at) VALUES ('Demo Org', 'Enterprise', ?)",
                          (datetime.now().strftime("%Y-%m-%d"),))
                 org_id = c.lastrowid
-                
+
                 # Read admin creds from environment (secure — no hardcoded fallback)
                 admin_email = ""
                 admin_password = ""
@@ -321,7 +321,7 @@ def init_db():
                     import os as _os
                     admin_email = _os.environ.get("DEFAULT_ADMIN_EMAIL", "")
                     admin_password = _os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
-                
+
                 if not admin_email or not admin_password:
                     logger.warning(
                         "No admin credentials configured. Set DEFAULT_ADMIN_EMAIL and "
@@ -330,7 +330,7 @@ def init_db():
                     )
                     conn.commit()
                     return
-                
+
                 salt = bcrypt.gensalt()
                 hashed_admin = bcrypt.hashpw(admin_password.encode('utf-8'), salt).decode('utf-8')
                 c.execute("INSERT INTO users (email, password_hash, role, org_id, created_at) VALUES (?, ?, 'Admin', ?, ?)",
@@ -390,7 +390,7 @@ def init_db():
                 logger.debug("model_metrics model_version migration skipped")
 
         conn.commit()
-        
+
     except Exception as e:
         logger.error(f"init_db error: {e}", exc_info=True)
         # Try to commit whatever we have so far
@@ -404,7 +404,7 @@ def init_db():
             conn.close()
         except Exception:
             pass
-        
+
     # Auto-Restore from CSV if DB is empty
     try:
         from database.prices import import_prices_from_csv

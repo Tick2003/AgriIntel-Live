@@ -1,8 +1,11 @@
-import streamlit as st
+import json
+
 import pandas as pd
 import plotly.express as px
+import streamlit as st
+
 import database.db_manager as db_manager
-import json
+
 
 def show_voice_admin():
     st.title("🎙️ Voice Intelligence Admin Panel")
@@ -40,7 +43,7 @@ def show_voice_admin():
         lang_dist.columns = ['Language', 'Count']
         fig = px.pie(lang_dist, values='Count', names='Language', title="Language Distribution")
         st.plotly_chart(fig, use_container_width=True)
-    
+
     with c2:
         intent_dist = df['intent'].value_counts().reset_index()
         intent_dist.columns = ['Intent', 'Count']
@@ -49,7 +52,7 @@ def show_voice_admin():
 
     # 4. Transcript Logs
     st.subheader("📜 Detailed Call Transcripts")
-    
+
     # Filter by Language
     lang_filter = st.multiselect("Filter by Language", options=df['language'].unique(), default=df['language'].unique())
     filtered_df = df[df['language'].isin(lang_filter)]
@@ -67,7 +70,7 @@ def show_voice_admin():
                 try:
                     entities = json.loads(row['entities'])
                     st.json(entities)
-                except:
+                except Exception:
                     pass
 
     # 5. Export

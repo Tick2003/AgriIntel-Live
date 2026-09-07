@@ -12,13 +12,13 @@ Models:
 - LinearTrendForecaster (baseline)
 """
 
+import warnings
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from abc import ABC, abstractmethod
-from typing import Dict, Optional
-import warnings
-import hashlib
-from datetime import datetime
 
 warnings.filterwarnings("ignore")
 

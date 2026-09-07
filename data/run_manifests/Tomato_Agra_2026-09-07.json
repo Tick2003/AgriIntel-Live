@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-09-07T16:08:24.486113Z",
+  "commodity": "Tomato",
+  "mandi": "Agra",
+  "horizon_days": 30,
+  "training_samples": 90,
+  "feature_count": 38,
+  "regime": "STABLE",
+  "regime_confidence": 0.7924,
+  "model_weights": {
+    "XGBoost": 1.0
+  },
+  "rmse": 0.308,
+  "random_state": 42
+}

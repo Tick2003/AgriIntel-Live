@@ -3,8 +3,9 @@ database/forecasts.py — Forecast & Model Metrics Logging
 ==========================================================
 """
 
-import pandas as pd
 import logging
+
+import pandas as pd
 
 from database.connection import get_connection
 
@@ -19,7 +20,7 @@ def log_forecast(gen_date, commodity, mandi, forecast_df):
     try:
         with get_connection() as conn:
             c = conn.cursor()
-            
+
             # Batch insert
             data_to_insert = []
             for _, row in forecast_df.iterrows():
@@ -27,12 +28,12 @@ def log_forecast(gen_date, commodity, mandi, forecast_df):
                 data_to_insert.append((
                     gen_date, target_date, commodity, mandi, row['forecast_price']
                 ))
-                
+
             c.executemany('''
                 INSERT INTO forecast_logs (gen_date, target_date, commodity, mandi, predicted_price)
                 VALUES (?, ?, ?, ?, ?)
             ''', data_to_insert)
-            
+
             conn.commit()
     except Exception as e:
         logger.error(f"Failed to log forecast: {e}")
@@ -71,9 +72,9 @@ def get_forecast_vs_actuals(commodity, mandi):
     try:
         with get_connection() as conn:
             query = '''
-                SELECT 
-                    f.target_date, 
-                    f.predicted_price, 
+                SELECT
+                    f.target_date,
+                    f.predicted_price,
                     m.price_modal as actual_price,
                     f.gen_date
                 FROM forecast_logs f
@@ -85,9 +86,9 @@ def get_forecast_vs_actuals(commodity, mandi):
     except Exception as e:
         logger.error(f"get_forecast_vs_actuals failed: {e}")
         return pd.DataFrame()
-    
+
     if not df.empty:
         df['error'] = df['predicted_price'] - df['actual_price']
         df['error_pct'] = (df['error'].abs() / df['actual_price']) * 100
-        
+
     return df

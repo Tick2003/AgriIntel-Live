@@ -5,8 +5,11 @@ st.set_page_config(page_title="AgriIntel â€” Voice", layout="wide", page_icon="ð
 
 from app.app_core import init_page, safe_html
 from app.terminal_theme import (
-    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, ACCENT_BLUE,
-    ACCENT_GREEN, BORDER_COLOR,
+    ACCENT_BLUE,
+    ACCENT_GREEN,
+    BORDER_COLOR,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
     render_footer,
 )
 

@@ -4,11 +4,13 @@ import streamlit as st
 st.set_page_config(page_title="AgriIntel — News", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
 from app.app_core import init_page, safe_html
-from app.utils import get_news_feed
 from app.terminal_theme import (
-    ACCENT_BLUE, ACCENT_GREEN, TEXT_SECONDARY, BORDER_COLOR,
+    ACCENT_BLUE,
+    ACCENT_GREEN,
+    TEXT_SECONDARY,
     render_footer,
 )
+from app.utils import get_news_feed
 
 ctx = init_page()
 last_db_update = ctx["last_db_update"]

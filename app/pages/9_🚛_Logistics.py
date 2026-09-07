@@ -1,6 +1,6 @@
 """Logistics — Graph-based supply network optimization."""
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — Logistics", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
@@ -19,6 +19,7 @@ st.markdown("<h1>Network Supply Optimization</h1>", unsafe_allow_html=True)
 st.write("Find the most profitable market to sell at, accounting for transport costs.")
 
 from utils.graph_algo import MandiGraph
+
 
 @st.cache_resource
 def get_demo_graph():

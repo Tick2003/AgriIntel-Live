@@ -1,16 +1,18 @@
 # AgriIntel.in Utils (v2.0 — Hardened)
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import sys
-import os
 import logging
+import os
+import sys
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 # Ensure root is in path to import database module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from database.db_manager import get_latest_prices, get_latest_news, get_weather_logs
+from database.db_manager import get_latest_news, get_latest_prices, get_weather_logs
+
 
 # Lazy import streamlit — allows utils to be tested without streamlit
 def _get_st():
@@ -24,14 +26,14 @@ def get_db_options():
     """Fetch all unique commodities and mandis directly."""
     try:
         from database.connection import get_connection
-        
+
         with get_connection() as conn:
             cursor = conn.cursor()
-            
+
             # Get Commodities
             cursor.execute("SELECT DISTINCT commodity FROM market_prices ORDER BY commodity")
             commodities = [row[0] for row in cursor.fetchall()]
-            
+
             # Get Mandis
             cursor.execute("SELECT DISTINCT mandi FROM market_prices ORDER BY mandi")
             mandis = [row[0] for row in cursor.fetchall()]
@@ -51,30 +53,30 @@ def get_live_data(commodity: str = "Potato", mandi: str = "Agra") -> pd.DataFram
     """
     try:
         df = get_latest_prices(commodity)
-        
+
         # Filter by mandi if provided
         if not df.empty and mandi:
             df = df[df['mandi'] == mandi]
-        
+
         if df.empty:
             st = _get_st()
             if st:
                 st.warning(f"No live data found for {commodity} in {mandi}. Showing dummy data.")
             return get_dummy_data_fallback(commodity, mandi)
-            
+
         # Standardize columns for the app
         # DB has: date, commodity, mandi, price_min, price_max, price_modal, arrival
         # App expects: date, price, arrival, commodity, mandi
         df = df.rename(columns={'price_modal': 'price'})
-        
+
         # Ensure date is datetime
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        
+
         # Drop any rows with invalid dates
         df = df.dropna(subset=['date'])
-        
+
         return df.sort_values('date')
-        
+
     except Exception as e:
         logger.error(f"DB Error in get_live_data: {e}")
         return get_dummy_data_fallback(commodity, mandi)
@@ -88,7 +90,7 @@ def get_dummy_data_fallback(commodity, mandi):
     prices = [base_price]
     for _ in range(89):
         prices.append(prices[-1] + np.random.normal(0, base_price * 0.05))
-    
+
     return pd.DataFrame({
         "date": dates,
         "price": prices,

@@ -3,9 +3,10 @@ database/system.py — System Logs, App Metadata, News & Weather
 ================================================================
 """
 
-import pandas as pd
 import logging
 from datetime import datetime
+
+import pandas as pd
 
 from database.connection import get_connection
 
@@ -76,7 +77,7 @@ def save_news(df):
                 df = df.drop_duplicates(subset=['title'])
                 # Filter against DB
                 new_df = df[~df['title'].isin(existing_titles)]
-                
+
                 if not new_df.empty:
                     new_df.to_sql('news_alerts', conn, if_exists='append', index=False)
                     logger.info(f"Added {len(new_df)} new news items.")
