@@ -1,0 +1,62 @@
+# AgriIntel.in — Docker ignore rules
+# Exclude everything that shouldn't be in the production image
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing & coverage artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+.ruff_cache/
+
+# Git & CI
+.git/
+.gitignore
+.github/
+
+# Development configs (not needed at runtime)
+.pre-commit-config.yaml
+Makefile
+*.md
+!README.md
+
+# Secrets & local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Data files (mounted as volumes in production)
+agri_intel.db
+test_agri_intel.db
+mlruns/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

@@ -1,4 +1,4 @@
-name: CI — Test, Lint & Coverage
+name: CI — Test, Lint, Security & Coverage
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-and-lint:
-    name: Test & Lint (Python 3.10)
+    name: Test, Lint & Security (Python 3.10)
     runs-on: ubuntu-latest
 
     steps:
@@ -34,6 +34,11 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
+      # ── Security Scan ─────────────────────────────────────────────────────
+      - name: Security scan with bandit
+        run: bandit -c pyproject.toml -r agents/ etl/ database/ utils/ cv/ api_server.py -ll
+        continue-on-error: false
+
       # ── Tests + Coverage ──────────────────────────────────────────────────
       - name: Run tests (excluding integration / network tests)
         env:
@@ -41,6 +46,7 @@ jobs:
           AGRIINTEL_DB_NAME: test_agri_intel.db
           DEFAULT_ADMIN_EMAIL: testadmin@agriintel.test
           DEFAULT_ADMIN_PASSWORD: testpass_ci_only_123
+          MLFLOW_TRACKING_URI: "file:./mlruns"
         run: |
           pytest \
             -m "not integration" \
@@ -51,5 +57,14 @@ jobs:
             --cov=cv \
             --cov=utils \
             --cov-report=term-missing \
+            --cov-report=xml \
             --cov-fail-under=50 \
             -v
+
+      # ── Upload Coverage to Codecov ─────────────────────────────────────────
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          verbose: true

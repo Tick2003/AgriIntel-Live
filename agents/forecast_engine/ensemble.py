@@ -270,7 +270,7 @@ class RACEForecaster:
         n_features: int,
         horizon: int,
     ) -> None:
-        """Write a lightweight JSON run manifest for experiment traceability."""
+        """Write a JSON run manifest and log to MLflow for experiment traceability."""
         import datetime as _dt
         manifest = {
             "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
@@ -285,6 +285,7 @@ class RACEForecaster:
             "rmse": round(float(rmse_val), 4),
             "random_state": 42,
         }
+        # ── JSON manifest (always written) ────────────────────────────────────
         try:
             manifests_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -298,6 +299,48 @@ class RACEForecaster:
             logger.debug("Run manifest written: %s", fpath)
         except Exception as e:
             logger.warning("Could not write run manifest: %s", e)
+
+        # ── MLflow tracking (optional; skips gracefully if not installed) ────
+        try:
+            import mlflow
+
+            # Use local file-system backend (no server required)
+            mlflow.set_tracking_uri("file:./mlruns")
+            mlflow.set_experiment("RACE-Forecaster")
+
+            with mlflow.start_run(run_name=f"{commodity}_{mandi}_{regime_state.regime}"):
+                # Parameters (logged once per run)
+                mlflow.log_params({
+                    "commodity": commodity,
+                    "mandi": mandi,
+                    "horizon_days": horizon,
+                    "n_samples": n_samples,
+                    "n_features": n_features,
+                    "random_state": 42,
+                })
+                # Metrics
+                mlflow.log_metrics({
+                    "rmse": round(float(rmse_val), 4),
+                    "regime_confidence": round(float(regime_state.confidence), 4),
+                    **{f"weight_{k}": round(float(v), 4) for k, v in weights.items()},
+                })
+                # Tags
+                mlflow.set_tags({
+                    "regime": regime_state.regime,
+                    "model_version": "RACE-v2.0",
+                    "models": ",".join(weights.keys()),
+                })
+                # Artifact: model weights JSON
+                weights_artifact = os.path.join(manifests_dir, f"weights_{commodity}_{mandi}.json")
+                with open(weights_artifact, "w", encoding="utf-8") as wf:
+                    json.dump(weights, wf, indent=2)
+                mlflow.log_artifact(weights_artifact, artifact_path="model_weights")
+
+            logger.debug("MLflow run logged for %s/%s [%s]", commodity, mandi, regime_state.regime)
+        except ImportError:
+            logger.debug("mlflow not installed — skipping MLflow tracking")
+        except Exception as e:
+            logger.warning("MLflow logging failed (non-critical): %s", e)
 
     def forecast_realtime(
         self,

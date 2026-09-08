@@ -1,4 +1,7 @@
+import logging
 import random
+
+logger = logging.getLogger(__name__)
 
 # Try importing torch, else fallback to mock
 try:
@@ -9,7 +12,7 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
-    print("Warning: PyTorch not found. Using Mock Grading Engine.")
+    logger.warning("PyTorch not found. Using Mock Grading Engine.")
 
 class GradingModel:
     def __init__(self):
@@ -46,7 +49,7 @@ class GradingModel:
             img = Image.open(image_path)
             return transform(img).unsqueeze(0)
         except Exception as e:
-            print(f"Error loading image: {e}")
+            logger.error("Error loading image: %s", e)
             return None
 
     def predict(self, image_path):

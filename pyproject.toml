@@ -51,3 +51,9 @@ omit = ["tests/*", ".venv/*"]
 [tool.coverage.report]
 fail_under = 50
 show_missing = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "htmlcov"]
+skips = ["B101", "B311"]   # B101=assert_used (fine in tests), B311=random (not cryptographic)
+severity = "medium"
+confidence = "medium"

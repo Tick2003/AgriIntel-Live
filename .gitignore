@@ -19,9 +19,11 @@ test_agri_intel.db
 temp_grading_img.jpg
 *.log
 
-# ML training artifacts
+# ML training artifacts & dynamic run manifests
 catboost_info/
 *.log
+data/run_manifests/*
+!data/run_manifests/Tomato_Agra_2026-09-07.json
 
 # OS
 .DS_Store
@@ -46,3 +48,14 @@ AgriIntel-Live/
 
 # Gemini / AI
 .gemini/
+
+# MLflow & Experiments
+mlruns/
+.trash/
+
+# Test & Coverage artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+

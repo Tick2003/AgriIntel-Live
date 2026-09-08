@@ -442,7 +442,7 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
                             gen_date = datetime.now().strftime("%Y-%m-%d")
                             dbm.log_forecast(gen_date, com, man, forecast_df)
                         except Exception as e:
-                            print(f"Forecast Savelog error: {e}")
+                            logger.warning("Forecast savelog error: %s", e)
 
                         # B. Risk & Shock
                         # Calculate volatility (std dev of daily returns)
