@@ -4,7 +4,7 @@
 # To update: pip install -U <pkg> then commit the updated pinned versions here.
 
 # Core Framework
-streamlit==1.45.1
+streamlit==1.63.0
 pandas==2.1.3
 numpy==1.26.2
 
