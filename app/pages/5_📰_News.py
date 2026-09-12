@@ -3,6 +3,11 @@ import streamlit as st
 
 st.set_page_config(page_title="AgriIntel — News", layout="wide", page_icon="📉", initial_sidebar_state="expanded")
 
+import os as _os, sys as _sys
+_repo_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+if _repo_root not in _sys.path:
+    _sys.path.insert(0, _repo_root)
+
 from app.app_core import init_page, safe_html
 from app.terminal_theme import (
     ACCENT_BLUE,

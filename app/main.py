@@ -4,6 +4,15 @@ AgriIntel.in v2.0 — National Agricultural Intelligence Stack
 Entry point. This is the Dashboard (landing page).
 All other pages live in `app/pages/`.
 """
+import os
+import sys
+
+# Ensure repo root is on sys.path so `app.*` imports resolve correctly on
+# Streamlit Cloud (which runs this file from /mount/src/<repo>/app/main.py)
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
