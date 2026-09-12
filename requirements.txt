@@ -18,7 +18,7 @@ statsmodels==0.14.4
 joblib==1.4.2
 
 # Experiment Tracking
-mlflow==2.19.0
+mlflow==3.16.0
 
 # Visualization
 plotly==6.5.0
@@ -29,7 +29,7 @@ beautifulsoup4==4.14.3
 feedparser==6.0.12
 
 # NLP
-nltk==3.9.2
+nltk==3.10.3
 
 # Auth
 streamlit-oauth==0.1.14
@@ -44,7 +44,7 @@ Pillow==12.3.0
 # API Server
 fastapi==0.141.1
 uvicorn==0.24.0
-python-multipart==0.0.6
+python-multipart==0.0.32
 
 # API Security
 slowapi==0.1.9
