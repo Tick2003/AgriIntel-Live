@@ -1,7 +1,7 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
+about: Report a broken feature, data pipeline failure, or agent error
+title: '[BUG] '
 labels: bug
 assignees: ''
 
@@ -10,29 +10,35 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
+**Component**
+Which part of the system is affected? (tick all that apply)
+- [ ] Streamlit UI (`app/`)
+- [ ] Data pipeline / ETL (`etl/`)
+- [ ] Intelligence agents (`agents/`)
+- [ ] Database layer (`database/`)
+- [ ] GitHub Actions CI/CD (`.github/workflows/`)
+- [ ] FastAPI backend (`api_server.py`)
+
 **To Reproduce**
 Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '...'
-3. Scroll down to '...'
-4. See error
+1. ...
+2. ...
+3. See error
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+A clear description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Logs / Error Output**
+Paste any relevant error messages, stack traces, or GitHub Actions log snippets here.
+```
+<paste logs here>
+```
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Environment**
+- OS:
+- Python version:
+- Key package versions (`pip show pandas numpy xgboost` output):
+- `AGRIINTEL_ENV` value:
 
 **Additional context**
-Add any other context about the problem here.
+Any other context about the problem.

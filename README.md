@@ -1,8 +1,9 @@
-# 🌾 AgriIntel.in: National Unified Agricultural Intelligence Stack
+﻿# 🌾 AgriIntel.in: National Unified Agricultural Intelligence Stack
 
 **AgriIntel.in** is an authoritative, end-to-end **Conversational Intelligence & Market Analytics ecosystem** designed to revolutionize the agricultural lifecycle in India. It serves as a single source of truth for farmers, policymakers, and institutional stakeholders through a speech-first regional language interface.
 
-[![CI](https://github.com/Tick2003/AgriIntel-Live/actions/workflows/ci.yml/badge.svg)](https://github.com/Tick2003/AgriIntel-Live/actions/workflows/ci.yml)
+[![CI — Test, Lint & Security](https://github.com/Tick2003/AgriIntel-Live/actions/workflows/ci.yml/badge.svg)](https://github.com/Tick2003/AgriIntel-Live/actions/workflows/ci.yml)
+[![Daily Market Data Update](https://github.com/Tick2003/AgriIntel-Live/actions/workflows/daily_update.yml/badge.svg)](https://github.com/Tick2003/AgriIntel-Live/actions/workflows/daily_update.yml)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://agriintel-live.streamlit.app/)
 
 ---
@@ -19,11 +20,11 @@ AgriIntel.in consolidates 20+ specialized AI agents into a unified, high-perform
 ### 🧠 2. RACE Forecasting & Real-Time Trading Stack
 *   **RACE Forecaster (Regime-Adaptive Competitive Ensemble)**: Patent-grade engine combining HMM (Hidden Markov Model) regime classification (Stable/Volatile/Crisis) with dynamic inverse-MAPE weighted ensembles across **XGBoost**, **LightGBM**, and **CatBoost**.
 *   **High-Frequency Intraday Simulation Engine**: Daemon-driven simulator generating live eNAM bid/ask and completed trades every 2-3s, biased by weather stress and news sentiment.
-*   **Bloomberg-Style Trading Desk UI**: Streamlit page designed with non-blocking `@st.fragment` rendering live order books, scrolling trade tickers, and Plotly intraday charts.
-*   **$3\sigma$ Shock Sentinel & Risk Augmentation**: Statistical sentinel flagging ticks exceeding $3\sigma$ deviation, instantly augmenting baseline risk score (+20 pts) in <5 seconds.
+*   **Bloomberg-Style Trading Desk UI**: Streamlit page with non-blocking `@st.fragment` rendering live order books, scrolling trade tickers, and Plotly intraday charts.
+*   **3σ Shock Sentinel & Risk Augmentation**: Statistical sentinel flagging ticks exceeding 3σ deviation, instantly augmenting baseline risk score (+20 pts) in <5 seconds.
 
 ### 🚛 3. Supply Chain & Logistics Stack
-*   **Spatial Arbitrage Corridor Engine**: Maps mandi networks using Dijkstra's shortest-path algorithms to optimize route profits (factoring tolls, distance, and transport costs).
+*   **Spatial Arbitrage Corridor Engine**: Maps mandi networks using Dijkstra shortest-path algorithms to optimize route profits (factoring tolls, distance, and transport costs).
 *   **Computer Vision Grading**: Visual produce scanning returning objective commercial grades (Grade A/B/C) with automatic pricing recommendations.
 *   **Agri-Credit & B2B Matchmaking**: Farmers/exporters matchmaking and creditworthiness scoring.
 *   **Smart Resource Planning**: Crop rotation (Simplex Algorithm) and inventory level optimization (EOQ).
@@ -31,9 +32,11 @@ AgriIntel.in consolidates 20+ specialized AI agents into a unified, high-perform
 ---
 
 ## 📖 Essential Documentation
-For a deeper look into the system, please refer to:
-*   📜 **[Technical Architecture](ARCHITECTURE.md)**: Deep-dive into the Multi-Agent System (MMAA) and mathematical foundations.
-*   📖 **[The AgriIntel.in Story](PRODUCT_STORY.md)**: A comprehensive, layman-friendly guide to every feature.
+
+*   📜 **[Technical Architecture](ARCHITECTURE.md)** — Deep-dive into the Multi-Agent System (MMAS) and mathematical foundations.
+*   📖 **[The AgriIntel.in Story](PRODUCT_STORY.md)** — A comprehensive, layman-friendly guide to every feature.
+*   📋 **[Changelog](CHANGELOG.md)** — Release history and notable changes.
+*   🔬 **[Reproduce Results](REPRODUCE.md)** — Step-by-step guide to reproduce forecast results from scratch.
 
 ---
 
@@ -79,7 +82,7 @@ Key variables (see [.env.example](.env.example) for the full list):
 | `DEFAULT_ADMIN_EMAIL` | ✅ | Admin account email for first-run bootstrap |
 | `DEFAULT_ADMIN_PASSWORD` | ✅ | Admin account password (≥12 chars) |
 | `DATA_GOV_IN_API_KEY` | Optional | data.gov.in API key for real price data |
-| `OWM_API_KEY` | Optional | OpenWeatherMap API key |
+| `OWM_API_KEY` | Optional | OpenWeatherMap API key for live weather |
 | `AGRIINTEL_ENV` | Optional | `development` / `staging` / `production` (default: `development`) |
 
 ### 5. Run the App
@@ -113,21 +116,44 @@ pytest -m "not integration" \
 pytest -v
 ```
 
-### Lint check
+### Lint & security check
 ```bash
 ruff check .
+bandit -c pyproject.toml -r agents/ etl/ database/ utils/ cv/ api_server.py -ll
 ```
 
-> **CI** enforces `pytest -m "not integration"` + `ruff check .` on every push and pull request via `.github/workflows/ci.yml`.
+> **CI** enforces `pytest -m "not integration"` + `ruff check .` + `bandit` on every push and pull request via `.github/workflows/ci.yml`.
 
 ---
 
-## 🔄 Autonomous Operations
-**AgriIntel.in** features a fully autonomous, self-healing data pipeline:
-*   **Daily Sync**: Automated ingestion of Market Data, News, and Weather patterns (Pilot Mode).
-*   **Model Accuracy Tracking**: Continuous calculation of **MAPE** and **RMSE** for automated retraining.
-*   **Infrastructure Health**: Real-time monitoring of ETL success and pipeline execution.
+## 🔄 Autonomous Data Pipeline
+
+**AgriIntel.in** features a fully autonomous, self-healing data pipeline that runs daily at 00:00 UTC via GitHub Actions:
+
+```
+GitHub Actions (00:00 UTC daily)
+    └── etl/data_loader.py --skip-swarm
+            ├── Fetch commodity prices  (data.gov.in → Agmarknet scraper → simulation fallback)
+            ├── DataReliabilityAgent    (completeness + plausibility + duplicate checks)
+            ├── Fetch agricultural news (Google News RSS)
+            ├── Fetch weather           (Open-Meteo / OpenWeatherMap for 12 mandis)
+            └── Export data/market_prices.csv  (auto-committed back to repo)
+```
+
+*   **Cascading Price Sources**: Real API → Agmarknet scraper → enhanced simulation fallback — never fails silently.
+*   **Data Quality Gate**: `DataReliabilityAgent` validates every batch before it reaches the production database, logging `MISSING_DATA`, `OUTLIER_SHOCK`, and `DUPLICATE` issues to an audit table.
+*   **Model Accuracy Tracking**: Continuous MAPE/RMSE calculation for automated retraining triggers.
 *   **Experiment Traceability**: Every RACE forecast run writes a JSON manifest to `data/run_manifests/` containing model weights, regime, RMSE, and metadata.
+*   **CI Mode vs Full Mode**: `--skip-swarm` runs a lightweight data-only refresh (used in the daily CI job). Omit the flag for the full Intelligence Swarm (Forecast + Risk + Decision agents).
+
+To trigger a manual data refresh locally:
+```bash
+# Lightweight — data only, no ML training (~30 seconds)
+python etl/data_loader.py --skip-swarm
+
+# Full update — data + ML swarm (~5 minutes)
+python etl/data_loader.py
+```
 
 ---
 

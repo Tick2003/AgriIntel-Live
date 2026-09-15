@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.1.0] — 2026-09-15
+
 ### Added
+- **`--skip-swarm` CLI flag** on `etl/data_loader.py` — enables lightweight data-only ETL runs without triggering the ML Intelligence Swarm. Used by the daily CI job to prevent resource exhaustion on GitHub-hosted runners.
+- **`daily_update.yml` GitHub Actions workflow** — fully operational daily data pipeline running at 00:00 UTC. Fetches prices, news, and weather for all 12 tracked mandis and auto-commits `data/market_prices.csv` back to the repo.
+- **`DataReliabilityAgent` in the ETL audit trail** — every batch now goes through completeness, plausibility (±50%/±300% price-change thresholds), and intra-batch deduplication checks before reaching the production database.
 - MLflow experiment tracking for every RACE forecast run (params, metrics, regime tags)
 - `REPRODUCE.md` — step-by-step guide to reproduce forecast results from scratch
 - `Dockerfile` — multi-stage build with non-root user and healthcheck
@@ -20,11 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Codecov coverage upload in CI pipeline
 
 ### Changed
+- **Daily data pipeline (`daily_update.yml`)**: Updated to `actions/checkout@v4` / `actions/setup-python@v5` / `actions/cache@v4`. Pipeline is now green on every scheduled run.
+- **`requirements-etl.txt`**: Added all transitive ETL dependencies (`statsmodels`, `joblib`, `beautifulsoup4`, `bcrypt`) that were missing and caused CI import failures.
 - `database/db_manager.py` — completed backward-compatible shim; all 30 functions now re-exported from domain sub-modules (`connection`, `prices`, `auth_db`, `signals`, `forecasts`, `etl_db`, `system`, `realtime`)
-- `etl/data_loader.py` — replaced last `print()` with `logger.warning()` (all ETL modules now 100% structured logging)
+- All logging in `etl/data_loader.py` and `agents/data_reliability.py` now uses structured `logging` module — no more `print()` statements anywhere in the pipeline
 
 ### Fixed
-- All 34 test failures caused by empty `db_manager.py` shim after database split
+- GitHub Actions `daily_update` workflow previously failing with `ModuleNotFoundError` due to missing `bcrypt`, `statsmodels`, `joblib`, and `beautifulsoup4` in `requirements-etl.txt`
+- GitHub Actions `daily_update` workflow previously failing with Node 20 deprecation warnings from outdated `@v3` action versions
+- `etl/data_loader.py` swarm execution previously causing OOM / timeout on CI runners — resolved via `--skip-swarm` flag
 
 ---
 
@@ -70,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQLite database for price, news, weather, and signal storage
 - Hindi and English voice interface via gTTS and SpeechRecognition
 
-[Unreleased]: https://github.com/Tick2003/AgriIntel-Live/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Tick2003/AgriIntel-Live/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Tick2003/AgriIntel-Live/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Tick2003/AgriIntel-Live/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Tick2003/AgriIntel-Live/releases/tag/v1.0.0

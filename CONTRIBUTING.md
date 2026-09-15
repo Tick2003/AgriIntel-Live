@@ -2,47 +2,73 @@
 
 First off, thanks for taking the time to contribute! 🎉
 
-The following is a set of guidelines for contributing to AgriIntel.in. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+---
 
 ## How Can I Contribute?
 
 ### Reporting Bugs
 
-This section guides you through submitting a bug report.
-- **Use a clear and descriptive title** for the issue to identify the problem.
-- **Describe the exact steps to reproduce the problem** in as many details as possible.
-- **Describe the behavior you observed after following the steps** and point out what problem is broken.
+*   **Use a clear and descriptive title** for the issue.
+*   **Describe the exact steps to reproduce** and what you expected vs. what happened.
+*   **Include environment info**: OS, Python version, `pip list` output if relevant.
+*   **Tag data pipeline bugs** with the `etl` label and include the relevant log lines from the GitHub Actions run.
 
 ### Suggesting Enhancements
 
-This section guides you through submitting an enhancement suggestion, including completely new features and minor improvements to existing functionality.
-- **Use a clear and descriptive title** for the issue to identify the suggestion.
-- **Provide a step-by-step description of the suggested enhancement** in as many details as possible.
-- **Explain why this enhancement would be useful** to most users.
+*   **Use a clear and descriptive title**.
+*   **Explain why this enhancement is useful** — ideally with a concrete farmer/stakeholder use-case.
+*   **Describe alternatives you considered**.
 
 ### Pull Requests
 
 1.  Fork the repo and create your branch from `main`.
-2.  If you've added code that should be tested, add tests.
-3.  If you've changed APIs, update the documentation.
-4.  Ensure the test suite passes.
-5.  Make sure your code lints.
-6.  Issue that pull request!
+2.  If you've added code that should be tested, **add tests** in `tests/`.
+3.  If you've changed the data pipeline, run it locally with `--skip-swarm` first.
+4.  Ensure the test suite passes: `pytest -m "not integration" -q`.
+5.  Ensure zero lint errors: `ruff check .`
+6.  Issue the pull request and fill in the PR template.
 
-## Styleguides
+---
 
-### Git Commit Messages
+## Code Standards
 
-*   Use the present tense ("Add feature" not "Added feature")
-*   Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
-*   Limit the first line to 72 characters or less
-*   Reference issues and pull requests liberally after the first line
+### Logging
+*   Use `logging.getLogger(__name__)` — never `print()`.
+*   Use `%s` style format strings in log calls (`logger.info("msg %s", val)`), not f-strings.
 
-## Additional Notes
+### Imports
+*   Group: stdlib → third-party → local (enforced by ruff `I001`).
+*   One import per line (enforced by ruff `E401`).
+*   Never use bare `except:` — always `except SomeError as exc:`.
 
-### Issue and Pull Request Labels
+### Security
+*   All passwords must be hashed with `bcrypt` — never store plaintext.
+*   `DEFAULT_ADMIN_PASSWORD` must be set in `.env` before running the app.
+*   API endpoints require `X-API-Key` authentication.
 
-This section lists the labels we use to help us track and manage issues and pull requests.
-*   `bug` - Issues that refer to broken code
-*   `enhancement` - Issues that request a new feature or improvement
-*   `documentation` - Issues that request a documentation change
+### Data Pipeline
+*   All new ETL sources must go through `DataReliabilityAgent.validate_batch()` before the database.
+*   Add any new mandi GPS coordinates to `agents/reference_data.MANDI_COORDS` (single source of truth).
+*   All new commodity/market names must be added to `TRACKED_COMMODITIES` / `TRACKED_MARKETS` in `agents/reference_data.py`.
+
+---
+
+## Git Commit Messages
+
+*   Use the imperative mood: `Add feature`, not `Added feature`.
+*   Limit the first line to 72 characters.
+*   Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `ci:`.
+*   Reference issues after the first line: `Fixes #42`.
+
+---
+
+## Issue Labels
+
+| Label | Meaning |
+|-------|---------|
+| `bug` | Broken functionality |
+| `enhancement` | New feature or improvement |
+| `documentation` | Docs update needed |
+| `etl` | Data pipeline / ingestion issue |
+| `ci` | GitHub Actions / workflow issue |
+| `security` | Security-related concern |

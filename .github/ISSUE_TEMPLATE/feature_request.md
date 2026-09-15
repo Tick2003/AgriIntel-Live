@@ -1,20 +1,28 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: ''
+about: Suggest a new capability, agent, or data source for AgriIntel.in
+title: '[FEAT] '
 labels: enhancement
 assignees: ''
 
 ---
 
 **Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+A clear description of the gap. Who is affected — farmer, analyst, policymaker?
 
 **Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+What should AgriIntel.in do? Which agent / page / pipeline would implement this?
+
+**Which stack does this touch?**
+- [ ] Conversational Access Stack (Voice / Chatbot)
+- [ ] RACE Forecasting & Trading Desk
+- [ ] Supply Chain & Logistics (Arbitrage, Logistics, Grading)
+- [ ] ETL / Data Pipeline
+- [ ] UI / Streamlit dashboard
+- [ ] FastAPI / REST API
 
 **Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+Any workarounds or alternative approaches.
 
 **Additional context**
-Add any other context or screenshots about the feature request here.
+Any mockups, data sources, or reference implementations that would help.

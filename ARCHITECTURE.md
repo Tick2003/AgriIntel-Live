@@ -83,15 +83,25 @@ graph TD
 ---
 
 ## 📈 Data Pipeline & Governance
-1.  **Ingestion**: `data_loader.py` fetches Market, Weather, and News data (**Pilot Mode**).
-2.  **Processing**: The Intelligence Swarm generates unified market signals.
-3.  **Governance**: `DataHealthAgent` ensures data integrity across the national stack.
+1.  **Ingestion**: `data_loader.py` fetches Market, Weather, and News data in a cascading fallback chain (real API → scraper → simulation).
+2.  **Validation**: `DataReliabilityAgent` acts as the quality gate — every batch is checked for completeness, plausibility (±50%/±300% price-change thresholds), and intra-batch duplicates before reaching the database.
+3.  **Processing**: The Intelligence Swarm generates unified market signals (Forecast + Risk + Decision).
+4.  **Governance**: `DataHealthAgent` monitors ongoing data integrity across the national stack.
+5.  **Automation**: The full pipeline runs daily at 00:00 UTC via `.github/workflows/daily_update.yml`.
 
 ---
 
 ## 🛠️ Operational Setup
 ```bash
+# Install all dependencies
 pip install -r requirements.txt
-python etl/data_loader.py seed
+
+# Run the daily data pipeline (lightweight — no ML training)
+python etl/data_loader.py --skip-swarm
+
+# Run the full intelligence swarm (data + forecast + risk + decision)
+python etl/data_loader.py
+
+# Launch the Streamlit dashboard
 streamlit run app/main.py
 ```
