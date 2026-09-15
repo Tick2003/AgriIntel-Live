@@ -1,30 +1,53 @@
+"""
+etl/data_loader.py — Daily Market Data Update Pipeline
+=======================================================
+Orchestrates the full daily ETL cycle:
+    1. Fetch commodity prices (real API → scraper → simulation fallback)
+    2. Fetch agricultural news via Google News RSS
+    3. Fetch weather for all tracked mandis via Open-Meteo / OWM
+    4. Run the Intelligence Swarm (Forecast + Risk + Decision agents)
+    5. Export results to data/market_prices.csv for Git tracking
+
+CLI usage
+---------
+    python etl/data_loader.py               # full run (data + swarm)
+    python etl/data_loader.py --skip-swarm  # data-only (CI mode)
+"""
+
+import contextlib
 import logging
+import os
 import random
+import sys
 import time
 import warnings
+from datetime import datetime, timedelta
 
 import feedparser
 import pandas as pd
 import requests
 
-warnings.filterwarnings('ignore')  # Squelch all warnings for clean output
-import os
+# Ensure repo root is on sys.path when run directly (e.g. via GitHub Actions)
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
-# Import database manager (Assuming it's in a sibling directory or added to path)
-import sys
-from datetime import datetime, timedelta
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Suppress noisy third-party warnings (sklearn, xgboost convergence noise etc.)
+# Using a filter category rather than a blanket ignore so SyntaxWarning / DeprecationWarning
+# from *our own* code still surface.
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 import database.db_manager as dbm
 from agents.decision_support import DecisionAgent
 from agents.forecast_execution import ForecastingAgent
 from agents.performance_monitor import PerformanceMonitor
-from agents.reference_data import TRACKED_COMMODITIES, TRACKED_MARKETS
+from agents.reference_data import MANDI_COORDS, TRACKED_COMMODITIES, TRACKED_MARKETS
 from agents.risk_scoring import MarketRiskEngine
 from agents.shock_monitoring import AnomalyDetectionEngine
 
 logger = logging.getLogger(__name__)
+
 
 # --- 1. FREE NEWS SOURCE: Google News RSS ---
 def fetch_agri_news(query="Agriculture News India"):
@@ -175,24 +198,7 @@ def seed_historical_data(days=90):
     dbm.save_prices(df)
     logger.info("Historical seeding complete.")
 
-# Coordinate Mapping for Real Weather
-MANDI_COORDS = {
-    "Azadpur": {"lat": 28.7, "lon": 77.1}, # Delhi
-    "Lasalgaon": {"lat": 20.1, "lon": 74.2}, # Nashik
-    "Vashi": {"lat": 19.0, "lon": 73.0}, # Mumbai
-    "Kolar": {"lat": 13.1, "lon": 78.1}, # Karnataka
-    "Indore": {"lat": 22.7, "lon": 75.8}, # MP
-    "Pune": {"lat": 18.5, "lon": 73.8},
-    "Jaipur": {"lat": 26.9, "lon": 75.7},
-    "Ahmedabad": {"lat": 23.0, "lon": 72.5},
-    "Kolkata": {"lat": 22.5, "lon": 88.3},
-    "Bengaluru": {"lat": 12.9, "lon": 77.5},
-    "Agra": {"lat": 27.1, "lon": 78.0},
-    "Nasik": {"lat": 19.9, "lon": 73.7}
-}
 
-
-# --- 3. REAL WEATHER SOURCE: OpenWeatherMap (OWM) ---
 def fetch_weather_owm(lat, lon, api_key=None):
     """
     Fetches real-time weather from OpenWeatherMap.
@@ -251,14 +257,12 @@ def fetch_weather_open_meteo(lat, lon):
 
     return {"temp": 25.0, "humidity": 60, "condition": "Sunny", "wind_speed": 10}
 
-import contextlib
-import os
 
 
 @contextlib.contextmanager
 def suppress_output():
-    """Context manager to suppress stdout and stderr."""
-    with open(os.devnull, 'w') as devnull:
+    """Suppress stdout and stderr — used to silence the ML swarm loop."""
+    with open(os.devnull, "w") as devnull:
         with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
             yield
 
@@ -513,6 +517,12 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
 
 if __name__ == "__main__":
     import argparse
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     parser = argparse.ArgumentParser(description="AgriIntel Daily Data Update")
     parser.add_argument(

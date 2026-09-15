@@ -1,6 +1,9 @@
 # AgriIntel.in — ETL-only dependencies (used by daily_update.yml CI workflow)
-# Minimal set required to run etl/data_loader.py + its agent imports.
-# Keep this lean — the full stack (mlflow, streamlit, catboost etc.) is NOT needed here.
+# Minimal set required to run etl/data_loader.py + its full import chain.
+# Includes: data (pandas/numpy/scipy), HTTP (requests/feedparser/bs4),
+#           ML (scikit-learn/xgboost), NLP (nltk), auth (bcrypt),
+#           stats (statsmodels), serialisation (joblib).
+# Does NOT include: mlflow, streamlit, catboost, lightgbm, plotly, fastapi.
 
 pandas==2.1.3
 numpy==1.26.2

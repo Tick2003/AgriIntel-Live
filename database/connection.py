@@ -10,6 +10,10 @@ import threading
 from contextlib import contextmanager
 from datetime import datetime
 
+# bcrypt is used in init_db() to hash the default admin password on first boot.
+# It must remain a top-level import — wrapping it in try/except would silently
+# hide a genuine missing-dependency error and cause a confusing runtime crash
+# later.  Ensure bcrypt is listed in requirements-etl.txt AND requirements.txt.
 import bcrypt
 
 logger = logging.getLogger(__name__)

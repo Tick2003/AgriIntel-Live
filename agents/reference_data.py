@@ -49,6 +49,26 @@ TRACKED_MARKETS: list[str] = [
 ]
 
 # ---------------------------------------------------------------------------
+# GPS coordinates for each tracked mandi (used by the weather fetch pipeline)
+# Source: approximate centre-point of each city/district
+# ---------------------------------------------------------------------------
+
+MANDI_COORDS: dict[str, dict[str, float]] = {
+    "Azadpur":   {"lat": 28.7,  "lon": 77.1},   # Delhi
+    "Lasalgaon": {"lat": 20.1,  "lon": 74.2},   # Nashik
+    "Vashi":     {"lat": 19.0,  "lon": 73.0},   # Mumbai (Navi)
+    "Kolar":     {"lat": 13.1,  "lon": 78.1},   # Karnataka
+    "Indore":    {"lat": 22.7,  "lon": 75.8},   # MP
+    "Pune":      {"lat": 18.5,  "lon": 73.8},
+    "Jaipur":    {"lat": 26.9,  "lon": 75.7},
+    "Ahmedabad": {"lat": 23.0,  "lon": 72.5},
+    "Kolkata":   {"lat": 22.5,  "lon": 88.3},
+    "Bengaluru": {"lat": 12.9,  "lon": 77.5},
+    "Agra":      {"lat": 27.1,  "lon": 78.0},
+    "Nasik":     {"lat": 19.9,  "lon": 73.7},
+}
+
+# ---------------------------------------------------------------------------
 # Canonical counts — useful for test assertions
 # ---------------------------------------------------------------------------
 

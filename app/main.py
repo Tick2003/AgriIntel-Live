@@ -58,6 +58,9 @@ db_manager = ctx["db_manager"]
 news_df = ctx["news_df"]
 data_points = ctx.get("data_points", 0)
 
+# ─── CONSTANTS ────────────────────────────────────────────────────
+CHART_LOOKBACK_DAYS = 60  # Days of historical price shown on the main chart
+
 # ─── DASHBOARD PAGE ─────────────────────────────────────────────
 
 st.markdown(f"<h1>{selected_commodity} | {selected_mandi}</h1>", unsafe_allow_html=True)
@@ -117,7 +120,7 @@ with st.container():
 
     # Historical Trace
     fig.add_trace(go.Scatter(
-        x=data['date'].iloc[-60:], y=data['price'].iloc[-60:],
+        x=data['date'].iloc[-CHART_LOOKBACK_DAYS:], y=data['price'].iloc[-CHART_LOOKBACK_DAYS:],
         mode='lines', name='Actual Price',
         line=dict(color=TEXT_PRIMARY, width=1.5)
     ))

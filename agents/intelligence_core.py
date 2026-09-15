@@ -1,3 +1,14 @@
+"""
+agents/intelligence_core.py — Interactive Consultant Agent
+============================================================
+Provides scenario analysis ("What-If" simulations), crop hold-duration
+advice, and an intent-based chat engine that answers natural-language
+queries using the live market context.
+"""
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class IntelligenceAgent:
     """

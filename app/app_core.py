@@ -17,8 +17,10 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-# Add root directory to sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add repo root to sys.path — guarded to avoid duplicates on Streamlit re-runs.
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 # Sanitize external data for safe HTML rendering
 def safe_html(text):

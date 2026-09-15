@@ -1,3 +1,17 @@
+"""
+agents/risk_scoring.py — Market Risk Engine
+============================================
+Decomposes market risk into four measurable components
+(volatility, shocks, sentiment, supply/weather) and produces
+a 0–100 composite score used to gate trading signals.
+"""
+
+import logging
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
 
 class MarketRiskEngine:
     """
@@ -81,9 +95,7 @@ class MarketRiskEngine:
         1. Volatile: High Vol, No Shock
         2. Distress/Crisis: High Vol + Shock
         """
-        import numpy as np
-
-        # Rule-based fallback if ML fails or for reliability
+        # Rule-based fallback mapping volatility → regime centroid distance.
         # But let's make it "ML-like" by calculating distance to centroids
 
         # Centroids [Volatility, ShockBinary]
