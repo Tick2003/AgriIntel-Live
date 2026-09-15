@@ -512,4 +512,16 @@ def run_daily_update(progress_callback=None, skip_swarm=False, **kwargs):
         logger.info("Update Complete in %.2fs.", duration)
 
 if __name__ == "__main__":
-    run_daily_update()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="AgriIntel Daily Data Update")
+    parser.add_argument(
+        "--skip-swarm",
+        action="store_true",
+        default=False,
+        help="Skip the ML Intelligence Swarm (Forecast/Risk/Decision). "
+             "Use this in CI/CD environments to run a lightweight data-only refresh.",
+    )
+    args = parser.parse_args()
+
+    run_daily_update(skip_swarm=args.skip_swarm)

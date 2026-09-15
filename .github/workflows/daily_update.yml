@@ -14,10 +14,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -36,7 +36,7 @@ jobs:
 
     - name: Run Data Loader
       run: |
-        python etl/data_loader.py
+        python etl/data_loader.py --skip-swarm
 
     - name: Commit and Push changes
       run: |
