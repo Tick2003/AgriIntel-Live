@@ -23,6 +23,10 @@ voice = [
     "gTTS>=2.3.0",
 ]
 
+# This is an application, not a library — disable package auto-discovery
+[tool.setuptools]
+packages = []
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
