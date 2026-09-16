@@ -24,7 +24,7 @@ mlflow==3.16.0
 plotly==6.5.0
 
 # Data Ingestion
-requests==2.32.4
+requests==2.34.2
 beautifulsoup4==4.14.3
 feedparser==6.0.12
 
