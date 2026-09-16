@@ -39,7 +39,7 @@ class UserProfileAgent:
         """Fetch user profile as dictionary."""
         conn = sqlite3.connect(DB_NAME)
         try:
-            df = pd.read_sql(f"SELECT * FROM user_config WHERE user_id = '{self.user_id}'", conn)
+            df = pd.read_sql("SELECT * FROM user_config WHERE user_id = ?", conn, params=(self.user_id,))
             if df.empty:
                 # Create default
                 self.update_profile()

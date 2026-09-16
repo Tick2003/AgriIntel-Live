@@ -78,7 +78,7 @@ def get_unique_items(column):
         with get_connection() as conn:
             cursor = conn.cursor()
             # Safe: column is validated against whitelist above
-            cursor.execute(f"SELECT DISTINCT {column} FROM market_prices ORDER BY {column}")
+            cursor.execute(f"SELECT DISTINCT {column} FROM market_prices ORDER BY {column}")  # nosec B608
             items = [row[0] for row in cursor.fetchall()]
             return items
     except Exception as e:
