@@ -20,10 +20,15 @@ from app.theme.tokens import (
     ACCENT_BLUE,
     ACCENT_GREEN,
     ACCENT_RED,
+    BG_COLOR,
+    BORDER_COLOR,
     TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
 )
 
 # Re-export CSS helper
+from app.theme.css import inject_terminal_css
 
 # ─── Reusable Component Helpers ───────────────────────────────────────────────
 # (kept here: these use st / pandas and are page-level helpers, not raw tokens)
