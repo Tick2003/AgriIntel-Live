@@ -22,6 +22,7 @@ from app.theme.tokens import (
     ACCENT_RED,
     BG_COLOR,
     BORDER_COLOR,
+    DIVIDER_COLOR,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,

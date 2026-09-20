@@ -60,19 +60,19 @@ class AuthAgent:
         if not password:
             # Try Streamlit secrets as a fallback
             try:
-                password = st.secrets.get("DEFAULT_ADMIN_PASSWORD", "")
-            except (FileNotFoundError, Exception):
+                password = st.secrets["DEFAULT_ADMIN_PASSWORD"]
+            except BaseException:
                 password = ""
 
-            if not password:
-                import secrets as _secrets
-                fallback = _secrets.token_urlsafe(32)
-                os.environ["DEFAULT_ADMIN_PASSWORD"] = fallback
-                import logging
-                logging.warning(
-                    "DEFAULT_ADMIN_PASSWORD not set — using a random fallback. "
-                    "Set it in Streamlit Cloud secrets or .env for stable admin access."
-                )
+        if not password:
+            import secrets as _secrets
+            fallback = _secrets.token_urlsafe(32)
+            os.environ["DEFAULT_ADMIN_PASSWORD"] = fallback
+            import logging
+            logging.warning(
+                "DEFAULT_ADMIN_PASSWORD not set — using a random fallback. "
+                "Set it in Streamlit Cloud secrets or .env for stable admin access."
+            )
 
     def check_session(self):
         """Check if user is logged in and session has not expired."""
