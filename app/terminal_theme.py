@@ -14,6 +14,9 @@ existing import statements (``from app.terminal_theme import ...``)
 continue to work without modification.
 """
 
+# Re-export CSS helper
+from app.theme.css import inject_terminal_css
+
 # Re-export design tokens
 from app.theme.tokens import (
     ACCENT_AMBER,
@@ -27,9 +30,6 @@ from app.theme.tokens import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
 )
-
-# Re-export CSS helper
-from app.theme.css import inject_terminal_css
 
 # ─── Reusable Component Helpers ───────────────────────────────────────────────
 # (kept here: these use st / pandas and are page-level helpers, not raw tokens)
