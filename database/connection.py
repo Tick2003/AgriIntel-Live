@@ -341,6 +341,26 @@ def init_db():
                          (admin_email, hashed_admin, org_id, datetime.now().strftime("%Y-%m-%d")))
                 logger.info(f"Initialized Default SaaS Org & Admin: {admin_email}")
                 conn.commit()
+            else:
+                # Org exists — ensure admin user exists (handles deploys where
+                # secrets were added after the initial DB creation).
+                c.execute("SELECT count(*) FROM users WHERE role = 'Admin'")
+                if c.fetchone()[0] == 0:
+                    import os as _os
+                    admin_email = _os.environ.get("DEFAULT_ADMIN_EMAIL", "")
+                    admin_password = _os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
+                    if admin_email and admin_password:
+                        c.execute("SELECT id FROM organizations LIMIT 1")
+                        org_row = c.fetchone()
+                        org_id = org_row[0] if org_row else 1
+                        salt = bcrypt.gensalt()
+                        hashed_admin = bcrypt.hashpw(admin_password.encode('utf-8'), salt).decode('utf-8')
+                        c.execute(
+                            "INSERT INTO users (email, password_hash, role, org_id, created_at) VALUES (?, ?, 'Admin', ?, ?)",
+                            (admin_email, hashed_admin, org_id, datetime.now().strftime("%Y-%m-%d"))
+                        )
+                        conn.commit()
+                        logger.info(f"Created missing admin user: {admin_email}")
         except Exception as e:
             logger.error(f"SaaS Init Error: {e}", exc_info=True)
 

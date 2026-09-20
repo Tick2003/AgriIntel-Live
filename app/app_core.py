@@ -22,6 +22,29 @@ _repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
+# ─── Bridge Streamlit Secrets → os.environ ────────────────────────────────────
+# Streamlit Cloud stores secrets in st.secrets (not os.environ).  Config and DB
+# code read from os.environ, so we copy relevant keys across once at import time.
+_BRIDGE_KEYS = [
+    "DEFAULT_ADMIN_EMAIL",
+    "DEFAULT_ADMIN_PASSWORD",
+    "AGRIINTEL_API_KEY",
+    "AGRIINTEL_SECRET_KEY",
+    "DATA_GOV_IN_API_KEY",
+    "OWM_API_KEY",
+]
+try:
+    for _key in _BRIDGE_KEYS:
+        if _key not in os.environ:
+            try:
+                _val = st.secrets[_key]
+                if _val:
+                    os.environ[_key] = str(_val)
+            except (KeyError, AttributeError):
+                pass
+except (FileNotFoundError, BaseException):
+    pass  # No secrets file — running locally with .env
+
 # Sanitize external data for safe HTML rendering
 def safe_html(text):
     """Escape HTML to prevent XSS in unsafe_allow_html blocks."""
