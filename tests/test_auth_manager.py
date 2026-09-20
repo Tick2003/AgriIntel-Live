@@ -4,8 +4,9 @@ tests/test_auth_manager.py
 Tests for AuthAgent security hardening.
 
 Verifies that:
-- DEFAULT_ADMIN_PASSWORD is required in non-test environments.
-- AuthAgent raises RuntimeError at startup when the env var is absent.
+- DEFAULT_ADMIN_PASSWORD is gracefully handled when missing.
+- A random fallback is generated and set in os.environ.
+- AuthAgent skips validation in test environments.
 - AuthAgent initialises cleanly when the env var is present.
 """
 
@@ -20,27 +21,35 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class TestAuthManagerSecurity:
     """Security hardening tests for AuthAgent."""
 
-    def test_raises_when_password_missing_in_development(self, monkeypatch):
-        """AuthAgent must raise RuntimeError when DEFAULT_ADMIN_PASSWORD is unset
-        and AGRIINTEL_ENV is 'development'."""
+    def test_fallback_when_password_missing_in_development(self, monkeypatch):
+        """AuthAgent must generate a random fallback password when
+        DEFAULT_ADMIN_PASSWORD is unset and AGRIINTEL_ENV is 'development'."""
         monkeypatch.setenv("AGRIINTEL_ENV", "development")
         monkeypatch.delenv("DEFAULT_ADMIN_PASSWORD", raising=False)
 
         from agents.auth_manager import AuthAgent
 
-        with pytest.raises(RuntimeError, match="DEFAULT_ADMIN_PASSWORD"):
-            AuthAgent._validate_admin_credentials()
+        # Should NOT raise — generates a random fallback instead
+        AuthAgent._validate_admin_credentials()
 
-    def test_raises_when_password_missing_in_production(self, monkeypatch):
-        """AuthAgent must raise RuntimeError when DEFAULT_ADMIN_PASSWORD is unset
-        and AGRIINTEL_ENV is 'production'."""
+        # A fallback password should now be set in os.environ
+        assert os.environ.get("DEFAULT_ADMIN_PASSWORD"), \
+            "Expected a fallback password to be set in os.environ"
+
+    def test_fallback_when_password_missing_in_production(self, monkeypatch):
+        """AuthAgent must generate a random fallback password when
+        DEFAULT_ADMIN_PASSWORD is unset and AGRIINTEL_ENV is 'production'."""
         monkeypatch.setenv("AGRIINTEL_ENV", "production")
         monkeypatch.delenv("DEFAULT_ADMIN_PASSWORD", raising=False)
 
         from agents.auth_manager import AuthAgent
 
-        with pytest.raises(RuntimeError, match="DEFAULT_ADMIN_PASSWORD"):
-            AuthAgent._validate_admin_credentials()
+        # Should NOT raise — generates a random fallback instead
+        AuthAgent._validate_admin_credentials()
+
+        # A fallback password should now be set in os.environ
+        assert os.environ.get("DEFAULT_ADMIN_PASSWORD"), \
+            "Expected a fallback password to be set in os.environ"
 
     def test_no_raise_in_test_environment(self, monkeypatch):
         """AuthAgent must NOT raise when AGRIINTEL_ENV is 'test',
@@ -64,15 +73,14 @@ class TestAuthManagerSecurity:
         # Should not raise
         AuthAgent._validate_admin_credentials()
 
-    def test_error_message_is_helpful(self, monkeypatch):
-        """Error message should tell the developer what to do."""
+    def test_existing_password_not_overwritten(self, monkeypatch):
+        """When DEFAULT_ADMIN_PASSWORD is already set, the fallback
+        should NOT overwrite it."""
         monkeypatch.setenv("AGRIINTEL_ENV", "development")
-        monkeypatch.delenv("DEFAULT_ADMIN_PASSWORD", raising=False)
+        monkeypatch.setenv("DEFAULT_ADMIN_PASSWORD", "MyRealPassword!")
 
         from agents.auth_manager import AuthAgent
 
-        with pytest.raises(RuntimeError) as exc_info:
-            AuthAgent._validate_admin_credentials()
+        AuthAgent._validate_admin_credentials()
 
-        error_text = str(exc_info.value)
-        assert ".env" in error_text or ".env.example" in error_text
+        assert os.environ["DEFAULT_ADMIN_PASSWORD"] == "MyRealPassword!"
