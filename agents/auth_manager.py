@@ -47,10 +47,10 @@ class AuthAgent:
 
     @staticmethod
     def _validate_admin_credentials() -> None:
-        """Raise RuntimeError if DEFAULT_ADMIN_PASSWORD is missing in non-test environments.
+        """Warn if DEFAULT_ADMIN_PASSWORD is missing in non-test environments.
 
-        This prevents silent deployment with no admin password.
-        Set DEFAULT_ADMIN_PASSWORD in your .env (see .env.example).
+        Falls back to a secure random password so the app can still boot.
+        Set DEFAULT_ADMIN_PASSWORD in Streamlit Cloud secrets or your .env.
         """
         env = os.environ.get("AGRIINTEL_ENV", "development")
         if env == "test":
@@ -58,11 +58,21 @@ class AuthAgent:
 
         password = os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
         if not password:
-            raise RuntimeError(
-                "DEFAULT_ADMIN_PASSWORD environment variable is not set.\n"
-                "Please set it in your .env file (see .env.example).\n"
-                "This is required to bootstrap the admin account on first run."
-            )
+            # Try Streamlit secrets as a fallback
+            try:
+                password = st.secrets.get("DEFAULT_ADMIN_PASSWORD", "")
+            except (FileNotFoundError, Exception):
+                password = ""
+
+            if not password:
+                import secrets as _secrets
+                fallback = _secrets.token_urlsafe(32)
+                os.environ["DEFAULT_ADMIN_PASSWORD"] = fallback
+                import logging
+                logging.warning(
+                    "DEFAULT_ADMIN_PASSWORD not set — using a random fallback. "
+                    "Set it in Streamlit Cloud secrets or .env for stable admin access."
+                )
 
     def check_session(self):
         """Check if user is logged in and session has not expired."""
