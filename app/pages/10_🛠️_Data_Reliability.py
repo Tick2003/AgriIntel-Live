@@ -53,10 +53,13 @@ alerts_df = db_manager.get_recent_quality_alerts()
 
 if not alerts_df.empty:
     def highlight_severity(val):
-        color = 'red' if val == 'CRITICAL' else 'orange' if val == 'WARNING' else 'black'
+        color = 'red' if val == 'CRITICAL' else 'orange' if val == 'WARNING' else 'inherit'
         return f'color: {color}'
 
-    st.dataframe(style_dataframe(alerts_df.style.map(highlight_severity, subset=['severity'])), use_container_width=True)
+    styled = style_dataframe(alerts_df)
+    if 'severity' in alerts_df.columns:
+        styled = styled.map(highlight_severity, subset=['severity'])
+    st.dataframe(styled, use_container_width=True)
 else:
     st.success("✅ No recent data quality issues detected.")
 

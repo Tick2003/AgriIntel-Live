@@ -61,8 +61,8 @@ if st.button("Submit Query"):
 user_role = ctx.get("user_role", "Viewer")
 if user_role == "Admin":
     try:
-        from app.voice_admin import render_voice_admin
-        render_voice_admin()
+        from app.voice_admin import show_voice_admin
+        show_voice_admin()
     except Exception as e:
         st.caption(f"Voice admin not available: {e}")
 
