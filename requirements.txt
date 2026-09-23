@@ -5,7 +5,7 @@
 # NOTE: Streamlit Cloud runs Python 3.13 — all packages MUST have cp313 wheels.
 
 # Core Framework
-streamlit==1.63.0
+streamlit==1.64.0
 pandas==2.2.3
 numpy==2.1.3
 
