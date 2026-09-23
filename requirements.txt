@@ -37,7 +37,7 @@ streamlit-oauth==0.1.14
 bcrypt==5.0.0
 
 # Scientific
-scipy==1.14.1
+scipy==1.15.3
 
 # Image Processing
 Pillow==12.3.0
