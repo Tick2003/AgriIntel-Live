@@ -29,8 +29,8 @@ requests==2.34.2
 beautifulsoup4==4.14.3
 feedparser==6.0.12
 
-# NLP
-nltk==3.10.3
+# NLP / Sentiment
+vaderSentiment==3.3.2
 
 # Auth
 streamlit-oauth==0.1.14

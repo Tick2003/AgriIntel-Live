@@ -1,5 +1,4 @@
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
 class SentimentAgent:
@@ -9,12 +8,7 @@ class SentimentAgent:
     Goal: Analyze text sentiment to determine market mood (Bullish/Bearish).
     """
     def __init__(self):
-        # robust downloader
-        try:
-            nltk.data.find('sentiment/vader_lexicon.zip')
-        except LookupError:
-            nltk.download('vader_lexicon')
-
+        # vaderSentiment ships its own lexicon — no download step needed
         self.sia = SentimentIntensityAnalyzer()
 
     def analyze(self, text):
