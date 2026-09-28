@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # --- Intraday Trades ---
 
-def save_intraday_trade(trade_dict):
+def save_intraday_trade(trade_dict: dict) -> None:
     """Save a single intraday trade to the database."""
     try:
         with get_connection() as conn:
@@ -27,16 +27,20 @@ def save_intraday_trade(trade_dict):
             )
             conn.commit()
     except Exception as e:
-        logger.error(f"save_intraday_trade failed: {e}")
+        logger.error("save_intraday_trade failed: %s", e)
 
 
-def get_latest_intraday_trades(commodity=None, mandi=None, limit=50):
+def get_latest_intraday_trades(
+    commodity: str | None = None,
+    mandi: str | None = None,
+    limit: int = 50,
+) -> pd.DataFrame:
     """Fetch the latest intraday trades."""
     try:
         with get_connection() as conn:
             query = "SELECT * FROM intraday_trades"
-            conditions = []
-            params = []
+            conditions: list[str] = []
+            params: list = []
             if commodity:
                 conditions.append("commodity = ?")
                 params.append(commodity)
@@ -50,11 +54,11 @@ def get_latest_intraday_trades(commodity=None, mandi=None, limit=50):
             df = pd.read_sql(query, conn, params=params)
             return df
     except Exception as e:
-        logger.error(f"get_latest_intraday_trades failed: {e}")
+        logger.error("get_latest_intraday_trades failed: %s", e)
         return pd.DataFrame()
 
 
-def clear_old_intraday_trades(hours=24):
+def clear_old_intraday_trades(hours: int = 24) -> None:
     """Remove intraday trades older than specified hours."""
     try:
         cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
@@ -62,14 +66,21 @@ def clear_old_intraday_trades(hours=24):
             c = conn.cursor()
             c.execute("DELETE FROM intraday_trades WHERE timestamp < ?", (cutoff,))
             conn.commit()
-            logger.info(f"Cleared intraday trades older than {hours} hours")
+            logger.info("Cleared intraday trades older than %d hours", hours)
     except Exception as e:
-        logger.error(f"clear_old_intraday_trades failed: {e}")
+        logger.error("clear_old_intraday_trades failed: %s", e)
 
 
 # --- RACE Ensemble Weights ---
 
-def log_ensemble_weights(date, commodity, mandi, regime, model_weights, cv_mapes):
+def log_ensemble_weights(
+    date: str,
+    commodity: str,
+    mandi: str,
+    regime: str,
+    model_weights: dict[str, float],
+    cv_mapes: dict[str, float],
+) -> None:
     """Log RACE ensemble model weights for tracking weight evolution."""
     try:
         with get_connection() as conn:
@@ -83,10 +94,10 @@ def log_ensemble_weights(date, commodity, mandi, regime, model_weights, cv_mapes
                 )
             conn.commit()
     except Exception as e:
-        logger.error(f"log_ensemble_weights failed: {e}")
+        logger.error("log_ensemble_weights failed for %s/%s: %s", commodity, mandi, e)
 
 
-def get_ensemble_weight_history(commodity, mandi, limit=30):
+def get_ensemble_weight_history(commodity: str, mandi: str, limit: int = 30) -> pd.DataFrame:
     """Retrieve recent ensemble weight evolution."""
     try:
         with get_connection() as conn:
@@ -99,5 +110,6 @@ def get_ensemble_weight_history(commodity, mandi, limit=30):
             )
             return df
     except Exception as e:
-        logger.error(f"get_ensemble_weight_history failed: {e}")
+        logger.error("get_ensemble_weight_history failed for %s/%s: %s", commodity, mandi, e)
         return pd.DataFrame()
+

@@ -33,6 +33,13 @@ class MarketRiskEngine:
 
         Returns Total Score (0-100) and Breakdown.
         """
+        # --- Sanitize inputs (NaN can arrive from pct_change().std() on constant data) ---
+        market_volatility = float(np.nan_to_num(market_volatility, nan=0.0))
+        forecast_std = float(np.nan_to_num(forecast_std, nan=0.0))
+        sentiment_score = float(np.nan_to_num(sentiment_score, nan=0.0))
+        arrival_anomaly = float(np.nan_to_num(arrival_anomaly, nan=0.0))
+        weather_risk = float(np.nan_to_num(weather_risk, nan=0.0))
+
         # 1. Volatility Risk (0-30 pts)
         # 2% vol = Max Risk
         vol_risk = min((market_volatility / 0.02) * 30, 30)

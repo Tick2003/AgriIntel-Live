@@ -14,9 +14,9 @@ from database.connection import get_connection
 logger = logging.getLogger(__name__)
 
 
-def save_raw_prices(df, batch_id):
+def save_raw_prices(df: pd.DataFrame, batch_id: str) -> None:
     """Saves incoming scraped data to the raw staging table."""
-    if df.empty:
+    if df is None or df.empty:
         return
     try:
         with get_connection() as conn:
@@ -28,10 +28,10 @@ def save_raw_prices(df, batch_id):
 
             df_copy.to_sql('raw_mandi_prices', conn, if_exists='append', index=False)
     except Exception as e:
-        logger.error(f"save_raw_prices failed: {e}")
+        logger.error("save_raw_prices failed for batch %s: %s", batch_id, e)
 
 
-def log_quality_issues(issues_list):
+def log_quality_issues(issues_list: list[dict]) -> None:
     """
     Logs data quality issues.
     issues_list: List of dicts {batch_id, date, commodity, mandi, issue_type, severity, details, raw_value}
@@ -47,10 +47,17 @@ def log_quality_issues(issues_list):
             ''', issues_list)
             conn.commit()
     except Exception as e:
-        logger.error(f"log_quality_issues failed: {e}")
+        logger.error("log_quality_issues failed: %s", e)
 
 
-def log_scraper_execution(status, duration, fetched, validated, rejected, error_msg=""):
+def log_scraper_execution(
+    status: str,
+    duration: float,
+    fetched: int,
+    validated: int,
+    rejected: int,
+    error_msg: str = "",
+) -> None:
     """Logs the execution summary of the scraper run."""
     try:
         with get_connection() as conn:
@@ -62,28 +69,28 @@ def log_scraper_execution(status, duration, fetched, validated, rejected, error_
             ''', (timestamp, status, duration, fetched, validated, rejected, error_msg))
             conn.commit()
     except Exception as e:
-        logger.error(f"log_scraper_execution failed: {e}")
+        logger.error("log_scraper_execution failed: %s", e)
 
 
-def get_scraper_stats(limit=30):
+def get_scraper_stats(limit: int = 30) -> tuple[pd.DataFrame, float]:
     """Fetch scraper stats for dashboard."""
     try:
         with get_connection() as conn:
             df = pd.read_sql("SELECT * FROM scraper_execution_stats ORDER BY timestamp DESC LIMIT ?", conn, params=[limit])
 
             # Calculate Success Rate
-            success_rate = 0
+            success_rate = 0.0
             if not df.empty:
                 success_count = len(df[df['status'] == 'SUCCESS'])
                 success_rate = (success_count / len(df)) * 100
 
             return df, success_rate
     except Exception as e:
-        logger.error(f"get_scraper_stats failed: {e}")
-        return pd.DataFrame(), 0
+        logger.error("get_scraper_stats failed: %s", e)
+        return pd.DataFrame(), 0.0
 
 
-def get_recent_quality_alerts(limit=10):
+def get_recent_quality_alerts(limit: int = 10) -> pd.DataFrame:
     """Fetches recent data quality alerts."""
     try:
         with get_connection() as conn:
@@ -91,5 +98,6 @@ def get_recent_quality_alerts(limit=10):
             df = pd.read_sql(query, conn, params=[limit])
             return df
     except Exception as e:
-        logger.debug(f"Quality alerts query failed (table may not exist): {e}")
+        logger.debug("Quality alerts query failed (table may not exist): %s", e)
         return pd.DataFrame()
+

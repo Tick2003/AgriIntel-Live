@@ -31,16 +31,25 @@ _local = threading.local()
 @contextmanager
 def get_connection():
     """Thread-safe database connection context manager.
-    Reuses connections per-thread to avoid excessive open/close overhead."""
+    Reuses connections per-thread to avoid excessive open/close overhead.
+
+    Hardened: auto-commits on success path so callers don't silently lose
+    data if they forget ``conn.commit()``.  Existing manual ``commit()``
+    calls become harmless no-ops (double-commit is safe on SQLite).
+    """
     conn = getattr(_local, 'connection', None)
     owned = False
     if conn is None:
         conn = sqlite3.connect(DB_NAME, timeout=30)
         conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA foreign_keys=ON")
         _local.connection = conn
         owned = True
     try:
         yield conn
+        # Auto-commit on success — prevents silent data loss.
+        if owned:
+            conn.commit()
     except Exception:
         conn.rollback()
         raise
@@ -51,6 +60,7 @@ def get_connection():
             except Exception:
                 pass
             _local.connection = None
+
 
 
 def init_db():

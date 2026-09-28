@@ -13,7 +13,7 @@ from database.connection import get_connection
 logger = logging.getLogger(__name__)
 
 
-def log_signal(date, commodity, mandi, signal, price_at_signal):
+def log_signal(date: str, commodity: str, mandi: str, signal: str, price_at_signal: float) -> None:
     """Logs a decision signal."""
     try:
         with get_connection() as conn:
@@ -30,10 +30,10 @@ def log_signal(date, commodity, mandi, signal, price_at_signal):
             ''', (date, commodity, mandi, signal, price_at_signal))
             conn.commit()
     except Exception as e:
-        logger.error(f"log_signal failed: {e}")
+        logger.error("log_signal failed for %s/%s on %s: %s", commodity, mandi, date, e)
 
 
-def get_signal_stats(commodity, mandi):
+def get_signal_stats(commodity: str, mandi: str) -> dict:
     """
     Retrieves stats for 'Win Rate'.
     Logic:
@@ -82,7 +82,7 @@ def get_signal_stats(commodity, mandi):
                             c.execute("UPDATE signal_logs SET price_after_7d=?, profitability_status=? WHERE id=?",
                                       (outcome_price, status, row['id']))
                     except Exception as e:
-                        logger.error(f"Error processing log {row['id']}: {e}")
+                        logger.error("Error processing signal log %s: %s", row['id'], e)
                         continue
 
                 conn.commit()
@@ -90,7 +90,7 @@ def get_signal_stats(commodity, mandi):
             # 2. Calculate Stats
             df = pd.read_sql("SELECT * FROM signal_logs WHERE commodity=? AND mandi=? AND profitability_status IS NOT NULL", conn, params=[commodity, mandi])
     except Exception as e:
-        logger.error(f"get_signal_stats failed: {e}")
+        logger.error("get_signal_stats failed for %s/%s: %s", commodity, mandi, e)
         return {"total": 0, "win_rate": 0, "profitable": 0}
 
     if df.empty:
@@ -106,3 +106,4 @@ def get_signal_stats(commodity, mandi):
         "win_rate": win_rate,
         "profitable": profitable
     }
+

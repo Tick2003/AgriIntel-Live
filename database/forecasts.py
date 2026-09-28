@@ -12,11 +12,13 @@ from database.connection import get_connection
 logger = logging.getLogger(__name__)
 
 
-def log_forecast(gen_date, commodity, mandi, forecast_df):
+def log_forecast(gen_date: str, commodity: str, mandi: str, forecast_df: pd.DataFrame) -> None:
     """
     Logs generated forecasts to DB for future accuracy checking.
     forecast_df must have ['date', 'forecast_price'] columns.
     """
+    if forecast_df is None or forecast_df.empty:
+        return
     try:
         with get_connection() as conn:
             c = conn.cursor()
@@ -36,10 +38,20 @@ def log_forecast(gen_date, commodity, mandi, forecast_df):
 
             conn.commit()
     except Exception as e:
-        logger.error(f"Failed to log forecast: {e}")
+        logger.error("Failed to log forecast for %s/%s: %s", commodity, mandi, e)
 
 
-def log_model_metrics(date, commodity, mandi, mape, rmse, mae, health_score, accuracy, sample_size):
+def log_model_metrics(
+    date: str,
+    commodity: str,
+    mandi: str,
+    mape: float,
+    rmse: float,
+    mae: float,
+    health_score: float,
+    accuracy: float,
+    sample_size: int,
+) -> None:
     """Logs calculated performance metrics."""
     try:
         with get_connection() as conn:
@@ -50,21 +62,21 @@ def log_model_metrics(date, commodity, mandi, mape, rmse, mae, health_score, acc
             ''', (date, commodity, mandi, mape, rmse, mae, health_score, accuracy, sample_size))
             conn.commit()
     except Exception as e:
-        logger.error(f"Failed to log metrics: {e}")
+        logger.error("Failed to log metrics for %s/%s: %s", commodity, mandi, e)
 
 
-def get_performance_history(commodity, mandi):
+def get_performance_history(commodity: str, mandi: str) -> pd.DataFrame:
     """Retrieves historical performance metrics."""
     try:
         with get_connection() as conn:
             df = pd.read_sql("SELECT * FROM model_metrics WHERE commodity=? AND mandi=? ORDER BY date", conn, params=[commodity, mandi])
             return df
     except Exception as e:
-        logger.error(f"get_performance_history failed: {e}")
+        logger.error("get_performance_history failed for %s/%s: %s", commodity, mandi, e)
         return pd.DataFrame()
 
 
-def get_forecast_vs_actuals(commodity, mandi):
+def get_forecast_vs_actuals(commodity: str, mandi: str) -> pd.DataFrame:
     """
     Joins forecast logs with actual market prices to compare.
     Returns DF with [target_date, predicted_price, actual_price, error, error_pct]
@@ -84,7 +96,7 @@ def get_forecast_vs_actuals(commodity, mandi):
             '''
             df = pd.read_sql(query, conn, params=[commodity, mandi])
     except Exception as e:
-        logger.error(f"get_forecast_vs_actuals failed: {e}")
+        logger.error("get_forecast_vs_actuals failed for %s/%s: %s", commodity, mandi, e)
         return pd.DataFrame()
 
     if not df.empty:
@@ -92,3 +104,4 @@ def get_forecast_vs_actuals(commodity, mandi):
         df['error_pct'] = (df['error'].abs() / df['actual_price']) * 100
 
     return df
+

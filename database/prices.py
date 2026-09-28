@@ -13,8 +13,10 @@ from database.connection import DB_NAME, get_connection
 logger = logging.getLogger(__name__)
 
 
-def save_prices(df):
+def save_prices(df: pd.DataFrame) -> None:
     """Save a pandas DataFrame of prices to the DB."""
+    if df is None or df.empty:
+        return
     with get_connection() as conn:
         # Filter for valid columns only
         valid_cols = ['date', 'commodity', 'mandi', 'price_min', 'price_max', 'price_modal', 'arrival']
@@ -27,11 +29,31 @@ def save_prices(df):
 
         df_clean = df[cols_to_save].copy()
 
+        # --- Input validation (defensive, not breaking) ---
+        required = {'date', 'commodity', 'mandi', 'price_modal'}
+        missing = required - set(df_clean.columns)
+        if missing:
+            logger.warning("save_prices: missing recommended columns %s — data may be incomplete", missing)
+
+        # Drop rows with null in critical columns (prevents DB corruption)
+        critical_cols = [c for c in ['date', 'commodity', 'mandi'] if c in df_clean.columns]
+        if critical_cols:
+            before = len(df_clean)
+            df_clean = df_clean.dropna(subset=critical_cols)
+            dropped = before - len(df_clean)
+            if dropped:
+                logger.warning("save_prices: dropped %d rows with NULL in %s", dropped, critical_cols)
+
+        if df_clean.empty:
+            logger.warning("save_prices: no valid rows to save after validation")
+            return
+
         df_clean.to_sql('market_prices', conn, if_exists='append', index=False)
-        logger.info(f"Saved {len(df_clean)} price records.")
+        logger.info("Saved %d price records.", len(df_clean))
 
 
-def get_latest_prices(commodity=None):
+
+def get_latest_prices(commodity: str | None = None) -> pd.DataFrame:
     """Retrieve prices from the DB."""
     try:
         with get_connection() as conn:
@@ -47,7 +69,7 @@ def get_latest_prices(commodity=None):
         return pd.DataFrame()
 
 
-def get_price_history(commodity, mandi, start_date=None, end_date=None):
+def get_price_history(commodity: str, mandi: str, start_date: str | None = None, end_date: str | None = None) -> pd.DataFrame:
     """Fetches historical prices for a specific market within a date range."""
     try:
         with get_connection() as conn:
@@ -70,7 +92,7 @@ def get_price_history(commodity, mandi, start_date=None, end_date=None):
         return pd.DataFrame()
 
 
-def get_unique_items(column):
+def get_unique_items(column: str) -> list[str]:
     """Get distinct values for a column (commodity/mandi)."""
     if column not in ['commodity', 'mandi']:
         raise ValueError("Invalid column name for get_unique_items")
@@ -86,7 +108,7 @@ def get_unique_items(column):
         return []
 
 
-def get_state_level_aggregation():
+def get_state_level_aggregation() -> pd.DataFrame:
     """
     Aggregates data by State (derived from Mandi location or Mock map).
     Returns DF with State, Volatility, PriceChange.
@@ -123,7 +145,7 @@ def get_state_level_aggregation():
     return pd.DataFrame(state_stats)
 
 
-def export_prices_to_csv():
+def export_prices_to_csv() -> None:
     """Export market prices to CSV for Git tracking."""
     try:
         with get_connection() as conn:
@@ -140,7 +162,7 @@ def export_prices_to_csv():
         logger.error(f"export_prices_to_csv failed: {e}")
 
 
-def import_prices_from_csv():
+def import_prices_from_csv() -> None:
     """Restores prices from CSV and performs incremental sync if new data exists."""
     import os
     import sqlite3
